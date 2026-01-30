@@ -1,5 +1,5 @@
-import app from './app';
 import env from './config/env';
+import app from './app';
 import prisma from './config/db';
 
 const PORT = env.PORT;
@@ -8,7 +8,7 @@ async function startServer() {
   try {
     await prisma.$connect();
     console.log('Connected to database');
-    
+
     app.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
     });
