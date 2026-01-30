@@ -1,0 +1,83 @@
+import { View } from '@react-three/drei'
+import { useAuth } from '../../contexts/AuthContext'
+
+export default function Pricing() {
+    const { isAuthenticated, login } = useAuth();
+
+    const handleSignUp = (tier) => {
+        if (!isAuthenticated) {
+            // Open login modal - this will be handled by the navbar
+            login();
+        } else {
+            // Handle subscription logic here
+            console.log(`Subscribing to ${tier} plan`);
+        }
+    };
+
+    return (
+        <section className="py-24 bg-background-light dark:bg-background-dark relative">
+            <div className="max-w-7xl mx-auto px-6">
+                <h2 className="text-5xl font-display font-bold text-center mb-20 tracking-tight text-white">Pricing</h2>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                    {/* Free Tier */}
+                    <div className="bg-white dark:bg-white text-background-dark p-8 rounded-3xl flex flex-col h-full shadow-2xl transition-transform hover:-translate-y-2">
+                        <span className="text-secondary text-sm font-medium mb-4">Free</span>
+                        <div className="text-5xl font-bold mb-8 text-black">$0</div>
+                        <ul className="space-y-4 mb-12 flex-grow">
+                            <li className="flex items-center gap-3 text-sm">
+                                <span className="material-icons text-sm text-green-600">check</span> General report
+                            </li>
+                            <li className="flex items-center gap-3 text-sm">
+                                <span className="material-icons text-sm text-green-600">check</span> Discord community
+                            </li>
+                        </ul>
+                        <button 
+                            onClick={() => handleSignUp('Free')}
+                            className="w-full py-4 bg-slate-100 dark:bg-slate-200 text-background-dark font-bold rounded-2xl hover:bg-slate-200 transition-colors"
+                        >
+                            {isAuthenticated ? 'Current Plan' : 'Sign Up'}
+                        </button>
+                    </div>
+
+                    {/* Pro Tier */}
+                    <div className="bg-white dark:bg-white text-background-dark p-8 rounded-3xl flex flex-col h-full shadow-2xl transition-transform hover:-translate-y-2 border-4 border-primary/20">
+                        <span className="text-secondary text-sm font-medium mb-4">Pro</span>
+                        <div className="text-5xl font-bold mb-8 text-black">$59</div>
+                        <ul className="space-y-4 mb-12 flex-grow">
+                            {['2-Weekly report', 'Live Backdowns', 'Q&As with analyst'].map(item => (
+                                <li key={item} className="flex items-center gap-3 text-sm font-semibold">
+                                    <span className="material-icons text-sm text-green-600">check</span> {item}
+                                </li>
+                            ))}
+                        </ul>
+                        <button 
+                            onClick={() => handleSignUp('Pro')}
+                            className="w-full py-4 bg-background-dark text-white font-bold rounded-2xl hover:bg-slate-800 transition-colors"
+                        >
+                            {isAuthenticated ? 'Upgrade to Pro' : 'Sign Up'}
+                        </button>
+                    </div>
+
+                    {/* Ultimate Tier */}
+                    <div className="bg-white dark:bg-white text-background-dark p-8 rounded-3xl flex flex-col h-full shadow-2xl transition-transform hover:-translate-y-2">
+                        <span className="text-secondary text-sm font-medium mb-4">Ultimate</span>
+                        <div className="text-5xl font-bold mb-8 text-black">$109</div>
+                        <ul className="space-y-4 mb-12 flex-grow">
+                            {['2-Weekly report', 'Market explanation', 'Live Breakdown', 'Q&As with analyst', 'Extra Support'].map(item => (
+                                <li key={item} className="flex items-center gap-3 text-sm">
+                                    <span className="material-icons text-sm text-green-600">check</span> {item}
+                                </li>
+                            ))}
+                        </ul>
+                        <button 
+                            onClick={() => handleSignUp('Ultimate')}
+                            className="w-full py-4 bg-slate-100 dark:bg-slate-200 text-background-dark font-bold rounded-2xl hover:bg-slate-200 transition-colors"
+                        >
+                            {isAuthenticated ? 'Upgrade to Ultimate' : 'Sign Up'}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+    )
+}

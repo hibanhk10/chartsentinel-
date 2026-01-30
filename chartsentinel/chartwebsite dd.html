@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>Chartsental - Trading Info Services</title>
+    <link href="https://fonts.googleapis.com" rel="preconnect" />
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;family=Outfit:wght@400;700&amp;display=swap"
+        rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet" />
+    <script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#d946ef", // Vibrant Magenta/Purple from UI
+                        "background-light": "#ffffff",
+                        "background-dark": "#050505",
+                        "surface-dark": "#111111",
+                    },
+                    fontFamily: {
+                        display: ["Outfit", "sans-serif"],
+                        body: ["Inter", "sans-serif"],
+                    },
+                    borderRadius: {
+                        DEFAULT: "12px",
+                    },
+                },
+            },
+        };
+    </script>
+    <style>
+        .gradient-mesh {
+            background: radial-gradient(circle at 10% 20%, rgba(217, 70, 239, 0.15) 0%, transparent 40%),
+                radial-gradient(circle at 90% 80%, rgba(217, 70, 239, 0.1) 0%, transparent 40%);
+        }
+
+        .glow-button {
+            box-shadow: 0 0 15px rgba(217, 70, 239, 0.3);
+            transition: all 0.3s ease;
+        }
+
+        .glow-button:hover {
+            box-shadow: 0 0 25px rgba(217, 70, 239, 0.5);
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+    </style>
+</head>
+
+<body
+    class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 font-body transition-colors duration-300">
+    <nav
+        class="fixed top-0 w-full z-50 bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-md border-b border-slate-200 dark:border-white/5">
+        <div class="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <span class="text-xl font-bold font-display tracking-tight">Chartsental</span>
+            </div>
+            <div class="hidden md:flex items-center gap-8">
+                <a class="text-sm font-medium hover:text-primary transition-colors" href="#">Services</a>
+                <a class="text-sm font-medium hover:text-primary transition-colors" href="#">Review</a>
+                <a class="text-sm font-medium hover:text-primary transition-colors" href="#">Contact</a>
+                <a class="text-sm font-medium hover:text-primary transition-colors" href="#">Dashboard</a>
+                <button
+                    class="flex items-center gap-2 px-5 py-2.5 rounded-full border border-slate-300 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-white/5 transition-all">
+                    <span class="material-icons text-sm">laptop</span>
+                    <span class="text-sm font-medium">Login In</span>
+                </button>
+            </div>
+        </div>
+    </nav>
+    <header class="relative pt-32 pb-20 overflow-hidden gradient-mesh min-h-screen flex items-center">
+        <div class="absolute inset-0 z-0 opacity-40">
+            <img alt="Trading wave background"
+                class="w-full h-full object-cover filter grayscale brightness-50 contrast-125"
+                src="https://lh3.googleusercontent.com/aida-public/AB6AXuAmygXUwiyFXMUbpChGpdIlz_YNaebNUvBoJ6dRlImLv395AYD8Gg0VdUiLjrx3y3n-uJ8emjQkbWoBSHoXxKz-3uSpLklnci6TqBxloCORD_jJNkOOCpJ6bxJax9piY-BEKSAfM1gHbi1HMOlwTv4HsUqxYZ9KjRsfYt6K5che_KDXpBIK8YaDekzza9AZQCvq0W6ukqsmkh8cyGC9_bpr-xRWCrsPy3E_KLtnjcRdoV5h34ERFa5IY_ubhnj42vk3neubS6ZM7-U" />
+            <div class="absolute inset-0 bg-gradient-to-t from-background-dark via-transparent to-background-dark">
+            </div>
+        </div>
+        <div class="relative z-10 max-w-7xl mx-auto px-6 text-center">
+            <div
+                class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/5 border border-white/10 mb-8 backdrop-blur-sm">
+                <span class="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
+                <span class="text-xs font-semibold uppercase tracking-widest text-slate-300">Info Trader</span>
+            </div>
+            <h1 class="text-5xl md:text-8xl font-display font-bold mb-8 leading-[1.1] tracking-tighter">
+                TRADING WITH<br />INFO YOU NEED
+            </h1>
+            <p class="text-lg md:text-xl text-slate-400 max-w-2xl mx-auto mb-12">
+                Elevate your trading with a better info source. Real-time insights for serious market participants.
+            </p>
+            <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
+                <button
+                    class="w-full sm:w-auto px-10 py-4 bg-primary text-white font-semibold rounded-full glow-button">
+                    View Plans
+                </button>
+                <button
+                    class="w-full sm:w-auto px-10 py-4 bg-white/5 hover:bg-white/10 text-white font-semibold rounded-full border border-white/10 transition-all backdrop-blur-sm">
+                    Join Discord
+                </button>
+            </div>
+            <div class="mt-24 flex items-center justify-center gap-4 text-slate-500 text-sm">
+                <span>Scroll down</span>
+                <div class="w-20 h-px bg-white/10"></div>
+                <span class="material-icons">mouse</span>
+                <div class="w-20 h-px bg-white/10"></div>
+                <span>to see projects</span>
+            </div>
+        </div>
+    </header>
+    <section class="py-24 bg-background-light dark:bg-background-dark relative">
+        <div class="max-w-7xl mx-auto px-6">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+                <div class="space-y-10">
+                    <div class="space-y-4">
+                        <p class="text-slate-500 dark:text-slate-400 max-w-lg leading-relaxed">
+                            I'm Meily, a passionate Brand Identity &amp; Package Designer based in Tokyo. I specialize
+                            in crafting bold visual identities and packaging that captivate and inspire, blending
+                            creativity with strategy to elevate brands.
+                        </p>
+                        <h2 class="text-6xl md:text-8xl font-display font-bold leading-none tracking-tighter uppercase">
+                            What We<br />Do
+                        </h2>
+                    </div>
+                    <div class="flex flex-wrap gap-3 py-6 border-y border-slate-200 dark:border-white/10">
+                        <span
+                            class="px-6 py-2 rounded-full bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-sm font-medium">Forex</span>
+                        <span
+                            class="px-6 py-2 rounded-full bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-sm font-medium">Stock</span>
+                        <span
+                            class="px-6 py-2 rounded-full bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-sm font-medium">Crypto</span>
+                        <span
+                            class="px-6 py-2 rounded-full bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-sm font-medium">Gold</span>
+                    </div>
+                    <div class="grid grid-cols-2 md:grid-cols-3 gap-y-10 gap-x-6">
+                        <div class="space-y-1">
+                            <h4 class="text-sm font-semibold text-slate-400 dark:text-slate-500">Weekly report</h4>
+                        </div>
+                        <div class="space-y-1">
+                            <h4 class="text-sm font-semibold text-slate-400 dark:text-slate-500">Live Market breakdown
+                            </h4>
+                        </div>
+                        <div class="space-y-1">
+                            <h4 class="text-sm font-semibold text-slate-400 dark:text-slate-500">Q&amp;As</h4>
+                        </div>
+                        <div class="space-y-1">
+                            <h4 class="text-sm font-semibold text-slate-400 dark:text-slate-500">Network building</h4>
+                        </div>
+                        <div class="space-y-1">
+                            <h4 class="text-sm font-semibold text-slate-400 dark:text-slate-500">Strategy sharing</h4>
+                        </div>
+                        <div class="space-y-1">
+                            <h4 class="text-sm font-semibold text-slate-400 dark:text-slate-500">Team building</h4>
+                        </div>
+                    </div>
+                    <a class="inline-flex items-center gap-3 text-lg font-medium hover:text-primary transition-colors group"
+                        href="#reviews">
+                        Reviews
+                        <span
+                            class="material-icons group-hover:translate-y-1 transition-transform">arrow_downward</span>
+                    </a>
+                </div>
+                <div class="relative group">
+                    <div
+                        class="absolute -inset-4 bg-primary/20 blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-700">
+                    </div>
+                    <div
+                        class="relative glass-card rounded-2xl overflow-hidden aspect-square flex items-center justify-center p-4">
+                        <img alt="Trading candlesticks visualization"
+                            class="w-full h-full object-cover rounded-xl opacity-80 mix-blend-screen"
+                            src="https://lh3.googleusercontent.com/aida-public/AB6AXuDQ3ORB-GnYs9IT1B1fkaBtWKbGjf-xQPB2Zke8PU9q_MklAJ_d46IwX_vwfsnnB4zPaGgsLYHZR80AcKrH43_WDsvFPakB9Wp4IWhOAkoKaNWhNiWM4wI8yMaOs81URI-mxB-j_2uETT69Pbw36l_iCrI0_1PBd4_5LrrXqCsXAy13-_0bXSYJbqZ5wGXBh8hG43sZqBxQ6AAYXwyhFAKbVjf5jifVGDGaC6Z38aMhPDktnqgS88YvA8NxsoyhleUnF5NBUhTo6W4" />
+                        <div
+                            class="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-background-dark/80">
+                        </div>
+                        <div
+                            class="absolute top-1/2 left-0 w-full h-0.5 bg-gradient-to-r from-transparent via-green-500/30 to-transparent blur-sm">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+    <section class="py-24 bg-background-light dark:bg-background-dark">
+        <div class="max-w-7xl mx-auto px-6">
+            <h2 class="text-5xl font-display font-bold text-center mb-20 tracking-tight">Pricing</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div
+                    class="bg-white dark:bg-white text-background-dark p-8 rounded-3xl flex flex-col h-full shadow-2xl transition-transform hover:-translate-y-2">
+                    <span class="text-slate-500 text-sm font-medium mb-4">Free</span>
+                    <div class="text-5xl font-bold mb-8">$0</div>
+                    <ul class="space-y-4 mb-12 flex-grow">
+                        <li class="flex items-center gap-3 text-sm">
+                            <span class="material-icons text-sm text-green-600">check</span> General report
+                        </li>
+                        <li class="flex items-center gap-3 text-sm">
+                            <span class="material-icons text-sm text-green-600">check</span> Discord community
+                        </li>
+                    </ul>
+                    <button
+                        class="w-full py-4 bg-slate-100 dark:bg-slate-200 text-background-dark font-bold rounded-2xl hover:bg-slate-200 transition-colors">Sign
+                        Up</button>
+                </div>
+                <div
+                    class="bg-white dark:bg-white text-background-dark p-8 rounded-3xl flex flex-col h-full shadow-2xl transition-transform hover:-translate-y-2 border-4 border-primary/20">
+                    <span class="text-slate-500 text-sm font-medium mb-4">Pro</span>
+                    <div class="text-5xl font-bold mb-8">$59</div>
+                    <ul class="space-y-4 mb-12 flex-grow">
+                        <li class="flex items-center gap-3 text-sm font-semibold">
+                            <span class="material-icons text-sm text-green-600">check</span> 2-Weekly report
+                        </li>
+                        <li class="flex items-center gap-3 text-sm font-semibold">
+                            <span class="material-icons text-sm text-green-600">check</span> Live Backdowns
+                        </li>
+                        <li class="flex items-center gap-3 text-sm font-semibold">
+                            <span class="material-icons text-sm text-green-600">check</span> Q&amp;As with analyst
+                        </li>
+                    </ul>
+                    <button
+                        class="w-full py-4 bg-background-dark text-white font-bold rounded-2xl hover:bg-slate-800 transition-colors">Sign
+                        Up</button>
+                </div>
+                <div
+                    class="bg-white dark:bg-white text-background-dark p-8 rounded-3xl flex flex-col h-full shadow-2xl transition-transform hover:-translate-y-2">
+                    <span class="text-slate-500 text-sm font-medium mb-4">Ultimate</span>
+                    <div class="text-5xl font-bold mb-8">$109</div>
+                    <ul class="space-y-4 mb-12 flex-grow">
+                        <li class="flex items-center gap-3 text-sm">
+                            <span class="material-icons text-sm text-green-600">check</span> 2-Weekly report
+                        </li>
+                        <li class="flex items-center gap-3 text-sm">
+                            <span class="material-icons text-sm text-green-600">check</span> Market explanation
+                        </li>
+                        <li class="flex items-center gap-3 text-sm">
+                            <span class="material-icons text-sm text-green-600">check</span> Live Breakdown
+                        </li>
+                        <li class="flex items-center gap-3 text-sm">
+                            <span class="material-icons text-sm text-green-600">check</span> Q&amp;As with analyst
+                        </li>
+                        <li class="flex items-center gap-3 text-sm">
+                            <span class="material-icons text-sm text-green-600">check</span> Extra Support
+                        </li>
+                    </ul>
+                    <button
+                        class="w-full py-4 bg-slate-100 dark:bg-slate-200 text-background-dark font-bold rounded-2xl hover:bg-slate-200 transition-colors">Sign
+                        Up</button>
+                </div>
+            </div>
+        </div>
+    </section>
+    <section class="py-24 bg-background-light dark:bg-background-dark">
+        <div class="max-w-7xl mx-auto px-6">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-20">
+                <div class="relative rounded-3xl overflow-hidden aspect-[4/5]">
+                    <img alt="Process hand gesture with graph"
+                        class="w-full h-full object-cover grayscale brightness-75 hover:scale-105 transition-transform duration-1000"
+                        src="https://lh3.googleusercontent.com/aida-public/AB6AXuDbtMQDaKPwllI8RMoxf2Ti2R-c_8pDqT4Lp0DhevIBKOHj7AwkunGAxLq_k02hzXTjL4VcdVUWYZt4K8NuvY-iJSMbVzWnaBKtAOH0jg09xE-u8egpHu5BzsuEKHla6iEhMCyjt4cpFkOYr4wDdOtdWKhny6sv2MEX23KkN8D_kZdOhQBjaoT-Ckcv_pvGp5wf1cmTXaQh6aeS1qOBxiU7FfidX-uE5_TyAG2Z3drO9pJ-yB7MPH85IBz6L7iZWHtNX4bYQi2ri6Q" />
+                    <div class="absolute inset-0 bg-gradient-to-t from-background-dark to-transparent opacity-60"></div>
+                </div>
+                <div class="flex flex-col justify-center space-y-12">
+                    <div class="space-y-6">
+                        <div
+                            class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10">
+                            <span class="material-icons text-xs">auto_awesome</span>
+                            <span class="text-[10px] uppercase font-bold tracking-widest">Design Process</span>
+                        </div>
+                        <h2 class="text-6xl font-display font-bold tracking-tight">Process</h2>
+                        <p class="text-slate-500 dark:text-slate-400 max-w-md leading-relaxed">
+                            Our process is straight to the forward. Our analysts collect the info and make them into
+                            easy to read and understand report.
+                        </p>
+                        <div class="flex gap-4">
+                            <button
+                                class="px-6 py-3 bg-white/5 border border-white/10 rounded-full text-sm font-semibold hover:bg-white/10 transition-all glow-button">Book
+                                a Free Call</button>
+                            <button
+                                class="px-6 py-3 bg-white/5 border border-white/10 rounded-full text-sm font-semibold hover:bg-white/10 transition-all">View
+                                Plans</button>
+                        </div>
+                    </div>
+                    <div class="space-y-6">
+                        <div class="glass-card p-6 rounded-2xl relative group hover:bg-white/5 transition-colors">
+                            <span class="absolute top-4 right-6 text-[10px] font-bold text-slate-600">1</span>
+                            <div class="flex items-start gap-4">
+                                <span class="material-icons text-primary">lightbulb</span>
+                                <div>
+                                    <h4 class="text-xl font-bold mb-3">Collect information</h4>
+                                    <p class="text-sm text-slate-500 leading-relaxed">Our highly skilled analysts get
+                                        all the needed info to make a trade or to understand the current market
+                                        condition.</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="glass-card p-6 rounded-2xl relative group hover:bg-white/5 transition-colors">
+                            <span class="absolute top-4 right-6 text-[10px] font-bold text-slate-600">2</span>
+                            <div class="flex items-start gap-4">
+                                <span class="material-icons text-primary">analytics</span>
+                                <div>
+                                    <h4 class="text-xl font-bold mb-3">Making Reports</h4>
+                                    <p class="text-sm text-slate-500 leading-relaxed">The information collected by the
+                                        analysis will pass on to the reporters who organize and make it easy to
+                                        understand.</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="glass-card p-6 rounded-2xl relative group hover:bg-white/5 transition-colors">
+                            <span class="absolute top-4 right-6 text-[10px] font-bold text-slate-600">3</span>
+                            <div class="flex items-start gap-4">
+                                <span class="material-icons text-primary">send</span>
+                                <div>
+                                    <h4 class="text-xl font-bold mb-3">Report Delivered</h4>
+                                    <p class="text-sm text-slate-500 leading-relaxed">The final product will then be
+                                        passed to the clients through E-mail as a newsletter twice a week.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+    <section class="py-24 bg-background-light dark:bg-background-dark border-t border-slate-200 dark:border-white/5">
+        <div class="max-w-7xl mx-auto px-6">
+            <h2 class="text-5xl md:text-6xl font-display font-bold text-center mb-16 uppercase tracking-tighter">Why Us?
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="glass-card p-10 rounded-3xl space-y-6 hover:border-primary/30 transition-all">
+                    <span class="material-icons text-3xl text-primary">star_outline</span>
+                    <h3 class="text-2xl font-bold">Human-Readable Reports</h3>
+                    <p class="text-slate-500 leading-relaxed">We translate complex data into clear, easy-to-understand
+                        summaries that anyone on your team can read and act on—no technical expertise required.</p>
+                </div>
+                <div class="glass-card p-10 rounded-3xl space-y-6 hover:border-primary/30 transition-all">
+                    <span class="material-icons text-3xl text-primary">settings_input_component</span>
+                    <h3 class="text-2xl font-bold">Built for Real Decisions</h3>
+                    <p class="text-slate-500 leading-relaxed">Built for Real Decisions. Every piece of information we
+                        provide is actionable and vetted for accuracy.</p>
+                </div>
+                <div class="glass-card p-10 rounded-3xl space-y-6 hover:border-primary/30 transition-all">
+                    <span class="material-icons text-3xl text-primary">verified</span>
+                    <h3 class="text-2xl font-bold">Consistent, Reliable Clarity</h3>
+                    <p class="text-slate-500 leading-relaxed">Our structured approach ensures you receive meaningful
+                        insights at a steady pace, making it easier to track progress and stay aligned over time.</p>
+                </div>
+                <div class="glass-card p-10 rounded-3xl space-y-6 hover:border-primary/30 transition-all">
+                    <span class="material-icons text-3xl text-primary">info</span>
+                    <h3 class="text-2xl font-bold">Context That Matters</h3>
+                    <p class="text-slate-500 leading-relaxed">Numbers alone don't tell the full story. We add context,
+                        comparisons, and explanations so you understand why changes happen.</p>
+                </div>
+            </div>
+            <div
+                class="mt-20 glass-card rounded-3xl p-12 flex flex-col md:flex-row items-center justify-around gap-12 text-center">
+                <div>
+                    <div class="text-5xl font-bold font-display mb-2">100+</div>
+                    <p class="text-slate-500 text-sm">Traders with of all markets</p>
+                </div>
+                <div class="w-px h-16 bg-white/10 hidden md:block"></div>
+                <div>
+                    <div class="text-5xl font-bold font-display mb-2">96%</div>
+                    <p class="text-slate-500 text-sm">Client satisfaction rate.</p>
+                </div>
+                <div class="w-px h-16 bg-white/10 hidden md:block"></div>
+                <div>
+                    <div class="text-5xl font-bold font-display mb-2">5+</div>
+                    <p class="text-slate-500 text-sm">Analyst with 5 years of experience</p>
+                </div>
+            </div>
+        </div>
+    </section>
+    <footer class="py-12 bg-background-light dark:bg-background-dark border-t border-slate-200 dark:border-white/5">
+        <div class="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-8">
+            <div class="flex items-center gap-2">
+                <div class="w-6 h-6 bg-primary rounded flex items-center justify-center">
+                    <span class="material-icons text-white text-[10px]">query_stats</span>
+                </div>
+                <span class="text-lg font-bold font-display tracking-tight">Chartsental</span>
+            </div>
+            <p class="text-slate-500 text-sm">© 2024 Chartsental. All rights reserved.</p>
+            <div class="flex gap-6">
+                <a class="text-slate-500 hover:text-primary transition-colors text-sm" href="#">Twitter</a>
+                <a class="text-slate-500 hover:text-primary transition-colors text-sm" href="#">Discord</a>
+                <a class="text-slate-500 hover:text-primary transition-colors text-sm" href="#">Privacy</a>
+            </div>
+        </div>
+    </footer>
+
+</body>
+
+</html>
+
+
+
+
+# Add remote origin (replace with your repo URL)
+git remote add origin https://github.com/AayushBehera/AB6AXuAmygXUwiyFXMUbpChGpdIlz_YNaebNUvBoJ6dRlImLv395AYD8Gg0VdUiLjrx3y3n-uJ8emjQkbWoBSHoXxKz-3uSpLklnci6TqBxloCORD_jJNkOOCpJ6bxJax9piY-BEKSAfM1gHbi1HMOlwTv4HsUqxYZ9KjRsfYt6K5che_KDXpBIK8YaDekzza9AZQCvq0W6ukqsmkh8cyGC9_bpr-xRWCrsPy3E_KLtnjcRdoV5h34ERFa5IY_ubhnj42vk3neubS6ZM7-U
+
+# Rename branch to main
+git branch -M main
+
+# Push to GitHub
+git push -u origin main
