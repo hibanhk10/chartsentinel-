@@ -6,7 +6,7 @@ import { SentimentWidget } from '../../components/widgets/SentimentWidget'
 
 export default function WhatWeDo() {
     return (
-        <section id="services" className="py-24 bg-background-light dark:bg-background-dark relative">
+        <section id="services" className="py-24 bg-background-dark relative">
             <div className="max-w-7xl mx-auto px-6">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
                     <div className="space-y-10">
@@ -22,7 +22,7 @@ export default function WhatWeDo() {
                         </div>
                         <div className="flex flex-wrap gap-3 py-6 border-y border-slate-200 dark:border-white/10">
                             {['Forex', 'Stock', 'Crypto', 'Gold'].map(tag => (
-                                <span key={tag} className="px-6 py-2 rounded-full bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-sm font-medium text-slate-300">{tag}</span>
+                                <span key={tag} className="px-6 py-2 rounded-full bg-white/5 border border-white/10 text-sm font-medium text-slate-300">{tag}</span>
                             ))}
                         </div>
                         <div className="grid grid-cols-2 md:grid-cols-3 gap-y-10 gap-x-6">

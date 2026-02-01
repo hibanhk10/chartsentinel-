@@ -2,7 +2,7 @@ import { GridPattern } from '../../components/ui/Patterns'
 
 export default function Footer() {
     return (
-        <footer id="contact" className="py-12 bg-background-light dark:bg-background-dark border-t border-slate-200 dark:border-white/5 relative overflow-hidden">
+        <footer id="contact" className="py-12 bg-background-dark border-t border-white/5 relative overflow-hidden">
             {/* Background Pattern */}
             <GridPattern className="absolute inset-0 text-slate-800 opacity-10" />
             <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-8 relative z-10">
