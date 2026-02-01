@@ -6,15 +6,15 @@ import { SentimentWidget } from '../../components/widgets/SentimentWidget'
 
 export default function WhatWeDo() {
     return (
-        <section className="py-24 bg-background-light dark:bg-background-dark relative">
+        <section id="services" className="py-24 bg-background-light dark:bg-background-dark relative">
             <div className="max-w-7xl mx-auto px-6">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
                     <div className="space-y-10">
                         <div className="space-y-4">
                             <p className="text-secondary dark:text-secondary max-w-lg leading-relaxed">
-                                I'm Meily, a passionate Brand Identity & Package Designer based in Tokyo. I specialize
-                                in crafting bold visual identities and packaging that captivate and inspire, blending
-                                creativity with strategy to elevate brands.
+                                Chartsentinel delivers institutional-grade market analysis and real-time trading insights.
+                                We empower traders with professional tools, comprehensive reports, and expert guidance to
+                                navigate complex financial markets with confidence.
                             </p>
                             <h2 className="text-6xl md:text-8xl font-display font-bold leading-none tracking-tighter uppercase text-white">
                                 What We<br />Do

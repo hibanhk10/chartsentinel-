@@ -7,7 +7,7 @@ import TrendChart from '../../components/ui/TrendChart'
 // WhyUs Component
 export default function WhyUs() {
     return (
-        <section className="relative py-24 bg-gradient-to-b from-background-dark via-slate-950 to-background-dark overflow-hidden">
+        <section id="reviews" className="relative py-24 bg-gradient-to-b from-background-dark via-slate-950 to-background-dark overflow-hidden">
             {/* Background Effects */}
             <GridPattern className="absolute inset-0 text-primary opacity-5" />
             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-primary/10 rounded-full blur-[150px]" />
