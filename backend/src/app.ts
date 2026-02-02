@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import env from './config/env';
 import { errorHandler } from './middlewares/error.middleware';
 import healthRoutes from './routes/health.routes';
 import authRoutes from './routes/auth.routes';
@@ -8,7 +9,15 @@ import newsRoutes from './routes/news.routes';
 
 const app = express();
 
-app.use(cors()); // Allow all origins for debugging
+// Security: Restrict CORS in production
+const corsOptions = {
+    origin: env.NODE_ENV === 'production' && env.FRONTEND_URL
+        ? env.FRONTEND_URL
+        : true, // Allow all if not specified or in dev
+    credentials: true,
+};
+
+app.use(cors(corsOptions));
 
 app.use(express.json());
 

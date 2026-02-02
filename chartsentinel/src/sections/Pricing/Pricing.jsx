@@ -40,7 +40,7 @@ export default function Pricing() {
                     </div>
 
                     {/* Pro Tier */}
-                    <div className="bg-slate-900 border border-primary/30 text-white p-8 rounded-3xl flex flex-col h-full shadow-2xl transition-transform hover:-translate-y-2">
+                    <div className="bg-slate-900 border border-white/10 text-white p-8 rounded-3xl flex flex-col h-full shadow-2xl transition-transform hover:-translate-y-2">
                         <span className="text-secondary text-sm font-medium mb-4">Pro</span>
                         <div className="text-5xl font-bold mb-8 text-white">$59</div>
                         <ul className="space-y-4 mb-12 flex-grow">
@@ -52,7 +52,7 @@ export default function Pricing() {
                         </ul>
                         <button
                             onClick={() => handleSignUp('Pro')}
-                            className="w-full py-4 bg-primary text-white font-bold rounded-2xl hover:bg-primary/90 transition-colors"
+                            className="w-full py-4 bg-white/5 border border-white/10 text-white font-bold rounded-2xl hover:bg-white/10 transition-colors"
                         >
                             {isAuthenticated ? 'Upgrade to Pro' : 'Sign Up'}
                         </button>
