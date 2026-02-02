@@ -6,15 +6,15 @@ import { SentimentWidget } from '../../components/widgets/SentimentWidget'
 
 export default function WhatWeDo() {
     return (
-        <section className="py-24 bg-background-light dark:bg-background-dark relative">
+        <section id="services" className="py-24 bg-background-dark relative">
             <div className="max-w-7xl mx-auto px-6">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
                     <div className="space-y-10">
                         <div className="space-y-4">
                             <p className="text-secondary dark:text-secondary max-w-lg leading-relaxed">
-                                I'm Meily, a passionate Brand Identity & Package Designer based in Tokyo. I specialize
-                                in crafting bold visual identities and packaging that captivate and inspire, blending
-                                creativity with strategy to elevate brands.
+                                Chartsentinel delivers institutional-grade market analysis and real-time trading insights.
+                                We empower traders with professional tools, comprehensive reports, and expert guidance to
+                                navigate complex financial markets with confidence.
                             </p>
                             <h2 className="text-6xl md:text-8xl font-display font-bold leading-none tracking-tighter uppercase text-white">
                                 What We<br />Do
@@ -22,7 +22,7 @@ export default function WhatWeDo() {
                         </div>
                         <div className="flex flex-wrap gap-3 py-6 border-y border-slate-200 dark:border-white/10">
                             {['Forex', 'Stock', 'Crypto', 'Gold'].map(tag => (
-                                <span key={tag} className="px-6 py-2 rounded-full bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-sm font-medium text-slate-300">{tag}</span>
+                                <span key={tag} className="px-6 py-2 rounded-full bg-white/5 border border-white/10 text-sm font-medium text-slate-300">{tag}</span>
                             ))}
                         </div>
                         <div className="grid grid-cols-2 md:grid-cols-3 gap-y-10 gap-x-6">

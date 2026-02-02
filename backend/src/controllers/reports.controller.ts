@@ -3,7 +3,7 @@ import { ReportsService } from '../services/reports.service';
 
 const reportsService = new ReportsService();
 
-export const getAllReportsController = async (req: Request, res: Response) => {
+export const getAllReportsController = async (_req: Request, res: Response) => {
   try {
     const reports = await reportsService.getAllReports();
     res.json(reports);

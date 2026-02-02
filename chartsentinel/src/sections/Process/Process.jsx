@@ -2,7 +2,7 @@ import TradingVisualization from './TradingVisualization'
 
 export default function Process() {
     return (
-        <section className="py-24 bg-background-light dark:bg-background-dark">
+        <section className="py-24 bg-background-dark">
             <div className="max-w-7xl mx-auto px-6">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-20">
                     {/* Visual Content Left */}
@@ -13,7 +13,7 @@ export default function Process() {
                     {/* Right Content */}
                     <div className="flex flex-col justify-center space-y-12">
                         <div className="space-y-6">
-                            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10">
+                            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10">
                                 <span className="material-icons text-xs text-white">auto_awesome</span>
                                 <span className="text-[10px] uppercase font-bold tracking-widest text-white">Design Process</span>
                             </div>
