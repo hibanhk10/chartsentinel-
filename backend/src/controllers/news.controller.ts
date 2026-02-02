@@ -3,7 +3,7 @@ import { NewsService } from '../services/news.service';
 
 const newsService = new NewsService();
 
-export const getAllNewsController = async (req: Request, res: Response) => {
+export const getAllNewsController = async (_req: Request, res: Response) => {
   try {
     const news = await newsService.getAllNews();
     res.json(news);

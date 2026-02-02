@@ -1,15 +1,16 @@
 import { Request, Response, NextFunction } from 'express';
+import env from '../config/env';
 
 export const errorHandler = (
   err: Error,
-  req: Request,
+  _req: Request,
   res: Response,
-  next: NextFunction
+  _next: NextFunction
 ) => {
   console.error(err.stack);
-  
+
   res.status(500).json({
     error: 'Internal server error',
-    message: process.env.NODE_ENV === 'development' ? err.message : undefined,
+    message: env.NODE_ENV === 'development' ? err.message : undefined,
   });
 };
