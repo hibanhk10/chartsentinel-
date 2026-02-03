@@ -6,21 +6,21 @@ export default function PostEffects() {
         <EffectComposer disableNormalPass>
             {/* Bloom for the glow */}
             <Bloom
-                luminanceThreshold={1.0} // only very bright things glow
+                luminanceThreshold={1.0}
                 mipmapBlur
-                intensity={1.5}
-                radius={0.6}
+                intensity={1.0} // Reduced from 1.5
+                radius={0.4} // Reduced from 0.6
             />
 
             {/* Chromatic Aberration for that lens effect */}
             <ChromaticAberration
-                offset={[0.002, 0.002]} // subtle offset
+                offset={[0.001, 0.001]} // Reduced from 0.002
                 radialModulation={false}
                 modulationOffset={0}
             />
 
-            {/* Noise for film grain texture */}
-            <Noise opacity={0.05} />
+            {/* Noise for film grain texture - lowered for less grain and better perf */}
+            <Noise opacity={0.03} />
 
             {/* Vignette to focus center */}
             <Vignette
