@@ -45,7 +45,7 @@ const Reports = () => {
     <section id="reports" className="py-24 bg-background-dark relative">
       <div className="max-w-7xl mx-auto px-6">
         <h2 className="text-5xl font-display font-bold text-center mb-20 tracking-tight text-white">
-          Latest Reports
+          Sample Reports
         </h2>
 
         {reports.length === 0 ? (
