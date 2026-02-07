@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import LoginModal from '../auth/LoginModal';
 import RegisterModal from '../auth/RegisterModal';
@@ -8,6 +9,8 @@ export default function Navbar() {
     const [showLoginModal, setShowLoginModal] = useState(false);
     const [showRegisterModal, setShowRegisterModal] = useState(false);
     const { user, isAuthenticated, logout } = useAuth();
+    const navigate = useNavigate();
+    const location = useLocation();
 
     const handleLogin = () => {
         setShowLoginModal(true);
@@ -24,6 +27,13 @@ export default function Navbar() {
     };
 
     const handleScroll = (e, targetId) => {
+        if (location.pathname !== '/') {
+            // If not on home page, navigate home first then scroll (handled by useEffect or similar if needed)
+            // For now, let's just navigate home.
+            navigate('/');
+            return;
+        }
+
         e.preventDefault();
         const targetElement = document.getElementById(targetId.replace('#', ''));
         if (targetElement) {
@@ -57,7 +67,8 @@ export default function Navbar() {
                     <motion.div
                         initial={{ opacity: 0, x: -20 }}
                         animate={{ opacity: 1, x: 0 }}
-                        className="flex items-center gap-2"
+                        onClick={() => navigate('/')}
+                        className="flex items-center gap-2 cursor-pointer"
                     >
                         <span className="text-xl font-bold font-display tracking-tight text-white">Chartsentinel</span>
                     </motion.div>
@@ -82,16 +93,18 @@ export default function Navbar() {
                         >
                             Review
                         </motion.a>
-                        <motion.a
+                        <motion.div
                             variants={navItemVariants}
                             whileHover="hover"
                             whileTap="tap"
-                            className="text-sm font-medium transition-colors text-slate-300 cursor-pointer"
-                            href="#contact"
-                            onClick={(e) => handleScroll(e, '#contact')}
                         >
-                            Contact
-                        </motion.a>
+                            <Link
+                                to="/contact"
+                                className="text-sm font-medium transition-colors text-slate-300 cursor-pointer"
+                            >
+                                Contact
+                            </Link>
+                        </motion.div>
                         {isAuthenticated && (
                             <motion.a
                                 variants={navItemVariants}
