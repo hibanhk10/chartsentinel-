@@ -1,18 +1,13 @@
 import { useEffect } from 'react'
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import Lenis from '@studio-freight/lenis'
 import CanvasWrapper from './components/three/CanvasWrapper'
-import Hero from './sections/Hero/Hero'
 import useExperienceStore from './store/useExperienceStore'
 import { AuthProvider } from './contexts/AuthContext'
 
 import Navbar from './components/ui/Navbar'
-import WhatWeDo from './sections/WhatWeDo/WhatWeDo'
-import Reports from './sections/Reports/Reports'
-import News from './sections/News/News'
-import Pricing from './sections/Pricing/Pricing'
-import Process from './sections/Process/Process'
-import WhyUs from './sections/WhyUs/WhyUs'
-import Footer from './sections/Footer/Footer'
+import HomePage from './pages/HomePage'
+import ContactPage from './pages/ContactPage'
 
 export default function App() {
   const setMouse = useExperienceStore((state) => state.setMouse)
@@ -26,7 +21,6 @@ export default function App() {
     requestAnimationFrame(raf)
 
     const handleMouseMove = (e) => {
-      // Normalize mouse from -1 to 1
       const x = (e.clientX / window.innerWidth) * 2 - 1
       const y = -(e.clientY / window.innerHeight) * 2 + 1
       setMouse(x, y)
@@ -41,24 +35,20 @@ export default function App() {
 
   return (
     <AuthProvider>
-      <main className="bg-background-dark text-white selection:bg-primary selection:text-white">
-        <div className="fixed inset-0 z-0">
-          <CanvasWrapper />
-        </div>
+      <Router>
+        <main className="bg-background-dark text-white selection:bg-primary selection:text-white">
+          <div className="fixed inset-0 z-0">
+            <CanvasWrapper />
+          </div>
 
-        <Navbar />
+          <Navbar />
 
-        <div className="relative z-10 w-full">
-          <Hero />
-          <WhatWeDo />
-          <Reports />
-          <News />
-          <Pricing />
-          <Process />
-          <WhyUs />
-          <Footer />
-        </div>
-      </main>
+          <Routes>
+            <Route path="/" element={<HomePage />} />
+            <Route path="/contact" element={<ContactPage />} />
+          </Routes>
+        </main>
+      </Router>
     </AuthProvider>
   )
 }

@@ -6,6 +6,7 @@ import healthRoutes from './routes/health.routes';
 import authRoutes from './routes/auth.routes';
 import reportsRoutes from './routes/reports.routes';
 import newsRoutes from './routes/news.routes';
+import contactRoutes from './routes/contact.routes';
 
 const app = express();
 
@@ -18,13 +19,13 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
-
 app.use(express.json());
 
 app.use('/api', healthRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/reports', reportsRoutes);
 app.use('/api/news', newsRoutes);
+app.use('/api/contact', contactRoutes);
 
 app.use(errorHandler);
 
