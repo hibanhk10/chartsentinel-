@@ -1,0 +1,9 @@
+{
+    "name": "chartsentinel-root",
+    "private": true,
+    "scripts": {
+        "build": "npm run build --prefix backend",
+        "start": "npm start --prefix backend",
+        "postinstall": "npm install --prefix backend"
+    }
+}
