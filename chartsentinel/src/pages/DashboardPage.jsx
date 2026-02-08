@@ -1,4 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 import Sidebar from '../components/dashboard/Sidebar';
 import DashboardHome from '../components/dashboard/Home';
 import DashboardReports from '../components/dashboard/Reports';
@@ -8,6 +10,25 @@ import DashboardCoaching from '../components/dashboard/Coaching';
 
 const DashboardPage = () => {
     const [activeTab, setActiveTab] = useState('home');
+    const { isAuthenticated, loading, login } = useAuth();
+    const navigate = useNavigate();
+
+    useEffect(() => {
+        if (!loading && !isAuthenticated) {
+            // Redirect to home and open login if not authenticated
+            navigate('/');
+            // Optional: trigger login modal if possible, or just redirect
+            setTimeout(() => login(), 500); // Try to open login modal after redirect
+        }
+    }, [isAuthenticated, loading, navigate, login]);
+
+    if (loading) {
+        return <div className="min-h-screen bg-background-dark flex items-center justify-center text-white">Loading...</div>;
+    }
+
+    if (!isAuthenticated) {
+        return null; // Don't render dashboard content while redirecting
+    }
 
     const renderContent = () => {
         switch (activeTab) {
