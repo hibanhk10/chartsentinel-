@@ -15,32 +15,32 @@
 
 @layer utilities {
   .gradient-mesh {
-    background: radial-gradient(circle at 10% 20%, rgba(217, 70, 239, 0.25) 0%, transparent 40%),
-      radial-gradient(circle at 90% 80%, rgba(168, 85, 247, 0.2) 0%, transparent 40%);
+    background: radial-gradient(circle at 10% 20%, rgba(217, 70, 239, 0.2) 0%, transparent 40%),
+      radial-gradient(circle at 90% 80%, rgba(168, 85, 247, 0.15) 0%, transparent 40%);
   }
 
   .glow-button {
-    box-shadow: 0 0 20px rgba(217, 70, 239, 0.4);
+    box-shadow: 0 0 20px rgba(217, 70, 239, 0.3);
     transition: all 0.3s ease;
   }
 
   .glow-button:hover {
-    box-shadow: 0 0 30px rgba(217, 70, 239, 0.6);
+    box-shadow: 0 0 30px rgba(217, 70, 239, 0.5);
   }
 
   .glass-card {
-    background: rgba(255, 255, 255, 0.06);
+    background: rgba(26, 26, 26, 0.6);
     backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+    border: 1px solid rgba(217, 70, 239, 0.1);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
   }
 
   .glow-magenta {
-    box-shadow: 0 0 15px rgba(217, 70, 239, 0.5);
+    box-shadow: 0 0 15px rgba(217, 70, 239, 0.4);
   }
 
   .glow-purple {
-    box-shadow: 0 0 15px rgba(168, 85, 247, 0.5);
+    box-shadow: 0 0 15px rgba(168, 85, 247, 0.4);
   }
 }
 

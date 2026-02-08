@@ -14,7 +14,7 @@ export class AuthService {
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
-    
+
     const user = await prisma.user.create({
       data: {
         email,
@@ -23,12 +23,13 @@ export class AuthService {
     });
 
     const token = this.generateToken(user.id, user.email, user.role);
-    
+
     return {
       user: {
         id: user.id,
         email: user.email,
         role: user.role,
+        isPaid: user.isPaid,
       },
       token,
     };
@@ -44,18 +45,19 @@ export class AuthService {
     }
 
     const isValidPassword = await bcrypt.compare(password, user.passwordHash);
-    
+
     if (!isValidPassword) {
       throw new Error('Invalid credentials');
     }
 
     const token = this.generateToken(user.id, user.email, user.role);
-    
+
     return {
       user: {
         id: user.id,
         email: user.email,
         role: user.role,
+        isPaid: user.isPaid,
       },
       token,
     };

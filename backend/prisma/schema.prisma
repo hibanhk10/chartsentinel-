@@ -16,6 +16,7 @@ model User {
   email        String   @unique
   passwordHash String
   role         String   @default("user")
+  isPaid       Boolean  @default(false)
   createdAt    DateTime @default(now())
   
   @@map("users")

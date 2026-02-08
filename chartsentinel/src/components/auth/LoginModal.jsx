@@ -1,7 +1,9 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 
 const LoginModal = ({ isOpen, onClose, onSwitchToRegister }) => {
+  const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const { login, loading, error } = useAuth();
@@ -9,7 +11,10 @@ const LoginModal = ({ isOpen, onClose, onSwitchToRegister }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await login({ email, password });
+      const response = await login({ email, password });
+      if (response.user.isPaid) {
+        navigate('/dashboard');
+      }
       onClose();
     } catch (err) {
       // Error is handled by the auth context

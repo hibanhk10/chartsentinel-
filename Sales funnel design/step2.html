@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>ChartSentinel - Trading Profile</title>
+    <link href="https://fonts.googleapis.com" rel="preconnect" />
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&amp;family=Orbitron:wght@400;700&amp;display=swap"
+        rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet" />
+    <script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#00f2ff",
+                        "background-light": "#f8fafc",
+                        "background-dark": "#000000",
+                    },
+                    fontFamily: {
+                        display: ["Orbitron", "sans-serif"],
+                        sans: ["Inter", "sans-serif"],
+                    },
+                    borderRadius: {
+                        DEFAULT: "0.75rem",
+                    },
+                },
+            },
+        };
+    </script>
+    <style>
+        body {
+            background-color: #000000;
+            overflow-x: hidden;
+        }
+
+        .mesh-bg {
+            position: fixed;
+            top: 0;
+            bottom: 0;
+            width: 30%;
+            z-index: 0;
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
+        .mesh-left {
+            left: 0;
+            background-image: radial-gradient(circle at 0% 50%, rgba(0, 242, 255, 0.1) 0%, transparent 50%);
+        }
+
+        .mesh-right {
+            right: 0;
+            background-image: radial-gradient(circle at 100% 50%, rgba(0, 242, 255, 0.1) 0%, transparent 50%);
+        }
+
+        .grid-lines {
+            position: fixed;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+            background-size: 50px 50px;
+            mask-image: radial-gradient(circle at center, black, transparent 80%);
+            z-index: 0;
+            perspective: 1000px;
+            transform: rotateX(20deg);
+        }
+    </style>
+</head>
+
+<body
+    class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-white font-sans min-h-screen flex flex-col items-center justify-center relative">
+    <div class="grid-lines"></div>
+    <div class="mesh-bg mesh-left hidden lg:block">
+        <img alt="digital mesh abstract left"
+            class="h-full w-full object-cover opacity-20 grayscale invert dark:invert-0"
+            src="https://lh3.googleusercontent.com/aida-public/AB6AXuBWpXhqL8wp44vpgHEWvTa8sI_yWKxoC8cNbuS0L9Zdla33dikx_xKd-6nyIKNpgJRh9KFydbrhHgsQ_0h-PAdV1CvR-YQ9Lmb28MiDItKifXM8VFMNUEygnPqx1yIsntP9VA-oWV-CY9afEzCE2tZajomurcohcKKX3_hhV--GjHM70d0R9ApsNb0TUkiyOLsPjyo4M4q5Qb3u0FRY4haV_TUWOk_t9NcNKcOAvG_ZHn8YsnleeglK0qhSepi1SFOMS01tRumympg" />
+    </div>
+    <div class="mesh-bg mesh-right hidden lg:block">
+        <img alt="digital mesh abstract right"
+            class="h-full w-full object-cover opacity-20 grayscale scale-x-[-1] invert dark:invert-0"
+            src="https://lh3.googleusercontent.com/aida-public/AB6AXuDRill-IaYBmFSJ-03eYQwFxe1wvxUnnCdao2prSK_728mncDXNjm9llv5a0BLTIHuGh11jA71l7vjUEFCxKKy1FVKL99WZ38_mxorPyIvYIAts0-t6TYC2dIFoXnXpr6SdTuQou9cKdMvYzWqmekxxjEx85HMF0uPKAaHSJ8IXkFofD-uORIxPyumCSOSKNxygPRMW2TG7RZhBoAkgT0bMBi2rq9t0JmnbGsYIHUnaziSy76E5JSdXlh44hYm6a6TXg50e2xmPx0g" />
+    </div>
+    <main class="relative z-10 w-full max-w-2xl px-6 py-12 flex flex-col items-center text-center">
+        <h2 class="font-display text-primary text-xl md:text-2xl tracking-[0.2em] mb-4 uppercase">
+            Step-2
+        </h2>
+        <p class="text-slate-600 dark:text-slate-400 text-sm md:text-base leading-relaxed mb-12 max-w-lg">
+            By understanding how you trade and what you focus on, we can customize our analysis to support better
+            decisions and stronger consistency.
+        </p>
+        <form
+            class="w-full max-w-md space-y-6 text-left bg-white/5 dark:bg-zinc-900/50 p-8 rounded-2xl border border-slate-200/10 dark:border-white/10 backdrop-blur-sm">
+            <div class="space-y-2">
+                <label
+                    class="block text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider ml-1"
+                    for="trade-type">
+                    What do you trade
+                </label>
+                <input
+                    class="w-full bg-slate-100 dark:bg-zinc-800 border-none rounded-xl py-4 px-5 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-zinc-600 focus:ring-2 focus:ring-primary transition-all outline-none"
+                    id="trade-type" placeholder="Stock/Forex" type="text" />
+            </div>
+            <div class="space-y-2">
+                <label
+                    class="block text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider ml-1"
+                    for="trading-style">
+                    Trading Style
+                </label>
+                <div class="relative">
+                    <select
+                        class="w-full appearance-none bg-slate-100 dark:bg-zinc-800 border-none rounded-xl py-4 px-5 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary transition-all outline-none cursor-pointer"
+                        id="trading-style">
+                        <option value="days">Day Trading</option>
+                        <option value="swing">Swing Trading</option>
+                        <option value="scalping">Scalping</option>
+                        <option value="position">Position Trading</option>
+                    </select>
+                    <div class="absolute inset-y-0 right-4 flex items-center pointer-events-none">
+                        <span class="material-icons text-slate-400 dark:text-zinc-500">expand_more</span>
+                    </div>
+                </div>
+            </div>
+            <div class="space-y-2">
+                <label
+                    class="block text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider ml-1"
+                    for="experience">
+                    Experience
+                </label>
+                <div class="relative">
+                    <select
+                        class="w-full appearance-none bg-slate-100 dark:bg-zinc-800 border-none rounded-xl py-4 px-5 text-slate-900 dark:text-white focus:ring-2 focus:ring-primary transition-all outline-none cursor-pointer"
+                        id="experience">
+                        <option value="beginner">Beginner (0-1 Years)</option>
+                        <option value="intermediate">Intermediate (1-3 Years)</option>
+                        <option value="advanced">Advanced (3-5 Years)</option>
+                        <option value="professional">Professional (5+ Years)</option>
+                    </select>
+                    <div class="absolute inset-y-0 right-4 flex items-center pointer-events-none">
+                        <span class="material-icons text-slate-400 dark:text-zinc-500">expand_more</span>
+                    </div>
+                </div>
+            </div>
+            <button
+                class="w-full bg-slate-800 dark:bg-zinc-700 hover:bg-slate-700 dark:hover:bg-zinc-600 text-white font-semibold py-4 px-6 rounded-xl transition-all duration-300 transform active:scale-[0.98] mt-4"
+                type="submit">
+                Submit
+            </button>
+        </form>
+    </main>
+    <div class="fixed bottom-10 right-10 z-20">
+        <a class="group flex items-center space-x-2 bg-primary/10 hover:bg-primary/20 text-primary border border-primary/30 py-3 px-8 rounded-full font-display text-sm tracking-widest transition-all duration-300"
+            href="#">
+            <span>NEXT</span>
+            <span class="material-icons text-sm group-hover:translate-x-1 transition-transform">arrow_forward</span>
+        </a>
+    </div>
+    <div class="fixed top-8 left-8 z-20 opacity-40 dark:opacity-100">
+        <div class="flex items-center space-x-1">
+            <span class="text-2xl font-bold tracking-tighter dark:text-white">chart</span>
+            <span class="text-2xl font-bold tracking-tighter text-primary">SENTINEL</span>
+        </div>
+    </div>
+
+</body>
+
+</html>

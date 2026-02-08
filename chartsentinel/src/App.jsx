@@ -8,6 +8,8 @@ import { AuthProvider } from './contexts/AuthContext'
 import Navbar from './components/ui/Navbar'
 import HomePage from './pages/HomePage'
 import ContactPage from './pages/ContactPage'
+import DashboardPage from './pages/DashboardPage'
+import SalesFunnelPage from './pages/SalesFunnelPage'
 
 export default function App() {
   const setMouse = useExperienceStore((state) => state.setMouse)
@@ -46,6 +48,8 @@ export default function App() {
           <Routes>
             <Route path="/" element={<HomePage />} />
             <Route path="/contact" element={<ContactPage />} />
+            <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/funnel" element={<SalesFunnelPage />} />
           </Routes>
         </main>
       </Router>

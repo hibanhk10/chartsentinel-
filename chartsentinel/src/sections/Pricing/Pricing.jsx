@@ -2,16 +2,12 @@ import { View } from '@react-three/drei'
 import { useAuth } from '../../contexts/AuthContext'
 
 export default function Pricing() {
-    const { isAuthenticated, login } = useAuth();
+    const { isAuthenticated } = useAuth();
 
+    // eslint-disable-next-line no-unused-vars
     const handleSignUp = (tier) => {
-        if (!isAuthenticated) {
-            // Open login modal - this will be handled by the navbar
-            login();
-        } else {
-            // Handle subscription logic here
-            console.log(`Subscribing to ${tier} plan`);
-        }
+        // Redirect to sales funnel for all plans
+        window.location.href = '/funnel';
     };
 
     return (
