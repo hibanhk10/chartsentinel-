@@ -6,9 +6,11 @@ import TrendChart from '../../components/ui/TrendChart'
 /* eslint-disable no-unused-vars */
 import { motion } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../../contexts/AuthContext'
 
 export default function Hero() {
     const navigate = useNavigate()
+    const { isAuthenticated } = useAuth()
     const titleRef = useRef()
     const subtitleRef = useRef()
 
@@ -51,7 +53,13 @@ export default function Hero() {
 
                 <div className="flex flex-col sm:flex-row items-center justify-center gap-6 mb-20">
                     <button
-                        onClick={() => navigate('/dashboard')}
+                        onClick={() => {
+                            if (isAuthenticated) {
+                                navigate('/dashboard');
+                            } else {
+                                navigate('/?login=true');
+                            }
+                        }}
                         className="w-full sm:w-auto px-10 py-4 bg-primary text-white font-semibold rounded-full glow-button hover:scale-105 transition-transform active:scale-95"
                     >
                         Launch Terminal

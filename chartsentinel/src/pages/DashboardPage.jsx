@@ -15,10 +15,8 @@ const DashboardPage = () => {
 
     useEffect(() => {
         if (!loading && !isAuthenticated) {
-            // Redirect to home and open login if not authenticated
-            navigate('/');
-            // Optional: trigger login modal if possible, or just redirect
-            setTimeout(() => login(), 500); // Try to open login modal after redirect
+            // Redirect to home and open login via query param
+            navigate('/?login=true');
         }
     }, [isAuthenticated, loading, navigate, login]);
 

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import LoginModal from '../auth/LoginModal';
@@ -11,6 +11,16 @@ export default function Navbar() {
     const { user, isAuthenticated, logout } = useAuth();
     const navigate = useNavigate();
     const location = useLocation();
+
+    // Check for login query param
+    useEffect(() => {
+        const params = new URLSearchParams(location.search);
+        if (params.get('login') === 'true') {
+            setShowLoginModal(true);
+            // Optional: Clean up the URL
+            navigate(location.pathname, { replace: true });
+        }
+    }, [location.search, navigate]);
 
     const handleLogin = () => {
         setShowLoginModal(true);
