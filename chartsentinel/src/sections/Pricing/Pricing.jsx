@@ -1,13 +1,15 @@
 import { View } from '@react-three/drei'
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext'
 
 export default function Pricing() {
     const { isAuthenticated } = useAuth();
 
-    // eslint-disable-next-line no-unused-vars
-    const handleSignUp = (tier) => {
+    const navigate = useNavigate();
+
+    const handleSignUp = () => {
         // Redirect to sales funnel for all plans
-        window.location.href = '/funnel';
+        navigate('/funnel');
     };
 
     return (
@@ -28,7 +30,7 @@ export default function Pricing() {
                             </li>
                         </ul>
                         <button
-                            onClick={() => handleSignUp('Free')}
+                            onClick={() => handleSignUp()}
                             className="w-full py-4 bg-white/5 border border-white/10 text-white font-bold rounded-2xl hover:bg-white/10 transition-colors"
                         >
                             {isAuthenticated ? 'Current Plan' : 'Sign Up'}
@@ -47,7 +49,7 @@ export default function Pricing() {
                             ))}
                         </ul>
                         <button
-                            onClick={() => handleSignUp('Pro')}
+                            onClick={() => handleSignUp()}
                             className="w-full py-4 bg-white/5 border border-white/10 text-white font-bold rounded-2xl hover:bg-white/10 transition-colors"
                         >
                             {isAuthenticated ? 'Upgrade to Pro' : 'Sign Up'}
@@ -66,7 +68,7 @@ export default function Pricing() {
                             ))}
                         </ul>
                         <button
-                            onClick={() => handleSignUp('Ultimate')}
+                            onClick={() => handleSignUp()}
                             className="w-full py-4 bg-white/5 border border-white/10 text-white font-bold rounded-2xl hover:bg-white/10 transition-colors"
                         >
                             {isAuthenticated ? 'Upgrade to Ultimate' : 'Sign Up'}
