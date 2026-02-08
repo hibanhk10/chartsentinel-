@@ -30,8 +30,7 @@ export default function Hero() {
                         [4, 4], [5, 1], [8, 2], [6, 6], [12, 12], [20, 5]
                     ]}
                 />
-                {/* Radial gradient burst */}
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[600px] bg-primary/20 blur-[120px] rounded-full mix-blend-screen opacity-40 z-0" />
+                {/* Radial gradient burst removed */}
             </div>
 
             <div className="relative z-10 max-w-7xl mx-auto px-6 text-center w-full">
