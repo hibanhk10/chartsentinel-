@@ -25,7 +25,7 @@ const LoginModal = ({ isOpen, onClose, onSwitchToRegister }) => {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-background-dark text-white p-8 rounded-2xl max-w-md w-full mx-4 border border-white/10">
+      <div className="bg-background-dark text-white p-8 rounded-2xl max-w-md w-full mx-4 border border-white/10 relative">
         <h2 className="text-2xl font-bold mb-6">Login</h2>
 
         {error && (

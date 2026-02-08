@@ -18,8 +18,10 @@ export default function Navbar() {
     };
 
     const handleRegister = () => {
-        setShowRegisterModal(true);
+        // Redirect to sales funnel instead of opening register modal
+        navigate('/funnel');
         setShowLoginModal(false);
+        setShowRegisterModal(false);
     };
 
     const handleLogout = () => {
