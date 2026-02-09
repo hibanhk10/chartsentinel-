@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import Stripe from 'stripe';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
-    apiVersion: '2023-10-16', // Use latest API version or pins
+    apiVersion: '2026-01-28.clover',
 });
 
 export const createCheckoutSession = async (req: Request, res: Response) => {
@@ -13,7 +13,6 @@ export const createCheckoutSession = async (req: Request, res: Response) => {
             return res.status(400).json({ error: 'Missing userId or plan' });
         }
 
-        let priceId;
         let amount;
 
         // Map plans to prices/amounts
@@ -52,10 +51,10 @@ export const createCheckoutSession = async (req: Request, res: Response) => {
             },
         });
 
-        res.json({ id: session.id });
+        return res.json({ id: session.id });
     } catch (error: any) {
         console.error('Stripe error:', error);
-        res.status(500).json({ error: error.message });
+        return res.status(500).json({ error: error.message });
     }
 };
 
@@ -84,7 +83,7 @@ export const handleWebhook = async (req: Request, res: Response) => {
             console.log(`Unhandled event type ${event.type}`);
     }
 
-    res.send();
+    return res.send();
 };
 
 const handleCheckoutSessionCompleted = async (session: Stripe.Checkout.Session) => {
