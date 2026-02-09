@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import stripePromise from '../lib/stripe';
 import FunnelLayout from '../components/funnel/FunnelLayout';
 import Step1Register from '../components/funnel/Step1Register';
 import Step2Profile from '../components/funnel/Step2Profile';
@@ -11,6 +12,10 @@ const SalesFunnelPage = () => {
     const [currentStep, setCurrentStep] = useState(1);
     const [funnelData, setFunnelData] = useState({});
     const navigate = useNavigate();
+    const { register } = useAuth();
+
+    // Helper to get API URL
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
     const nextStep = (data) => {
         setFunnelData(prev => ({ ...prev, ...data }));
@@ -23,27 +28,59 @@ const SalesFunnelPage = () => {
         window.scrollTo(0, 0);
     };
 
-    const { register } = useAuth(); // Get register function from context
-
     const completeFunnel = async (password) => {
         try {
             console.log('Completing funnel registration...', funnelData);
-            await register({
+
+            // 1. Register User
+            const response = await register({
                 name: funnelData.name,
                 email: funnelData.email,
                 password: password,
-                // We might want to save other funnel data (phone, trading profile, plan) 
-                // either in metadata or a separate profile update call.
-                // For now, core auth is priority.
             });
 
-            // Redirect happens automatically in register or we can force it here if needed
-            // But register usually sets user state. 
-            // The AuthContext might trigger a redirect or we do it here.
-            navigate('/dashboard');
+            const user = response.user;
+            const plan = funnelData.plan; // 'pro' | 'ultimate' | undefined
+
+            // 2. If Paid Plan, Redirect to Stripe
+            if (plan && (plan === 'pro' || plan === 'ultimate')) {
+                console.log('Initiating checkout for plan:', plan);
+
+                // create checkout session
+                const checkoutResponse = await fetch(`${API_URL}/payments/create-checkout-session`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        plan,
+                        userId: user.id,
+                        email: user.email,
+                    }),
+                });
+
+                const session = await checkoutResponse.json();
+
+                if (session.error) {
+                    throw new Error(session.error);
+                }
+
+                // Redirect to Stripe
+                const stripe = await stripePromise;
+                const result = await stripe.redirectToCheckout({
+                    sessionId: session.id,
+                });
+
+                if (result.error) {
+                    throw new Error(result.error.message);
+                }
+            } else {
+                // Free/No Plan -> Dashboard
+                navigate('/dashboard');
+            }
+
         } catch (error) {
-            console.error("Registration failed:", error);
-            // Handle error (maybe show toast or alert)
+            console.error("Registration/Payment failed:", error);
             alert("Registration failed: " + error.message);
         }
     };
@@ -56,7 +93,6 @@ const SalesFunnelPage = () => {
                 return <Step2Profile onNext={nextStep} onPrev={prevStep} />;
             case 3:
                 return <Step3Pricing onNext={nextStep} onPrev={prevStep} />;
-            case 4:
             case 4:
                 return <Step4Briefing onComplete={completeFunnel} onPrev={prevStep} initialEmail={funnelData.email} />;
             default:
