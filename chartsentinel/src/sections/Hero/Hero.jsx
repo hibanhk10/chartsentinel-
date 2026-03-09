@@ -64,8 +64,11 @@ export default function Hero() {
                     >
                         Launch Terminal
                     </button>
-                    <button className="w-full sm:w-auto px-10 py-4 bg-white/5 hover:bg-white/10 text-white font-semibold rounded-full border border-white/10 transition-all backdrop-blur-sm flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full bg-green-500"></span> Live Demo
+                    <button 
+                        onClick={() => window.open('https://chartsentinel-preregister.vercel.app/', '_blank')}
+                        className="w-full sm:w-auto px-10 py-4 bg-white/5 hover:bg-white/10 text-white font-semibold rounded-full border border-white/10 transition-all backdrop-blur-sm flex items-center gap-2"
+                    >
+                        <span className="w-2 h-2 rounded-full bg-green-500"></span> Pre-register Now
                     </button>
                 </div>
 
