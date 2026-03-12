@@ -15,6 +15,7 @@ export default function LiveTicker() {
         { symbol: 'ETH', price: fmt(lp.ETH.price), change: pct(lp.ETH.changePercent), pos: lp.ETH.isPositive },
         { symbol: 'SOL', price: fmt(lp.SOL.price), change: pct(lp.SOL.changePercent), pos: lp.SOL.isPositive },
         { symbol: 'EUR/USD', price: lp.EURUSD.price ? lp.EURUSD.price.toFixed(4) : '...', change: '', pos: lp.EURUSD.isPositive },
+        { symbol: 'GBP/USD', price: lp.GBPUSD.price ? lp.GBPUSD.price.toFixed(4) : '...', change: '', pos: lp.GBPUSD.isPositive },
     ]
 
     const repeated = [...items, ...items, ...items, ...items]

@@ -6,12 +6,11 @@ const fmt = (val, dec = 2) =>
         ? val.toLocaleString(undefined, { minimumFractionDigits: dec, maximumFractionDigits: dec })
         : '...'
 
-// Static rows for assets we don't have free live feeds for
+// Static rows for non-crypto assets without free live feeds
 const STATIC_ROWS = [
     { symbol: 'AAPL',    price: null, change: null, volume: '142M' },
     { symbol: 'TSLA',    price: null, change: null, volume: '89M'  },
     { symbol: 'GOLD',    price: null, change: null, volume: '54M'  },
-    { symbol: 'GBP/USD', price: null, change: null, volume: '31M'  },
 ]
 
 export default function LiveMarketFeed() {
@@ -22,6 +21,7 @@ export default function LiveMarketFeed() {
         { symbol: 'ETH/USD', price: fmt(lp.ETH.price), change: lp.ETH.changePercent, isPos: lp.ETH.isPositive,   volume: '12B'  },
         { symbol: 'SOL/USD', price: fmt(lp.SOL.price), change: lp.SOL.changePercent, isPos: lp.SOL.isPositive,   volume: '3.1B' },
         { symbol: 'EUR/USD', price: lp.EURUSD.price ? lp.EURUSD.price.toFixed(4) : '...', change: null, isPos: lp.EURUSD.isPositive, volume: '18B' },
+        { symbol: 'GBP/USD', price: lp.GBPUSD.price ? lp.GBPUSD.price.toFixed(4) : '...', change: null, isPos: lp.GBPUSD.isPositive, volume: '14B' },
     ]
 
     const allRows = [...liveRows, ...STATIC_ROWS]

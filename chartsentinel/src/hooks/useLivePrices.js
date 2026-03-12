@@ -17,6 +17,7 @@ const DEFAULT_PRICES = {
     ETH: { price: null, changePercent: 0, isPositive: true },
     SOL: { price: null, changePercent: 0, isPositive: true },
     EURUSD: { price: null, isPositive: true },
+    GBPUSD: { price: null, isPositive: true },
 }
 
 const SYMBOL_MAP = {
@@ -80,17 +81,19 @@ function disconnectWS() {
 
 async function fetchForex() {
     try {
-        // Free, no API key required
-        const res = await fetch('https://api.exchangerate-api.com/v4/latest/EUR')
+        // Free, no API key — fetches both EUR→USD and GBP→USD in one call
+        const res = await fetch('https://api.frankfurter.app/latest?from=USD&to=EUR,GBP')
         const json = await res.json()
-        const rate = json.rates?.USD
-        if (rate) {
-            sharedPrices = {
-                ...sharedPrices,
-                EURUSD: { price: rate, isPositive: rate >= 1.0 }
-            }
-            notify()
+        // Frankfurter returns how much 1 USD = X foreign currency, so we invert
+        const eurUsd = json.rates?.EUR ? +(1 / json.rates.EUR).toFixed(5) : null
+        const gbpUsd = json.rates?.GBP ? +(1 / json.rates.GBP).toFixed(5) : null
+
+        sharedPrices = {
+            ...sharedPrices,
+            ...(eurUsd !== null && { EURUSD: { price: eurUsd, isPositive: eurUsd >= 1.0 } }),
+            ...(gbpUsd !== null && { GBPUSD: { price: gbpUsd, isPositive: gbpUsd >= 1.0 } }),
         }
+        notify()
     } catch (e) {
         console.warn('Forex fetch failed', e)
     }
