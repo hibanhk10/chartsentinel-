@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 import gsap from 'gsap'
 import { GridPattern } from '../../components/ui/Patterns'
 import LiveTicker from '../../components/ui/LiveTicker'
-import TrendChart from '../../components/ui/TrendChart'
+import RealtimeBinanceChart from '../../components/ui/RealtimeBinanceChart'
 /* eslint-disable no-unused-vars */
 import { motion } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
@@ -94,20 +94,7 @@ export default function Hero() {
                     {/* Grid Layout of Widgets */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4">
                         {/* Main Chart */}
-                        <div className="col-span-2 bg-black/40 rounded-xl p-4 border border-white/5">
-                            <div className="flex justify-between mb-4">
-                                <div>
-                                    <h4 className="text-sm text-secondary">BTC/USD</h4>
-                                    <div className="text-2xl font-bold font-mono">$42,150.20</div>
-                                </div>
-                                <div className="flex gap-2">
-                                    {['1H', '4H', '1D', '1W'].map(t => (
-                                        <span key={t} className="px-2 py-1 rounded bg-white/5 text-xs text-secondary hover:text-white cursor-pointer transition-colors">{t}</span>
-                                    ))}
-                                </div>
-                            </div>
-                            <TrendChart height={200} color="#d946ef" />
-                        </div>
+                        <RealtimeBinanceChart symbol="BTCUSDT" height={280} />
 
                         {/* Side Widgets */}
                         <div className="space-y-4">
