@@ -15,20 +15,14 @@ export default function HeroSphere() {
 
     return (
         <Sphere ref={meshRef} args={[1, 24, 24]} scale={2.5}>
-            <meshPhysicalMaterial
+            <meshStandardMaterial
                 color="#d946ef"
                 emissive="#d946ef"
-                emissiveIntensity={0.2}
-                roughness={0.1}
-                metalness={0.0}
-                transmission={0.9} // Glass effect
-                thickness={1.0}
-                ior={1.5}
-                clearcoat={1}
-                clearcoatRoughness={0.1}
-                attenuationColor="#ffffff"
-                attenuationDistance={1}
+                emissiveIntensity={0.4}
+                roughness={0.2}
+                metalness={0.8}
                 transparent={true}
+                opacity={0.4}
             />
         </Sphere>
     )

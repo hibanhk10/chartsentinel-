@@ -11,7 +11,7 @@ export default function CanvasWrapper() {
     return (
         <>
             <Canvas
-                dpr={[1, 1.3]} // Lowered slightly more for extreme performance
+                dpr={1} // Hard-capped at 1 to prevent severe lag on high-DPI/Retina screens
                 gl={{
                     antialias: false,
                     powerPreference: 'high-performance',
