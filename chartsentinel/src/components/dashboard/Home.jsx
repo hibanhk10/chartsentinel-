@@ -74,7 +74,7 @@ const DashboardHome = () => {
                     <p className="text-xs text-text-muted mb-6">Get notified when new products and articles are published.</p>
                     <div className="flex gap-2">
                         <input
-                            className="flex-1 bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-xs focus:ring-1 focus:ring-primary outline-none transition-all placeholder:text-text-muted"
+                            className="flex-1 bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-xs text-white focus:ring-1 focus:ring-primary outline-none transition-all placeholder:text-text-muted"
                             placeholder="Your email"
                             type="email"
                         />
