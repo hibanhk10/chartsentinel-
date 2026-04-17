@@ -2,7 +2,16 @@ import api from './api';
 
 export const authService = {
   async register(userData) {
-    return api.post('/auth/register', userData);
+    const response = await api.post('/auth/register', userData);
+
+    // Persist so the session survives a refresh or full-page nav.
+    // Matches the behaviour of login() below.
+    if (response.token) {
+      localStorage.setItem('authToken', response.token);
+      localStorage.setItem('user', JSON.stringify(response.user));
+    }
+
+    return response;
   },
 
   async login(credentials) {
