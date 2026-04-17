@@ -55,7 +55,7 @@ const DashboardPage = () => {
     };
 
     return (
-        <div className="flex min-h-screen bg-background-dark text-text-primary pt-20">
+        <div className="relative z-10 flex min-h-screen bg-background-dark text-text-primary pt-20">
             <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
             <main className="ml-64 flex-1 p-8 lg:p-12 max-w-6xl mx-auto">
                 {renderContent()}
