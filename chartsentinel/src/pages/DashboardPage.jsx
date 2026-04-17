@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useCallback, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import Sidebar from '../components/dashboard/Sidebar';
 import DashboardHome from '../components/dashboard/Home';
@@ -9,8 +9,26 @@ import DashboardNetworking from '../components/dashboard/Networking';
 import DashboardCoaching from '../components/dashboard/Coaching';
 import DashboardAdmin from '../components/dashboard/Admin';
 
+const VALID_TABS = ['home', 'reports', 'news', 'networking', 'coaching', 'about', 'contact', 'admin'];
+
 const DashboardPage = () => {
-    const [activeTab, setActiveTab] = useState('home');
+    // Persist the active tab in the URL (?tab=admin) so reloads and
+    // bookmarks land on the same pane instead of always bouncing to Home.
+    const [searchParams, setSearchParams] = useSearchParams();
+    const tabParam = searchParams.get('tab');
+    const activeTab = tabParam && VALID_TABS.includes(tabParam) ? tabParam : 'home';
+
+    const setActiveTab = useCallback(
+        (tab) => {
+            if (tab === 'home') {
+                setSearchParams({}, { replace: true });
+            } else {
+                setSearchParams({ tab }, { replace: true });
+            }
+        },
+        [setSearchParams]
+    );
+
     const { isAuthenticated, loading, login } = useAuth();
     const navigate = useNavigate();
 
