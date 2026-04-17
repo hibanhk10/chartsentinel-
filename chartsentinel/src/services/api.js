@@ -25,8 +25,15 @@ class ApiService {
       const response = await fetch(url, config);
       
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || `HTTP error! status: ${response.status}`);
+        // Backend shape varies — {error}, {message}, or zod {issues}.
+        // Surface whichever is present so UI toasts can tell the user *why*.
+        const body = await response.json().catch(() => ({}));
+        const msg =
+          body.error ||
+          body.message ||
+          (Array.isArray(body.issues) && body.issues.map((i) => i.message).join(', ')) ||
+          `HTTP ${response.status}`;
+        throw new Error(msg);
       }
 
       return await response.json();
