@@ -33,13 +33,8 @@ const DashboardHome = ({ setActiveTab }) => {
 
             <section>
                 <h3 className="text-xs font-bold uppercase tracking-wider text-text-muted mb-6">What's new</h3>
-                <div className="relative rounded-2xl overflow-hidden bg-black aspect-video group cursor-pointer shadow-2xl border border-white/5">
-                    <div className="absolute inset-0 bg-gradient-to-t from-black to-transparent opacity-60 z-10" />
-                    <img
-                        alt="Dashboard Highlight"
-                        className="w-full h-full object-cover opacity-70 group-hover:scale-105 transition-transform duration-700"
-                        src="https://images.unsplash.com/photo-1611974714658-058f1c1009fe?q=80&w=2070&auto=format&fit=crop"
-                    />
+                <div className="relative rounded-2xl overflow-hidden aspect-video group cursor-pointer shadow-2xl border border-white/5 bg-gradient-to-br from-primary/30 via-surface-dark to-black">
+                    <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent z-10" />
                     <div className="absolute inset-0 flex items-center justify-center z-20">
                         <div className="w-16 h-16 bg-white/10 backdrop-blur-md rounded-full flex items-center justify-center border border-white/20 group-hover:scale-110 transition-transform">
                             <span className="material-icons text-white text-3xl">play_arrow</span>

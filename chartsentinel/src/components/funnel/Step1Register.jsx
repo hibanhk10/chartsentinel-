@@ -1,22 +1,45 @@
 import { useState } from 'react';
 
-const Step1Register = ({ onNext }) => {
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+// Accepts international-ish phone numbers with optional + and spaces/dashes.
+const PHONE_RE = /^\+?[\d\s\-().]{7,20}$/;
+
+const Step1Register = ({ onNext, initialData = {} }) => {
     const [formData, setFormData] = useState({
-        name: '',
-        email: '',
-        phone: ''
+        name: initialData.name || '',
+        email: initialData.email || '',
+        phone: initialData.phone || '',
     });
+    const [errors, setErrors] = useState({});
+
+    const validate = () => {
+        const next = {};
+        if (formData.name.trim().length < 2) {
+            next.name = 'Please enter your full name.';
+        }
+        if (!EMAIL_RE.test(formData.email.trim())) {
+            next.email = 'Please enter a valid email address.';
+        }
+        if (!PHONE_RE.test(formData.phone.trim())) {
+            next.phone = 'Please enter a valid phone number.';
+        }
+        setErrors(next);
+        return Object.keys(next).length === 0;
+    };
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        // In a real app, we would register the user here.
-        // For now, we just proceed to the next step.
-        console.log('Step 1 Data:', formData);
+        if (!validate()) return;
         onNext(formData);
     };
 
     const handleChange = (e) => {
-        setFormData({ ...formData, [e.target.id]: e.target.value });
+        const { id, value } = e.target;
+        setFormData((prev) => ({ ...prev, [id]: value }));
+        // Clear the field's error as the user corrects it.
+        if (errors[id]) {
+            setErrors((prev) => ({ ...prev, [id]: undefined }));
+        }
     };
 
     return (
@@ -32,11 +55,7 @@ const Step1Register = ({ onNext }) => {
                 {/* Video Side */}
                 <div className="space-y-8">
                     <div className="aspect-video bg-black rounded-2xl overflow-hidden border border-white/10 relative group cursor-pointer shadow-2xl shadow-primary/10">
-                        <img
-                            alt="Trading Dashboard Video Placeholder"
-                            className="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:scale-105 transition-transform duration-700"
-                            src="https://images.unsplash.com/photo-1611974714658-058f1c1009fe?q=80&w=2070&auto=format&fit=crop"
-                        />
+                        <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-surface-dark to-black" />
                         <div className="absolute inset-0 flex items-center justify-center">
                             <div className="w-20 h-20 bg-primary rounded-full flex items-center justify-center shadow-lg shadow-primary/20 group-hover:scale-110 transition-transform">
                                 <span className="material-icons text-background-dark text-4xl">play_arrow</span>
@@ -54,7 +73,7 @@ const Step1Register = ({ onNext }) => {
                 {/* Form Side */}
                 <div className="bg-surface-dark border border-white/10 p-8 rounded-3xl shadow-2xl backdrop-blur-sm">
                     <h3 className="text-xl font-bold text-white mb-6">Get Started</h3>
-                    <form onSubmit={handleSubmit} className="space-y-5">
+                    <form onSubmit={handleSubmit} noValidate className="space-y-5">
                         <div>
                             <label className="block text-sm font-medium text-text-muted mb-2" htmlFor="name">Name</label>
                             <input
@@ -63,9 +82,11 @@ const Step1Register = ({ onNext }) => {
                                 value={formData.name}
                                 onChange={handleChange}
                                 placeholder="Jane Smith"
-                                required
                                 type="text"
                             />
+                            {errors.name && (
+                                <p className="text-red-400 text-xs mt-1">{errors.name}</p>
+                            )}
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-text-muted mb-2" htmlFor="email">Email</label>
@@ -75,9 +96,11 @@ const Step1Register = ({ onNext }) => {
                                 value={formData.email}
                                 onChange={handleChange}
                                 placeholder="jane@gmail.com"
-                                required
                                 type="email"
                             />
+                            {errors.email && (
+                                <p className="text-red-400 text-xs mt-1">{errors.email}</p>
+                            )}
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-text-muted mb-2" htmlFor="phone">Phone</label>
@@ -86,10 +109,12 @@ const Step1Register = ({ onNext }) => {
                                 id="phone"
                                 value={formData.phone}
                                 onChange={handleChange}
-                                placeholder="+1 9897367890"
-                                required
+                                placeholder="+1 989 736 7890"
                                 type="tel"
                             />
+                            {errors.phone && (
+                                <p className="text-red-400 text-xs mt-1">{errors.phone}</p>
+                            )}
                         </div>
                         <button
                             className="w-full bg-primary text-white font-bold py-4 rounded-xl hover:bg-primary-dark transition-all duration-300 transform active:scale-[0.98] shadow-lg shadow-primary/25 mt-4"

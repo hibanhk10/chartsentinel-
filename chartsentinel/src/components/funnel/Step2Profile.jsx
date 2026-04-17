@@ -1,10 +1,10 @@
 import { useState } from 'react';
 
-const Step2Profile = ({ onNext, onPrev }) => {
+const Step2Profile = ({ onNext, onPrev, initialData = {} }) => {
     const [profileData, setProfileData] = useState({
-        tradeType: '',
-        tradingStyle: 'days',
-        experience: 'beginner'
+        tradeType: initialData.tradeType || '',
+        tradingStyle: initialData.tradingStyle || 'days',
+        experience: initialData.experience || 'beginner',
     });
 
     const handleSubmit = (e) => {
@@ -31,15 +31,27 @@ const Step2Profile = ({ onNext, onPrev }) => {
                     <label className="block text-xs font-medium text-text-muted uppercase tracking-wider ml-1" htmlFor="tradeType">
                         What do you trade
                     </label>
-                    <input
-                        className="w-full bg-background-dark border border-white/5 rounded-xl py-4 px-5 text-white placeholder:text-text-muted focus:ring-1 focus:ring-primary focus:border-primary transition-all outline-none"
-                        id="tradeType"
-                        value={profileData.tradeType}
-                        onChange={handleChange}
-                        placeholder="Stock/Forex"
-                        type="text"
-                        required
-                    />
+                    <div className="relative">
+                        <select
+                            className="w-full appearance-none bg-background-dark border border-white/5 rounded-xl py-4 px-5 text-white focus:ring-1 focus:ring-primary focus:border-primary transition-all outline-none cursor-pointer"
+                            id="tradeType"
+                            value={profileData.tradeType}
+                            onChange={handleChange}
+                            required
+                        >
+                            <option value="" disabled>Choose a market</option>
+                            <option value="forex">Forex</option>
+                            <option value="crypto">Crypto</option>
+                            <option value="stocks">Stocks</option>
+                            <option value="futures">Futures</option>
+                            <option value="options">Options</option>
+                            <option value="commodities">Commodities</option>
+                            <option value="mixed">Multiple markets</option>
+                        </select>
+                        <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none">
+                            <span className="material-icons text-text-muted">expand_more</span>
+                        </div>
+                    </div>
                 </div>
 
                 <div className="space-y-2">

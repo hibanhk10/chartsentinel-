@@ -1,15 +1,25 @@
 import { useState } from 'react';
 
+const MIN_PASSWORD_LENGTH = 6;
+
 const Step4Briefing = ({ onComplete, initialEmail }) => {
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
+    const [touched, setTouched] = useState(false);
+
+    const passwordTooShort = password.length > 0 && password.length < MIN_PASSWORD_LENGTH;
+    const canSubmit = password.length >= MIN_PASSWORD_LENGTH && !loading;
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        setTouched(true);
+        if (!canSubmit) return;
         setLoading(true);
-        // Pass password back to parent to complete registration
-        await onComplete(password);
-        setLoading(false);
+        try {
+            await onComplete(password);
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
@@ -25,7 +35,7 @@ const Step4Briefing = ({ onComplete, initialEmail }) => {
             </div>
 
             <div className="bg-surface-dark border border-white/10 p-8 rounded-3xl shadow-2xl backdrop-blur-sm">
-                <form onSubmit={handleSubmit} className="space-y-6">
+                <form onSubmit={handleSubmit} noValidate className="space-y-6">
                     <div>
                         <label className="block text-sm font-medium text-text-muted mb-2">Email</label>
                         <input
@@ -43,16 +53,30 @@ const Step4Briefing = ({ onComplete, initialEmail }) => {
                             type="password"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
-                            className="w-full bg-background-dark/50 border border-white/10 focus:border-primary focus:ring-1 focus:ring-primary rounded-xl px-4 py-3 text-white transition-all outline-none"
+                            onBlur={() => setTouched(true)}
+                            className={`w-full bg-background-dark/50 border rounded-xl px-4 py-3 text-white transition-all outline-none ${
+                                (touched || passwordTooShort) && passwordTooShort
+                                    ? 'border-red-500/50 focus:border-red-500 focus:ring-1 focus:ring-red-500'
+                                    : 'border-white/10 focus:border-primary focus:ring-1 focus:ring-primary'
+                            }`}
                             placeholder="••••••••"
                             required
-                            minLength={6}
+                            minLength={MIN_PASSWORD_LENGTH}
                         />
+                        {passwordTooShort ? (
+                            <p className="text-red-400 text-xs mt-2">
+                                Password must be at least {MIN_PASSWORD_LENGTH} characters.
+                            </p>
+                        ) : (
+                            <p className="text-text-muted text-xs mt-2">
+                                Use at least {MIN_PASSWORD_LENGTH} characters.
+                            </p>
+                        )}
                     </div>
 
                     <button
                         type="submit"
-                        disabled={loading}
+                        disabled={!canSubmit}
                         className="w-full bg-primary text-white font-bold py-4 rounded-xl hover:bg-primary-dark transition-all duration-300 transform active:scale-[0.98] shadow-lg shadow-primary/25 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                     >
                         {loading ? (
