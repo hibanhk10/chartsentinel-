@@ -33,6 +33,15 @@ class ApiService {
           body.message ||
           (Array.isArray(body.issues) && body.issues.map((i) => i.message).join(', ')) ||
           `HTTP ${response.status}`;
+
+        // If the server says our token is missing/invalid/expired, clear local
+        // auth so the next render redirects to login instead of silently
+        // reissuing the same bad request.
+        if (response.status === 401 || response.status === 403) {
+          localStorage.removeItem('authToken');
+          localStorage.removeItem('user');
+        }
+
         throw new Error(msg);
       }
 

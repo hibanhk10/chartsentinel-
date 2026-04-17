@@ -11,7 +11,9 @@ const registerSchema = z.object({
 
 const loginSchema = z.object({
   email: z.string().email(),
-  password: z.string().min(1),
+  // Keep in sync with registerSchema so client-side and server-side
+  // validation stay consistent.
+  password: z.string().min(6),
 });
 
 export const registerController = async (req: Request, res: Response) => {

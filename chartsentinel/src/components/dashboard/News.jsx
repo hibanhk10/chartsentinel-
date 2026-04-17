@@ -1,26 +1,26 @@
+import { useCallback, useEffect, useState } from 'react';
+import { newsService } from '../../services/newsService';
+
 const DashboardNews = () => {
-    const newsItems = [
-        {
-            title: 'Federal Reserve Maintains Interest Rates',
-            category: 'Macro',
-            image: 'https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?q=80&w=2070&auto=format&fit=crop',
-        },
-        {
-            title: 'Tech Indices Hit New All-Time Highs',
-            category: 'Market Data',
-            image: 'https://images.unsplash.com/photo-1611974714658-058f1c1009fe?q=80&w=2070&auto=format&fit=crop',
-        },
-        {
-            title: 'Crude Oil Inventories Surprise Analysts',
-            category: 'Commodities',
-            image: 'https://images.unsplash.com/photo-1543286386-2e659306cd6c?q=80&w=2070&auto=format&fit=crop',
-        },
-        {
-            title: 'Emerging Markets: The Next Opportunity?',
-            category: 'Strategy',
-            image: 'https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?q=80&w=2070&auto=format&fit=crop',
+    const [newsItems, setNewsItems] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+
+    const load = useCallback(async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            const data = await newsService.getAllNews();
+            setNewsItems(Array.isArray(data) ? data : []);
+        } catch (err) {
+            console.error('[News]', err);
+            setError(err.message || 'Could not load news.');
+        } finally {
+            setLoading(false);
         }
-    ];
+    }, []);
+
+    useEffect(() => { load(); }, [load]);
 
     return (
         <div className="space-y-12 animate-in fade-in duration-700">
@@ -29,21 +29,40 @@ const DashboardNews = () => {
                 <p className="text-text-secondary text-lg">Real-time market updates from global intelligence feeds.</p>
             </header>
 
+            {loading && (
+                <p className="text-text-muted text-sm">Loading news…</p>
+            )}
+
+            {error && !loading && (
+                <div className="p-6 bg-red-500/5 border border-red-500/20 rounded-2xl">
+                    <p className="text-red-400 text-sm mb-4">{error}</p>
+                    <button
+                        type="button"
+                        onClick={load}
+                        className="px-4 py-2 bg-primary text-white text-xs font-bold rounded-lg hover:bg-primary-dark transition-colors"
+                    >
+                        Retry
+                    </button>
+                </div>
+            )}
+
+            {!loading && !error && newsItems.length === 0 && (
+                <p className="text-text-muted text-sm">No news items yet.</p>
+            )}
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-24">
-                {newsItems.map((item, idx) => (
-                    <article key={idx} className="group cursor-pointer">
-                        <div className="aspect-video overflow-hidden rounded-2xl mb-4 border border-white/5 shadow-xl">
-                            <img
-                                alt={item.title}
-                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 opacity-80 group-hover:opacity-100"
-                                src={item.image}
-                            />
-                        </div>
+                {newsItems.map((item) => (
+                    <article key={item.id} className="group cursor-pointer">
                         <div className="flex items-center gap-2 mb-2">
                             <span className="w-1.5 h-1.5 rounded-full bg-primary" />
-                            <span className="text-[10px] font-bold text-primary uppercase tracking-widest">{item.category}</span>
+                            <span className="text-[10px] font-bold text-primary uppercase tracking-widest">
+                                {item.publishedAt ? new Date(item.publishedAt).toLocaleDateString() : 'Market'}
+                            </span>
                         </div>
-                        <h3 className="text-xl font-bold text-white group-hover:text-primary transition-colors leading-tight">{item.title}</h3>
+                        <h3 className="text-xl font-bold text-white group-hover:text-primary transition-colors leading-tight mb-2">
+                            {item.title}
+                        </h3>
+                        <p className="text-sm text-text-secondary leading-relaxed line-clamp-3">{item.content}</p>
                     </article>
                 ))}
             </div>

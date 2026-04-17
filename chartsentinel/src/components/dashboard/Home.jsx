@@ -1,23 +1,31 @@
 import { useAuth } from '../../contexts/AuthContext';
 
-const DashboardHome = () => {
+const DashboardHome = ({ setActiveTab }) => {
     const { user } = useAuth();
 
     return (
         <div className="space-y-12 animate-in fade-in duration-500">
             <section>
                 <h1 className="text-4xl lg:text-5xl font-bold tracking-tight text-white leading-tight mb-4">
-                    Hey, {user?.name || 'Trader'}.<br />
+                    Hey, {user?.name || user?.email?.split('@')[0] || 'Trader'}.<br />
                     <span className="text-primary">Let's know what's happening now.</span>
                 </h1>
                 <p className="text-text-secondary max-w-xl text-lg leading-relaxed mb-6">
                     You can look at the current market reports in the reports tab and look at the news to make informed trades.
                 </p>
                 <div className="flex gap-4">
-                    <button className="bg-primary text-white px-6 py-2.5 text-sm font-bold rounded-lg hover:bg-primary-dark transition-all shadow-lg shadow-primary/20">
+                    <button
+                        type="button"
+                        onClick={() => setActiveTab?.('reports')}
+                        className="bg-primary text-white px-6 py-2.5 text-sm font-bold rounded-lg hover:bg-primary-dark transition-all shadow-lg shadow-primary/20"
+                    >
                         View Reports
                     </button>
-                    <button className="bg-white/5 text-white border border-white/10 px-6 py-2.5 text-sm font-bold rounded-lg hover:bg-white/10 transition-all">
+                    <button
+                        type="button"
+                        onClick={() => setActiveTab?.('news')}
+                        className="bg-white/5 text-white border border-white/10 px-6 py-2.5 text-sm font-bold rounded-lg hover:bg-white/10 transition-all"
+                    >
                         Market News
                     </button>
                 </div>
@@ -64,7 +72,11 @@ const DashboardHome = () => {
                             </div>
                         ))}
                     </div>
-                    <button className="w-full py-2 bg-white/5 border border-white/5 text-white text-[10px] font-bold rounded-lg hover:bg-white/10 transition-colors uppercase tracking-widest">
+                    <button
+                        type="button"
+                        onClick={() => setActiveTab?.('reports')}
+                        className="w-full py-2 bg-white/5 border border-white/5 text-white text-[10px] font-bold rounded-lg hover:bg-white/10 transition-colors uppercase tracking-widest"
+                    >
                         All Reports
                     </button>
                 </div>

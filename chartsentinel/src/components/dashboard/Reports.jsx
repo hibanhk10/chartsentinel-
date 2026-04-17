@@ -1,18 +1,35 @@
+import { useCallback, useEffect, useState } from 'react';
+import { reportsService } from '../../services/reportsService';
+
+const formatDate = (iso) => {
+    if (!iso) return '';
+    try {
+        return new Date(iso).toLocaleDateString();
+    } catch {
+        return iso;
+    }
+};
+
 const DashboardReports = () => {
-    const reports = [
-        {
-            date: '12/10/2025',
-            title: 'Global Market Liquidity Analysis',
-            desc: 'This report covers all things about the current market liquidity. It provides the best information for placing high-conviction trades.',
-            image: 'https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?q=80&w=2070&auto=format&fit=crop'
-        },
-        {
-            date: '01/10/2026',
-            title: 'Yield Curve Inversion Warning',
-            desc: 'Detailed analysis of the current yield curve state and its implications for short-term derivative trading.',
-            image: 'https://images.unsplash.com/photo-1551288049-bbbda536339a?q=80&w=2070&auto=format&fit=crop'
+    const [reports, setReports] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+
+    const load = useCallback(async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            const data = await reportsService.getAllReports();
+            setReports(Array.isArray(data) ? data : []);
+        } catch (err) {
+            console.error('[Reports]', err);
+            setError(err.message || 'Could not load reports.');
+        } finally {
+            setLoading(false);
         }
-    ];
+    }, []);
+
+    useEffect(() => { load(); }, [load]);
 
     return (
         <div className="space-y-12 animate-in slide-in-from-bottom duration-500">
@@ -21,23 +38,47 @@ const DashboardReports = () => {
                 <p className="text-text-secondary text-lg">Access the complete archive of market intelligence reports.</p>
             </header>
 
+            {loading && (
+                <p className="text-text-muted text-sm">Loading reports…</p>
+            )}
+
+            {error && !loading && (
+                <div className="p-6 bg-red-500/5 border border-red-500/20 rounded-2xl">
+                    <p className="text-red-400 text-sm mb-4">{error}</p>
+                    <button
+                        type="button"
+                        onClick={load}
+                        className="px-4 py-2 bg-primary text-white text-xs font-bold rounded-lg hover:bg-primary-dark transition-colors"
+                    >
+                        Retry
+                    </button>
+                </div>
+            )}
+
+            {!loading && !error && reports.length === 0 && (
+                <p className="text-text-muted text-sm">No reports have been published yet. Check back soon.</p>
+            )}
+
             <section className="space-y-12">
-                {reports.map((report, idx) => (
-                    <div key={idx} className="flex flex-col md:flex-row gap-8 items-start group">
-                        <div className="w-full md:w-80 h-48 bg-black flex items-center justify-center rounded-xl shadow-lg border border-white/5 overflow-hidden">
-                            <img src={report.image} alt={report.title} className="w-full h-full object-cover opacity-60 group-hover:scale-105 transition-transform duration-500" />
+                {reports.map((report) => (
+                    <div key={report.id} className="flex flex-col md:flex-row gap-8 items-start group">
+                        <div className="w-full md:w-80 h-48 bg-black flex items-center justify-center rounded-xl shadow-lg border border-white/5 overflow-hidden relative">
                             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                                <span className="text-white font-display text-[10px] tracking-[0.4em] uppercase opacity-80 bg-black/40 px-3 py-1 backdrop-blur-sm rounded">Chartsentinel</span>
+                                <span className="text-white font-display text-[10px] tracking-[0.4em] uppercase opacity-80 bg-black/40 px-3 py-1 backdrop-blur-sm rounded">
+                                    Chartsentinel
+                                </span>
                             </div>
                         </div>
                         <div className="flex-1 pt-2">
-                            <h3 className="text-2xl font-bold mb-2 text-white group-hover:text-primary transition-colors">{report.date}</h3>
+                            <h3 className="text-2xl font-bold mb-2 text-white group-hover:text-primary transition-colors">
+                                {formatDate(report.createdAt) || report.title}
+                            </h3>
+                            {report.title && formatDate(report.createdAt) && (
+                                <p className="text-sm font-bold text-text-primary mb-2">{report.title}</p>
+                            )}
                             <p className="text-text-secondary leading-relaxed max-w-2xl mb-6 text-sm">
-                                {report.desc}
+                                {report.summary}
                             </p>
-                            <button className="px-5 py-2 border border-white/10 text-[10px] font-bold uppercase tracking-widest text-text-muted hover:bg-primary/10 hover:text-primary hover:border-primary/20 transition-all rounded-lg">
-                                Download PDF
-                            </button>
                         </div>
                     </div>
                 ))}

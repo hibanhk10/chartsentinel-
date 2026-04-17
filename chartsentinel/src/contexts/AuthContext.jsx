@@ -4,6 +4,20 @@ import { authService } from '../services/authService';
 
 const AuthContext = createContext();
 
+// Lightweight JWT parse — no signature verification, just the exp claim.
+// We only use this to avoid restoring an obviously-expired session on mount.
+function isTokenExpired(token) {
+  try {
+    const [, payload] = token.split('.');
+    if (!payload) return true;
+    const decoded = JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/')));
+    if (typeof decoded.exp !== 'number') return false; // no exp = treat as non-expiring
+    return decoded.exp * 1000 <= Date.now();
+  } catch {
+    return true; // malformed token → treat as expired
+  }
+}
+
 const authReducer = (state, action) => {
   switch (action.type) {
     case 'LOGIN_START':
@@ -64,14 +78,20 @@ export const AuthProvider = ({ children }) => {
   const [state, dispatch] = useReducer(authReducer, initialState);
 
   useEffect(() => {
-    // Check for existing auth on mount
+    // Check for existing auth on mount.
+    // Reject expired tokens so we don't hand the dashboard a JWT that
+    // every subsequent API call will 403 on.
     const token = authService.getToken();
     const user = authService.getCurrentUser();
 
     if (token && user) {
+      if (isTokenExpired(token)) {
+        authService.logout();
+        return;
+      }
       dispatch({
         type: 'LOGIN_SUCCESS',
-        payload: { user, token }
+        payload: { user, token },
       });
     }
   }, []);

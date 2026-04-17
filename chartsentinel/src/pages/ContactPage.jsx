@@ -28,10 +28,15 @@ export default function ContactPage() {
                 body: JSON.stringify(formData),
             });
 
-            const data = await response.json();
+            const data = await response.json().catch(() => ({}));
 
             if (!response.ok) {
-                throw new Error(data.message || 'Something went wrong');
+                const msg =
+                    data.error ||
+                    data.message ||
+                    (Array.isArray(data.issues) && data.issues.map((i) => i.message).join(', ')) ||
+                    `HTTP ${response.status}`;
+                throw new Error(msg);
             }
 
             setStatus('success');

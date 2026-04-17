@@ -31,7 +31,7 @@ const DashboardPage = () => {
     const renderContent = () => {
         switch (activeTab) {
             case 'home':
-                return <DashboardHome />;
+                return <DashboardHome setActiveTab={setActiveTab} />;
             case 'reports':
                 return <DashboardReports />;
             case 'news':

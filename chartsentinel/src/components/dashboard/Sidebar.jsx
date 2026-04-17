@@ -23,8 +23,10 @@ const Sidebar = ({ activeTab, setActiveTab }) => {
                         <span className="material-icons text-primary uppercase">{user?.email?.[0] || 'U'}</span>
                     </div>
                     <div>
-                        <h2 className="text-sm font-bold tracking-tight uppercase text-white">{user?.name || 'User'}</h2>
-                        <p className="text-xs text-text-muted">Paid Member</p>
+                        <h2 className="text-sm font-bold tracking-tight uppercase text-white">
+                            {user?.name || user?.email?.split('@')[0] || 'User'}
+                        </h2>
+                        <p className="text-xs text-text-muted">{user?.isPaid ? 'Paid Member' : 'Free Member'}</p>
                     </div>
                 </div>
 
