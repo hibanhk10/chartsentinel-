@@ -11,11 +11,11 @@ const LoginModal = ({ isOpen, onClose, onSwitchToRegister }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const response = await login({ email, password });
-      if (response.user.isPaid) {
-        navigate('/dashboard');
-      }
+      await login({ email, password });
+      // Always go to the dashboard on a successful login. Paid/free gating
+      // happens inside the dashboard — the modal shouldn't make that call.
       onClose();
+      navigate('/dashboard');
     } catch (err) {
       // Error is handled by the auth context
     }

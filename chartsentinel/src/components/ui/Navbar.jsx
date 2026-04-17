@@ -118,15 +118,18 @@ export default function Navbar() {
                             </Link>
                         </motion.div>
                         {isAuthenticated && (
-                            <motion.a
+                            <motion.div
                                 variants={navItemVariants}
                                 whileHover="hover"
                                 whileTap="tap"
-                                className="text-sm font-medium transition-colors text-slate-300 cursor-pointer"
-                                href="/dashboard"
                             >
-                                Dashboard
-                            </motion.a>
+                                <Link
+                                    to="/dashboard"
+                                    className="text-sm font-medium transition-colors text-slate-300 cursor-pointer"
+                                >
+                                    Dashboard
+                                </Link>
+                            </motion.div>
                         )}
 
                         {isAuthenticated ? (
