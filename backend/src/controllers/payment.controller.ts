@@ -1,11 +1,33 @@
+// ──────────────────────────────────────────────────────────────────────────────
+// Stripe payments — TEMPORARILY DISABLED
+// ──────────────────────────────────────────────────────────────────────────────
+// The Stripe integration below is ready to go but intentionally commented
+// out until payment requirements (price IDs, subscription vs one-time,
+// webhook endpoint, success/cancel flow) are finalized.
+//
+// To re-enable:
+//   1. Set STRIPE_SECRET_KEY + STRIPE_WEBHOOK_SECRET in the backend env
+//   2. Set VITE_STRIPE_PUBLIC_KEY in the frontend env
+//   3. Uncomment the original body of createCheckoutSession + handleWebhook
+//      below, and remove the "DISABLED" stub responses above each function
+//   4. Uncomment the Stripe branch in chartsentinel/src/pages/SalesFunnelPage.jsx
+//      (search for "STRIPE-INTEGRATION")
+// ──────────────────────────────────────────────────────────────────────────────
+
 import { Request, Response } from 'express';
-import Stripe from 'stripe';
+// import Stripe from 'stripe';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
-    apiVersion: '2026-01-28.clover',
-});
+// const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
+//     apiVersion: '2026-01-28.clover',
+// });
 
-export const createCheckoutSession = async (req: Request, res: Response) => {
+export const createCheckoutSession = async (_req: Request, res: Response) => {
+    // DISABLED: Stripe checkout is not yet configured.
+    return res.status(503).json({
+        error: 'Payments are temporarily disabled while Stripe is being configured.',
+    });
+
+    /* ── Original implementation — restore when Stripe is ready ─────────────
     try {
         const { plan, userId, email } = req.body;
 
@@ -19,7 +41,7 @@ export const createCheckoutSession = async (req: Request, res: Response) => {
         // In production, these should be Price IDs from your Stripe Dashboard
         if (plan === 'pro') {
             amount = 5900; // $59.00
-            // priceId = 'price_pro_id'; 
+            // priceId = 'price_pro_id';
         } else if (plan === 'ultimate') {
             amount = 10900; // $109.00
             // priceId = 'price_ultimate_id';
@@ -56,9 +78,16 @@ export const createCheckoutSession = async (req: Request, res: Response) => {
         console.error('Stripe error:', error);
         return res.status(500).json({ error: error.message });
     }
+    ─────────────────────────────────────────────────────────────────────── */
 };
 
-export const handleWebhook = async (req: Request, res: Response) => {
+export const handleWebhook = async (_req: Request, res: Response) => {
+    // DISABLED: Stripe webhook is not yet active.
+    return res.status(503).json({
+        error: 'Stripe webhook is not yet configured.',
+    });
+
+    /* ── Original implementation — restore when Stripe is ready ─────────────
     const sig = req.headers['stripe-signature'];
     const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
@@ -72,11 +101,9 @@ export const handleWebhook = async (req: Request, res: Response) => {
         return res.status(400).send(`Webhook Error: ${err.message}`);
     }
 
-    // Handle the event
     switch (event.type) {
         case 'checkout.session.completed':
             const session = event.data.object as Stripe.Checkout.Session;
-            // Fulfill the purchase...
             handleCheckoutSessionCompleted(session);
             break;
         default:
@@ -84,8 +111,10 @@ export const handleWebhook = async (req: Request, res: Response) => {
     }
 
     return res.send();
+    ─────────────────────────────────────────────────────────────────────── */
 };
 
+/* ── Fulfillment helper — restore alongside handleWebhook ───────────────────
 const handleCheckoutSessionCompleted = async (session: Stripe.Checkout.Session) => {
     const userId = session.metadata?.userId;
     const plan = session.metadata?.plan;
@@ -99,3 +128,4 @@ const handleCheckoutSessionCompleted = async (session: Stripe.Checkout.Session) 
         // });
     }
 };
+─────────────────────────────────────────────────────────────────────────── */
