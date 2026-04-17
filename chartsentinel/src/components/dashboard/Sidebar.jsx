@@ -13,6 +13,9 @@ const Sidebar = ({ activeTab, setActiveTab }) => {
         { id: 'coaching', label: 'Coaching', icon: 'school' },
         { id: 'about', label: 'About', icon: 'info' },
         { id: 'contact', label: 'Contact', icon: 'mail' },
+        ...(user?.role === 'admin'
+            ? [{ id: 'admin', label: 'Admin', icon: 'admin_panel_settings' }]
+            : []),
     ];
 
     return (

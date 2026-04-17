@@ -1,7 +1,36 @@
+import { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
+import { API_CONFIG } from '../../config/api';
 
 const DashboardHome = ({ setActiveTab }) => {
     const { user } = useAuth();
+    const [subEmail, setSubEmail] = useState('');
+    const [subStatus, setSubStatus] = useState('idle'); // idle | loading | success | error
+    const [subMessage, setSubMessage] = useState('');
+
+    const handleSubscribe = async (e) => {
+        e.preventDefault();
+        if (!subEmail) return;
+        setSubStatus('loading');
+        setSubMessage('');
+        try {
+            const resp = await fetch(`${API_CONFIG.baseURL}/newsletter`, {
+                method: 'POST',
+                headers: API_CONFIG.headers,
+                body: JSON.stringify({ email: subEmail }),
+            });
+            const body = await resp.json().catch(() => ({}));
+            if (!resp.ok) {
+                throw new Error(body.error || body.message || `HTTP ${resp.status}`);
+            }
+            setSubStatus('success');
+            setSubMessage('Subscribed — thanks!');
+            setSubEmail('');
+        } catch (err) {
+            setSubStatus('error');
+            setSubMessage(err.message || 'Could not subscribe.');
+        }
+    };
 
     return (
         <div className="space-y-12 animate-in fade-in duration-500">
@@ -79,16 +108,33 @@ const DashboardHome = ({ setActiveTab }) => {
                 <div className="bg-surface-dark border border-white/5 rounded-2xl p-6 shadow-sm flex flex-col justify-center">
                     <h3 className="font-bold text-sm text-white mb-1">Stay up to date</h3>
                     <p className="text-xs text-text-muted mb-6">Get notified when new products and articles are published.</p>
-                    <div className="flex gap-2">
+                    <form onSubmit={handleSubscribe} className="flex gap-2">
                         <input
                             className="flex-1 bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-xs text-white focus:ring-1 focus:ring-primary outline-none transition-all placeholder:text-text-muted"
                             placeholder="Your email"
                             type="email"
+                            required
+                            value={subEmail}
+                            onChange={(e) => setSubEmail(e.target.value)}
+                            disabled={subStatus === 'loading'}
                         />
-                        <button className="bg-primary text-white px-4 py-2 text-xs font-bold rounded-lg hover:bg-primary-dark transition-all whitespace-nowrap">
-                            Subscribe
+                        <button
+                            type="submit"
+                            disabled={subStatus === 'loading'}
+                            className="bg-primary text-white px-4 py-2 text-xs font-bold rounded-lg hover:bg-primary-dark transition-all whitespace-nowrap disabled:opacity-50"
+                        >
+                            {subStatus === 'loading' ? '…' : 'Subscribe'}
                         </button>
-                    </div>
+                    </form>
+                    {subMessage && (
+                        <p
+                            className={`mt-3 text-[11px] ${
+                                subStatus === 'success' ? 'text-green-400' : 'text-red-400'
+                            }`}
+                        >
+                            {subMessage}
+                        </p>
+                    )}
                 </div>
             </section>
         </div>

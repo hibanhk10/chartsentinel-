@@ -10,14 +10,12 @@ export class ReportsService {
   }
 
   async getReportById(id: string) {
-    const report = await prisma.report.findUnique({
+    return prisma.report.findUnique({
       where: { id },
     });
+  }
 
-    if (!report) {
-      throw new Error('Report not found');
-    }
-
-    return report;
+  async createReport(data: { title: string; summary: string; content: string }) {
+    return prisma.report.create({ data });
   }
 }

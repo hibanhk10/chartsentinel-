@@ -37,5 +37,12 @@ CREATE TABLE IF NOT EXISTS news (
     "publishedAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
+-- Newsletter subscribers
+CREATE TABLE IF NOT EXISTS newsletter_subscribers (
+    id TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
+    email TEXT UNIQUE NOT NULL,
+    "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
 -- Sample Data (Optional)
 -- INSERT INTO users (email, "passwordHash", role) VALUES ('admin@chartsentinel.com', 'hashed_password_here', 'admin');

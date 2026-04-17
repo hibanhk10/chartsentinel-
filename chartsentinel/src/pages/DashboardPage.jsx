@@ -7,6 +7,7 @@ import DashboardReports from '../components/dashboard/Reports';
 import DashboardNews from '../components/dashboard/News';
 import DashboardNetworking from '../components/dashboard/Networking';
 import DashboardCoaching from '../components/dashboard/Coaching';
+import DashboardAdmin from '../components/dashboard/Admin';
 
 const DashboardPage = () => {
     const [activeTab, setActiveTab] = useState('home');
@@ -40,6 +41,8 @@ const DashboardPage = () => {
                 return <DashboardNetworking />;
             case 'coaching':
                 return <DashboardCoaching />;
+            case 'admin':
+                return <DashboardAdmin />;
             default:
                 return (
                     <div className="flex flex-col items-center justify-center h-full text-text-secondary">

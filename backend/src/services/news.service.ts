@@ -10,14 +10,12 @@ export class NewsService {
   }
 
   async getNewsById(id: string) {
-    const newsItem = await prisma.news.findUnique({
+    return prisma.news.findUnique({
       where: { id },
     });
+  }
 
-    if (!newsItem) {
-      throw new Error('News item not found');
-    }
-
-    return newsItem;
+  async createNews(data: { title: string; content: string }) {
+    return prisma.news.create({ data });
   }
 }

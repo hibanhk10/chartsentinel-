@@ -8,6 +8,7 @@ import reportsRoutes from './routes/reports.routes';
 import newsRoutes from './routes/news.routes';
 import contactRoutes from './routes/contact.routes';
 import paymentRoutes from './routes/payment.routes';
+import newsletterRoutes from './routes/newsletter.routes';
 
 const app = express();
 
@@ -31,6 +32,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/reports', reportsRoutes);
 app.use('/api/news', newsRoutes);
 app.use('/api/contact', contactRoutes);
+app.use('/api/newsletter', newsletterRoutes);
 
 app.use(errorHandler);
 
