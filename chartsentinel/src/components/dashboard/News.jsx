@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { newsService } from '../../services/newsService';
+import { previewText } from '../../lib/sanitize';
 
 const DashboardNews = () => {
     const [newsItems, setNewsItems] = useState([]);
@@ -62,7 +63,12 @@ const DashboardNews = () => {
                         <h3 className="text-xl font-bold text-white group-hover:text-primary transition-colors leading-tight mb-2">
                             {item.title}
                         </h3>
-                        <p className="text-sm text-text-secondary leading-relaxed line-clamp-3">{item.content}</p>
+                        {/*
+                          Content now stores TipTap-generated HTML. For the list view a
+                          plain-text preview keeps the grid tidy; individual article detail
+                          pages will render the sanitised HTML via renderRichText().
+                        */}
+                        <p className="text-sm text-text-secondary leading-relaxed line-clamp-3">{previewText(item.content)}</p>
                     </article>
                 ))}
             </div>

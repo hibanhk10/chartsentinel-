@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { API_CONFIG } from '../../config/api';
+import RichTextEditor from './RichTextEditor';
 
 const authHeaders = () => {
     const token = localStorage.getItem('authToken');
@@ -121,14 +122,17 @@ const DashboardAdmin = () => {
                             onChange={(v) => setReport({ ...report, summary: v })}
                             placeholder="Deep dive into EUR/USD and GBP/JPY trends."
                         />
-                        <Field
-                            label="Content"
-                            as="textarea"
-                            rows={8}
-                            value={report.content}
-                            onChange={(v) => setReport({ ...report, content: v })}
-                            placeholder="Detailed analysis of major forex pairs..."
-                        />
+                        <div className="mb-4">
+                            <label className="block text-xs font-medium text-text-muted mb-1.5 uppercase tracking-wide">
+                                Content
+                            </label>
+                            <RichTextEditor
+                                value={report.content}
+                                onChange={(v) => setReport({ ...report, content: v })}
+                                placeholder="Detailed analysis of major forex pairs..."
+                                minHeight={260}
+                            />
+                        </div>
                         <button
                             type="submit"
                             disabled={reportStatus.state === 'loading'}
@@ -156,14 +160,17 @@ const DashboardAdmin = () => {
                             onChange={(v) => setNews({ ...news, title: v })}
                             placeholder="Federal Reserve holds rates steady"
                         />
-                        <Field
-                            label="Content"
-                            as="textarea"
-                            rows={10}
-                            value={news.content}
-                            onChange={(v) => setNews({ ...news, content: v })}
-                            placeholder="The FOMC kept the federal funds rate in the 5.25–5.50% range..."
-                        />
+                        <div className="mb-4">
+                            <label className="block text-xs font-medium text-text-muted mb-1.5 uppercase tracking-wide">
+                                Content
+                            </label>
+                            <RichTextEditor
+                                value={news.content}
+                                onChange={(v) => setNews({ ...news, content: v })}
+                                placeholder="The FOMC kept the federal funds rate in the 5.25–5.50% range..."
+                                minHeight={320}
+                            />
+                        </div>
                         <button
                             type="submit"
                             disabled={newsStatus.state === 'loading'}
