@@ -83,7 +83,10 @@ const DashboardPage = () => {
         <div className="relative z-10 flex min-h-screen bg-background-dark text-text-primary pt-20">
             <SEO title="Dashboard" path="/dashboard" noindex />
             <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
-            <main className="ml-64 flex-1 p-8 lg:p-12 max-w-6xl mx-auto">
+            {/* lg:ml-64 keeps the desktop layout untouched; on mobile the
+                sidebar is a drawer so main claims the full width and pads
+                for the sticky top bar rendered by Sidebar. */}
+            <main className="flex-1 px-4 py-6 pt-16 lg:pt-0 sm:px-8 lg:ml-64 lg:p-12 max-w-6xl mx-auto w-full">
                 {renderContent()}
 
                 <footer className="mt-20 pt-8 border-t border-white/5 flex items-center justify-center gap-6 text-[10px] font-medium text-text-muted">
