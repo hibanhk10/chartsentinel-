@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken';
 import prisma from '../config/db';
 import env from '../config/env';
 import { sendPasswordResetEmail, sendWelcomeEmail } from './email.service';
+import { referralService } from './referral.service';
 
 // Password-reset token lifetime. Short enough that a stolen email sitting in
 // an unattended inbox is unlikely to be usable long after; long enough that
@@ -15,7 +16,7 @@ function sha256(value: string): string {
 }
 
 export class AuthService {
-  async register(email: string, password: string) {
+  async register(email: string, password: string, referralCode?: string | null) {
     const existingUser = await prisma.user.findUnique({
       where: { email },
     });
@@ -32,6 +33,14 @@ export class AuthService {
         passwordHash,
       },
     });
+
+    // Attribute the referral if a code travelled through the register form.
+    // Done inside register() so a transient referral cookie/query param
+    // becomes durable on the first successful signup — we never want an
+    // attribution that depends on the user staying logged in.
+    if (referralCode) {
+      await referralService.attributeRegistration(user.id, referralCode);
+    }
 
     // Welcome email is best-effort — if it fails we still want the user to
     // land in their dashboard. Logged for the ops team, not surfaced to the

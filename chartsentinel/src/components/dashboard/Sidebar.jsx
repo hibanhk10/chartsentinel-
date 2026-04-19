@@ -20,6 +20,7 @@ const Sidebar = ({ activeTab, setActiveTab }) => {
     { id: 'networking', label: 'Networking', icon: 'group' },
     { id: 'news', label: 'Daily News', icon: 'newspaper' },
     { id: 'coaching', label: 'Coaching', icon: 'school' },
+    { id: 'referrals', label: 'Invite friends', icon: 'card_giftcard' },
     { id: 'about', label: 'About', icon: 'info' },
     { id: 'contact', label: 'Contact', icon: 'mail' },
     ...(user?.role === 'admin'

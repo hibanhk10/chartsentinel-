@@ -5,11 +5,16 @@ import './index.css'
 import App from './App.jsx'
 import { initSentry, Sentry } from './lib/sentry'
 import { initAnalytics } from './lib/analytics'
+import { captureReferralFromUrl } from './lib/referral'
 
 // Must run before the React tree mounts so the ErrorBoundary below is
 // wired to a live Sentry instance.
 initSentry()
 initAnalytics()
+
+// Persist ?ref= in localStorage on first landing so the attribution
+// survives a tabbed-away visitor who eventually signs up later.
+captureReferralFromUrl()
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

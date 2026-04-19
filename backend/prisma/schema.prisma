@@ -20,8 +20,49 @@ model User {
   createdAt           DateTime             @default(now())
   passwordResetTokens PasswordResetToken[]
   watchlistItems      WatchlistItem[]
+  referralCode        ReferralCode?
+  referralsMade       ReferralRedemption[] @relation("ReferralsMade")
+  referralReceived    ReferralRedemption?  @relation("ReferralReceived")
 
   @@map("users")
+}
+
+// One code per user, generated on first access to the "invite friends" UI.
+// Human-readable (e.g. JOE-9K3Q) so people can type it from a phone screen,
+// not just click links. `usageCount` is denormalised for read-heavy displays
+// so we don't JOIN redemptions every time the dashboard renders.
+model ReferralCode {
+  id         String   @id @default(cuid())
+  code       String   @unique
+  userId     String   @unique
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  usageCount Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  redemptions ReferralRedemption[]
+
+  @@map("referral_codes")
+}
+
+// One redemption per referred user. `referrerId` denormalises the owner of
+// the code so queries for "my referrals" don't need a three-table JOIN.
+// `rewardGrantedAt` flips when we actually issue the free month (i.e. the
+// referred user starts paying) — separating capture from reward avoids
+// premature payouts on free signups.
+model ReferralRedemption {
+  id              String    @id @default(cuid())
+  codeId          String
+  code            ReferralCode @relation(fields: [codeId], references: [id], onDelete: Cascade)
+  referrerId      String
+  referrer        User      @relation("ReferralsMade", fields: [referrerId], references: [id], onDelete: Cascade)
+  referredUserId  String    @unique
+  referredUser    User      @relation("ReferralReceived", fields: [referredUserId], references: [id], onDelete: Cascade)
+  rewardGrantedAt DateTime?
+  createdAt       DateTime  @default(now())
+
+  @@index([referrerId])
+  @@index([codeId])
+  @@map("referral_redemptions")
 }
 
 // One row per (user, ticker) pair. `thresholdAbove` / `thresholdBelow` are

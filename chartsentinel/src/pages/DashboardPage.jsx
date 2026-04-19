@@ -10,9 +10,10 @@ import DashboardCoaching from '../components/dashboard/Coaching';
 import DashboardAdmin from '../components/dashboard/Admin';
 import DashboardSignals from '../components/dashboard/Signals';
 import DashboardWatchlist from '../components/dashboard/Watchlist';
+import DashboardReferrals from '../components/dashboard/Referrals';
 import SEO from '../components/ui/SEO';
 
-const VALID_TABS = ['home', 'signals', 'watchlist', 'reports', 'news', 'networking', 'coaching', 'about', 'contact', 'admin'];
+const VALID_TABS = ['home', 'signals', 'watchlist', 'reports', 'news', 'networking', 'coaching', 'referrals', 'about', 'contact', 'admin'];
 
 const DashboardPage = () => {
     // Persist the active tab in the URL (?tab=admin) so reloads and
@@ -58,6 +59,8 @@ const DashboardPage = () => {
                 return <DashboardSignals />;
             case 'watchlist':
                 return <DashboardWatchlist />;
+            case 'referrals':
+                return <DashboardReferrals />;
             case 'reports':
                 return <DashboardReports />;
             case 'news':

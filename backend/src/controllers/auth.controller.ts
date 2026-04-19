@@ -7,6 +7,10 @@ const authService = new AuthService();
 const registerSchema = z.object({
   email: z.string().email(),
   password: z.string().min(6),
+  // Optional referral code — flows through to the referral service on
+  // successful registration. Loose validation; bad codes are silently
+  // ignored rather than rejecting the signup.
+  referralCode: z.string().max(32).optional().nullable(),
 });
 
 const loginSchema = z.object({
@@ -27,8 +31,8 @@ const resetPasswordSchema = z.object({
 
 export const registerController = async (req: Request, res: Response) => {
   try {
-    const { email, password } = registerSchema.parse(req.body);
-    const result = await authService.register(email, password);
+    const { email, password, referralCode } = registerSchema.parse(req.body);
+    const result = await authService.register(email, password, referralCode);
     res.status(201).json(result);
   } catch (error) {
     if (error instanceof Error) {
