@@ -93,11 +93,7 @@ const DashboardPage = () => {
                 {renderContent()}
 
                 <footer className="mt-20 pt-8 border-t border-white/5 flex items-center justify-center gap-6 text-[10px] font-medium text-text-muted">
-                    <p>Proudly built in <span className="text-text-secondary">Framer</span></p>
-                    <span className="w-1 h-1 rounded-full bg-white/10"></span>
-                    <p>Made by <span className="text-text-secondary">Hiban</span></p>
-                    <span className="w-1 h-1 rounded-full bg-white/10"></span>
-                    <p>©2025 Dashfolio</p>
+                    <p>© {new Date().getFullYear()} ChartSentinel</p>
                 </footer>
             </main>
         </div>
