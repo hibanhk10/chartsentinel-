@@ -10,6 +10,7 @@ import DashboardCoaching from '../components/dashboard/Coaching';
 import DashboardAdmin from '../components/dashboard/Admin';
 import DashboardSignals from '../components/dashboard/Signals';
 import DashboardWatchlist from '../components/dashboard/Watchlist';
+import SEO from '../components/ui/SEO';
 
 const VALID_TABS = ['home', 'signals', 'watchlist', 'reports', 'news', 'networking', 'coaching', 'about', 'contact', 'admin'];
 
@@ -80,6 +81,7 @@ const DashboardPage = () => {
 
     return (
         <div className="relative z-10 flex min-h-screen bg-background-dark text-text-primary pt-20">
+            <SEO title="Dashboard" path="/dashboard" noindex />
             <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
             <main className="ml-64 flex-1 p-8 lg:p-12 max-w-6xl mx-auto">
                 {renderContent()}

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { API_CONFIG } from '../config/api';
+import SEO from '../components/ui/SEO';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
@@ -38,6 +39,7 @@ export default function ForgotPasswordPage() {
 
   return (
     <section className="relative z-10 min-h-screen flex items-center justify-center px-6 py-32">
+      <SEO title="Reset your password" path="/forgot-password" noindex />
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}

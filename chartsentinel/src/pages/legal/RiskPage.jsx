@@ -8,6 +8,7 @@ export default function RiskPage() {
   return (
     <LegalLayout
       title="Risk Disclaimer"
+      path="/risk"
       lastUpdated="19 April 2026"
       siblings={[
         { to: '/terms', label: 'Terms of Service' },

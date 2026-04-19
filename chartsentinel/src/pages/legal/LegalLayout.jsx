@@ -1,11 +1,13 @@
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import SEO from '../../components/ui/SEO';
 
 // Shared shell for Terms / Privacy / Risk Disclaimer so the three pages feel
 // like parts of one document instead of three different one-offs.
-export default function LegalLayout({ title, lastUpdated, children, siblings }) {
+export default function LegalLayout({ title, lastUpdated, children, siblings, path }) {
   return (
     <section className="relative z-10 min-h-screen pt-32 pb-24 px-6">
+      <SEO title={title} path={path} description={`${title} — ChartSentinel, last updated ${lastUpdated}.`} />
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}

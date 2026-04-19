@@ -10,6 +10,7 @@ export default function TermsPage() {
   return (
     <LegalLayout
       title="Terms of Service"
+      path="/terms"
       lastUpdated="19 April 2026"
       siblings={[
         { to: '/privacy', label: 'Privacy Policy' },

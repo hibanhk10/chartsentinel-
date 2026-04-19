@@ -8,6 +8,7 @@ export default function PrivacyPage() {
   return (
     <LegalLayout
       title="Privacy Policy"
+      path="/privacy"
       lastUpdated="19 April 2026"
       siblings={[
         { to: '/terms', label: 'Terms of Service' },

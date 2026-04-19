@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { API_CONFIG } from '../config/api';
+import SEO from '../components/ui/SEO';
 
 export default function ContactPage() {
     const [formData, setFormData] = useState({
@@ -50,6 +51,11 @@ export default function ContactPage() {
 
     return (
         <div className="min-h-screen pt-32 pb-20 px-6 relative z-10">
+            <SEO
+                title="Contact"
+                path="/contact"
+                description="Questions, feedback, or a bug report? Reach the ChartSentinel team directly."
+            />
             <div className="max-w-3xl mx-auto">
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
