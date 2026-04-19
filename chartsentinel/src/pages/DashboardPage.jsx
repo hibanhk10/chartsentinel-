@@ -8,8 +8,9 @@ import DashboardNews from '../components/dashboard/News';
 import DashboardNetworking from '../components/dashboard/Networking';
 import DashboardCoaching from '../components/dashboard/Coaching';
 import DashboardAdmin from '../components/dashboard/Admin';
+import DashboardSignals from '../components/dashboard/Signals';
 
-const VALID_TABS = ['home', 'reports', 'news', 'networking', 'coaching', 'about', 'contact', 'admin'];
+const VALID_TABS = ['home', 'signals', 'reports', 'news', 'networking', 'coaching', 'about', 'contact', 'admin'];
 
 const DashboardPage = () => {
     // Persist the active tab in the URL (?tab=admin) so reloads and
@@ -51,6 +52,8 @@ const DashboardPage = () => {
         switch (activeTab) {
             case 'home':
                 return <DashboardHome setActiveTab={setActiveTab} />;
+            case 'signals':
+                return <DashboardSignals />;
             case 'reports':
                 return <DashboardReports />;
             case 'news':

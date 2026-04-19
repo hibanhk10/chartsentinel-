@@ -10,6 +10,7 @@ import newsRoutes from './routes/news.routes';
 import contactRoutes from './routes/contact.routes';
 import paymentRoutes from './routes/payment.routes';
 import newsletterRoutes from './routes/newsletter.routes';
+import { registerSignalRoutes } from './routes/signals.routes';
 
 const app = express();
 
@@ -34,6 +35,10 @@ app.use('/api/reports', reportsRoutes);
 app.use('/api/news', newsRoutes);
 app.use('/api/contact', contactRoutes);
 app.use('/api/newsletter', newsletterRoutes);
+
+// Signal engine — registers /api/signals/* endpoints directly on the app
+// since the ported JS module uses absolute paths rather than a Router.
+registerSignalRoutes(app);
 
 // Sentry's Express error handler must come AFTER routes and BEFORE our
 // custom handler, so it captures errors before they're serialised away.
