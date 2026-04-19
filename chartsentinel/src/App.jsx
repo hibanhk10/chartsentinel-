@@ -16,6 +16,8 @@ import HomePage from './pages/HomePage'
 import ContactPage from './pages/ContactPage'
 import DashboardPage from './pages/DashboardPage'
 import SalesFunnelPage from './pages/SalesFunnelPage'
+import ForgotPasswordPage from './pages/ForgotPasswordPage'
+import ResetPasswordPage from './pages/ResetPasswordPage'
 
 // Drives PostHog $pageview events off the router. No-ops when PostHog isn't
 // configured — `trackPageview` guards internally on the enabled flag.
@@ -73,6 +75,8 @@ export default function App() {
             <Route path="/contact" element={<ContactPage />} />
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/funnel" element={<SalesFunnelPage />} />
+            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
             {import.meta.env.DEV && (
               <Route path="/debug-sentry" element={<DebugSentry />} />
             )}

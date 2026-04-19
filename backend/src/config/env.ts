@@ -14,6 +14,15 @@ const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   // Optional — when unset, Sentry stays quiet. Wire it in staging/prod only.
   SENTRY_DSN: z.string().url().optional(),
+
+  // Transactional email via Resend. The email service no-ops when the key
+  // is absent so dev environments don't send surprise mail. EMAIL_FROM
+  // should match a verified domain in Resend, or a resend.dev sender for
+  // early local testing. APP_URL is the public frontend base used in
+  // reset-password links and the welcome email's CTA.
+  RESEND_API_KEY: z.string().optional(),
+  EMAIL_FROM: z.string().optional(),
+  APP_URL: z.string().url().optional(),
 });
 
 const env = envSchema.parse(process.env);

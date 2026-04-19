@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 
 const LoginModal = ({ isOpen, onClose, onSwitchToRegister }) => {
@@ -47,7 +47,16 @@ const LoginModal = ({ isOpen, onClose, onSwitchToRegister }) => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-2">Password</label>
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-sm font-medium">Password</label>
+              <Link
+                to="/forgot-password"
+                onClick={onClose}
+                className="text-xs text-primary hover:underline"
+              >
+                Forgot password?
+              </Link>
+            </div>
             <input
               type="password"
               value={password}

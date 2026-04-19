@@ -12,14 +12,33 @@ datasource db {
 }
 
 model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
-  passwordHash String
-  role         String   @default("user")
-  isPaid       Boolean  @default(false)
-  createdAt    DateTime @default(now())
-  
+  id                  String               @id @default(cuid())
+  email               String               @unique
+  passwordHash        String
+  role                String               @default("user")
+  isPaid              Boolean              @default(false)
+  createdAt           DateTime             @default(now())
+  passwordResetTokens PasswordResetToken[]
+
   @@map("users")
+}
+
+// Stores one-use tokens for the forgot-password flow. We store the SHA-256
+// hash of the token — never the token itself — so a DB breach doesn't leak
+// live reset links. `expiresAt` caps the window (we use 1 hour).
+// `usedAt` flips to non-null the first time the token is consumed so replays
+// can't hijack a second reset.
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  tokenHash String    @unique
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+  @@map("password_reset_tokens")
 }
 
 model Report {
