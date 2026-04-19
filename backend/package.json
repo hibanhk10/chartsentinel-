@@ -13,7 +13,9 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
     "digest": "tsx src/scripts/send-weekly-digest.ts",
-    "digest:prod": "node dist/scripts/send-weekly-digest.js"
+    "digest:prod": "node dist/scripts/send-weekly-digest.js",
+    "watchlist:check": "tsx src/scripts/check-watchlist-alerts.ts",
+    "watchlist:check:prod": "node dist/scripts/check-watchlist-alerts.js"
   },
   "dependencies": {
     "@prisma/client": "^5.7.1",

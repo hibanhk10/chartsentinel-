@@ -19,8 +19,31 @@ model User {
   isPaid              Boolean              @default(false)
   createdAt           DateTime             @default(now())
   passwordResetTokens PasswordResetToken[]
+  watchlistItems      WatchlistItem[]
 
   @@map("users")
+}
+
+// One row per (user, ticker) pair. `thresholdAbove` / `thresholdBelow` are
+// composite-score cut-offs — an alert fires when the latest score crosses
+// into the configured band from the other side. `lastNotifiedAt` stops the
+// cron from spamming users on consecutive runs while the score stays above
+// (or below) the threshold.
+model WatchlistItem {
+  id              String    @id @default(cuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ticker          String
+  thresholdAbove  Float?
+  thresholdBelow  Float?
+  lastScore       Float?
+  lastNotifiedAt  DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@unique([userId, ticker])
+  @@index([userId])
+  @@map("watchlist_items")
 }
 
 // Stores one-use tokens for the forgot-password flow. We store the SHA-256

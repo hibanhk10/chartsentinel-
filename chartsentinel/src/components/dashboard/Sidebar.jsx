@@ -8,6 +8,7 @@ const Sidebar = ({ activeTab, setActiveTab }) => {
     const navItems = [
         { id: 'home', label: 'Home', icon: 'home' },
         { id: 'signals', label: 'Signals', icon: 'insights' },
+        { id: 'watchlist', label: 'Watchlist', icon: 'notifications_active' },
         { id: 'reports', label: 'Reports', icon: 'description' },
         { id: 'networking', label: 'Networking', icon: 'group' },
         { id: 'news', label: 'Daily News', icon: 'newspaper' },

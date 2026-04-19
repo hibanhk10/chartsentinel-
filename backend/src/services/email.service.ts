@@ -135,6 +135,65 @@ export async function sendWeeklyDigestEmail(
   await send({ to, subject, html, text });
 }
 
+// --- watchlist alert -------------------------------------------------------
+
+export type WatchlistAlertTrigger = {
+  ticker: string;
+  score: number;
+  direction: 'above' | 'below';
+  threshold: number;
+};
+
+export async function sendWatchlistAlertEmail(
+  to: string,
+  triggers: WatchlistAlertTrigger[],
+) {
+  const dashboardUrl = `${APP_URL}/dashboard?tab=signals`;
+
+  const textLines = [
+    'ChartSentinel — composite score alert',
+    '',
+    ...triggers.map(
+      (t) =>
+        `• ${t.ticker}: composite ${t.score.toFixed(2)} — crossed ${t.direction === 'above' ? 'above' : 'below'} ${t.threshold.toFixed(2)}`,
+    ),
+    '',
+    `Open signals dashboard: ${dashboardUrl}`,
+  ];
+
+  const html = `
+    <div style="font-family:-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;color:#0f172a">
+      <h2 style="margin:0 0 8px;font-size:20px">Watchlist alert</h2>
+      <p style="margin:0 0 20px;color:#64748b;font-size:13px">The following tickers crossed your configured thresholds.</p>
+      <ul style="list-style:none;margin:0;padding:0;border-top:1px solid #eef2f7">
+        ${triggers
+          .map(
+            (t) => `
+          <li style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid #eef2f7">
+            <span>
+              <strong style="font-family:ui-monospace,SFMono-Regular,monospace">${t.ticker}</strong>
+              <span style="color:#64748b;font-size:13px;margin-left:8px">${t.direction === 'above' ? 'above' : 'below'} ${t.threshold.toFixed(2)}</span>
+            </span>
+            <span style="font-family:ui-monospace,SFMono-Regular,monospace;font-weight:600;color:${t.direction === 'above' ? '#059669' : '#dc2626'}">${t.score.toFixed(2)}</span>
+          </li>`,
+          )
+          .join('')}
+      </ul>
+      <p style="margin:24px 0">
+        <a href="${dashboardUrl}" style="background:#0f172a;color:#fff;padding:12px 20px;border-radius:6px;text-decoration:none;display:inline-block">Open signals dashboard</a>
+      </p>
+      <p style="font-size:12px;color:#94a3b8">Not financial advice. See the Risk Disclaimer in your dashboard.</p>
+    </div>
+  `;
+
+  await send({
+    to,
+    subject: `ChartSentinel — ${triggers.length} watchlist alert${triggers.length === 1 ? '' : 's'}`,
+    html,
+    text: textLines.join('\n'),
+  });
+}
+
 function weeklyDigestTemplate(items: {
   reports: DigestItem[];
   news: DigestItem[];
