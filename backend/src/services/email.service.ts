@@ -117,3 +117,98 @@ export async function sendWelcomeEmail(to: string) {
   const { subject, html, text } = welcomeTemplate();
   await send({ to, subject, html, text });
 }
+
+// --- weekly digest ---------------------------------------------------------
+
+type DigestItem = {
+  title: string;
+  summary: string;
+  url: string;
+  date: Date;
+};
+
+export async function sendWeeklyDigestEmail(
+  to: string,
+  items: { reports: DigestItem[]; news: DigestItem[] },
+) {
+  const { subject, html, text } = weeklyDigestTemplate(items);
+  await send({ to, subject, html, text });
+}
+
+function weeklyDigestTemplate(items: {
+  reports: DigestItem[];
+  news: DigestItem[];
+}) {
+  const weekEnding = new Date().toLocaleDateString('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  });
+
+  const fmt = (d: Date) =>
+    d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+
+  const listText = (heading: string, list: DigestItem[]) =>
+    list.length
+      ? [
+          '',
+          heading,
+          '-'.repeat(heading.length),
+          ...list.map((it) => `• ${fmt(it.date)} — ${it.title}\n  ${it.url}`),
+        ].join('\n')
+      : '';
+
+  const text = [
+    `ChartSentinel — Weekly Digest — week ending ${weekEnding}`,
+    '',
+    listText('New reports this week', items.reports),
+    listText('Market news', items.news),
+    '',
+    'Manage your preferences: ' + (process.env.APP_URL || '') + '/dashboard',
+  ]
+    .filter(Boolean)
+    .join('\n');
+
+  const listHtml = (heading: string, list: DigestItem[]) =>
+    list.length
+      ? `
+      <h3 style="margin:32px 0 12px;font-size:14px;letter-spacing:0.04em;text-transform:uppercase;color:#64748b">${heading}</h3>
+      <ul style="list-style:none;margin:0;padding:0">
+        ${list
+          .map(
+            (it) => `
+          <li style="padding:14px 0;border-bottom:1px solid #eef2f7">
+            <div style="font-size:12px;color:#94a3b8;margin-bottom:4px">${fmt(it.date)}</div>
+            <a href="${it.url}" style="color:#0f172a;text-decoration:none;font-weight:600;font-size:15px">${it.title}</a>
+            ${it.summary ? `<p style="margin:6px 0 0;color:#475569;font-size:14px;line-height:1.55">${it.summary}</p>` : ''}
+          </li>`,
+          )
+          .join('')}
+      </ul>`
+      : '';
+
+  const html = `
+    <div style="font-family:-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;max-width:620px;margin:0 auto;padding:32px 24px;color:#0f172a">
+      <div style="text-align:center;margin-bottom:16px">
+        <div style="display:inline-block;font-size:12px;letter-spacing:0.12em;text-transform:uppercase;color:#94a3b8">Weekly Digest</div>
+        <h1 style="margin:4px 0 0;font-size:22px">ChartSentinel</h1>
+        <div style="font-size:13px;color:#64748b;margin-top:4px">Week ending ${weekEnding}</div>
+      </div>
+
+      ${listHtml('New reports this week', items.reports)}
+      ${listHtml('Market news', items.news)}
+
+      <div style="margin-top:40px;padding-top:20px;border-top:1px solid #eef2f7;font-size:12px;color:#94a3b8;text-align:center">
+        You're getting this because you subscribed to the ChartSentinel newsletter.
+        <br/>
+        <a href="${process.env.APP_URL || ''}/dashboard" style="color:#64748b">Manage preferences</a>
+      </div>
+    </div>
+  `;
+
+  return {
+    subject: `ChartSentinel weekly — ${weekEnding}`,
+    html,
+    text,
+  };
+}

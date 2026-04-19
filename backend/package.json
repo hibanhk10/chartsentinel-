@@ -11,7 +11,9 @@
     "lint": "eslint src/**/*.ts",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
-    "prisma:studio": "prisma studio"
+    "prisma:studio": "prisma studio",
+    "digest": "tsx src/scripts/send-weekly-digest.ts",
+    "digest:prod": "node dist/scripts/send-weekly-digest.js"
   },
   "dependencies": {
     "@prisma/client": "^5.7.1",
