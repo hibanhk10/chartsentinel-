@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import { GridPattern } from '../../components/ui/Patterns'
 
 export default function Footer() {
@@ -12,11 +13,12 @@ export default function Footer() {
                     </div>
                     <span className="text-lg font-bold font-display tracking-tight text-white">Chartsentinel</span>
                 </div>
-                <p className="text-secondary text-sm">© 2024 Chartsentinel. All rights reserved.</p>
-                <div className="flex gap-6">
-                    <a className="text-secondary hover:text-primary transition-colors text-sm" href="#">Twitter</a>
-                    <a className="text-secondary hover:text-primary transition-colors text-sm" href="#">Discord</a>
-                    <a className="text-secondary hover:text-primary transition-colors text-sm" href="#">Privacy</a>
+                <p className="text-secondary text-sm">© {new Date().getFullYear()} Chartsentinel. All rights reserved.</p>
+                <div className="flex flex-wrap justify-center gap-x-6 gap-y-2">
+                    <Link className="text-secondary hover:text-primary transition-colors text-sm" to="/terms">Terms</Link>
+                    <Link className="text-secondary hover:text-primary transition-colors text-sm" to="/privacy">Privacy</Link>
+                    <Link className="text-secondary hover:text-primary transition-colors text-sm" to="/risk">Risk</Link>
+                    <Link className="text-secondary hover:text-primary transition-colors text-sm" to="/contact">Contact</Link>
                 </div>
             </div>
         </footer>
