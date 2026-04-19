@@ -14,9 +14,14 @@ import type { Express } from 'express';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const engine = require('../signals/engine');
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const extended = require('../signals/extended');
 
 export function registerSignalRoutes(app: Express): void {
   engine.registerSignalRoutes(app);
+  // Extended engine needs fetchYahooHistory injected so its backtester +
+  // correlation matrix don't reach around the module boundary for it.
+  extended.registerExtendedRoutes(app, engine.fetchYahooHistory);
 }
 
 // Re-export the pure functions for anywhere else in the backend that wants
