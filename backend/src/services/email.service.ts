@@ -9,7 +9,7 @@ import env from '../config/env';
 
 const resend = env.RESEND_API_KEY ? new Resend(env.RESEND_API_KEY) : null;
 
-const FROM = env.EMAIL_FROM || 'ChartSentinel <no-reply@chartsentinel.app>';
+const FROM = env.EMAIL_FROM || 'ChartSentinel <no-reply@chartsentinel.com>';
 const APP_URL = env.APP_URL || 'http://localhost:5173';
 
 type SendArgs = {

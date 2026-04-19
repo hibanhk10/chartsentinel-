@@ -4,7 +4,7 @@ import { API_CONFIG } from '../../config/api';
 // Share-your-code surface. Lazy-loads the code (backend only creates it on
 // first request) so users who never open this tab never pollute the DB.
 
-const ORIGIN = typeof window !== 'undefined' ? window.location.origin : 'https://chartsentinel.app';
+const ORIGIN = typeof window !== 'undefined' ? window.location.origin : 'https://www.chartsentinel.com';
 
 function authHeaders() {
   const token = localStorage.getItem('authToken');

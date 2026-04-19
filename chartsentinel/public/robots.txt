@@ -5,4 +5,4 @@ Disallow: /forgot-password
 Disallow: /reset-password
 Disallow: /funnel
 
-Sitemap: https://chartsentinel.app/sitemap.xml
+Sitemap: https://www.chartsentinel.com/sitemap.xml

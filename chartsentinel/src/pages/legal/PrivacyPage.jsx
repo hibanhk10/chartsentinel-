@@ -18,7 +18,7 @@ export default function PrivacyPage() {
       <Section title="1. Who we are">
         <p>
           ChartSentinel (&quot;we&quot;, &quot;us&quot;) runs the platform
-          available at chartsentinel.app. For the purposes of Kenya&apos;s
+          available at chartsentinel.com. For the purposes of Kenya&apos;s
           Data Protection Act 2019 and similar laws, we are the data
           controller of the personal information described below.
         </p>
@@ -122,8 +122,8 @@ export default function PrivacyPage() {
           it; request that we delete it; object to or restrict certain
           processing; and export it in a portable format. To exercise any of
           these rights, email{' '}
-          <Anchor href="mailto:privacy@chartsentinel.app">
-            privacy@chartsentinel.app
+          <Anchor href="mailto:privacy@chartsentinel.com">
+            privacy@chartsentinel.com
           </Anchor>{' '}
           from the address associated with your account. We aim to respond
           within 30 days.
@@ -171,8 +171,8 @@ export default function PrivacyPage() {
       <Section title="12. Contact">
         <p>
           Questions about this Privacy Policy or your data?{' '}
-          <Anchor href="mailto:privacy@chartsentinel.app">
-            privacy@chartsentinel.app
+          <Anchor href="mailto:privacy@chartsentinel.com">
+            privacy@chartsentinel.com
           </Anchor>
           .
         </p>

@@ -50,8 +50,8 @@ export default function TermsPage() {
           binding contract in your jurisdiction. You are responsible for
           keeping your login credentials confidential and for all activity
           that happens through your account. Notify us immediately at
-          <Anchor href="mailto:support@chartsentinel.app">
-            support@chartsentinel.app
+          <Anchor href="mailto:support@chartsentinel.com">
+            support@chartsentinel.com
           </Anchor>
           if you suspect unauthorised access.
         </p>
@@ -163,8 +163,8 @@ export default function TermsPage() {
       <Section title="12. Contact">
         <p>
           Questions about these Terms?{' '}
-          <Anchor href="mailto:support@chartsentinel.app">
-            support@chartsentinel.app
+          <Anchor href="mailto:support@chartsentinel.com">
+            support@chartsentinel.com
           </Anchor>
           .
         </p>

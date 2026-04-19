@@ -6,7 +6,7 @@ import { Helmet } from 'react-helmet-async';
 // naturally (e.g. "Reset your password — ChartSentinel").
 
 const SITE = 'ChartSentinel';
-const CANONICAL_ORIGIN = 'https://chartsentinel.app';
+const CANONICAL_ORIGIN = 'https://www.chartsentinel.com';
 const DEFAULT_OG_IMAGE = `${CANONICAL_ORIGIN}/og-image.png`;
 
 export default function SEO({
