@@ -2,11 +2,12 @@ import TradingVisualization from './TradingVisualization'
 
 export default function Process() {
     return (
-        <section className="py-24 bg-background-dark">
-            <div className="max-w-7xl mx-auto px-6">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-20">
-                    {/* Visual Content Left */}
-                    <div className="relative rounded-3xl overflow-hidden aspect-[4/5] h-[600px] w-full bg-slate-900 border border-slate-800 shadow-2xl">
+        <section className="py-16 md:py-24 bg-background-dark">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 md:gap-20">
+                    {/* Visual Content Left — fluid height on mobile so the 3D
+                        viewport doesn't dominate a phone screen, fixed on lg. */}
+                    <div className="relative rounded-3xl overflow-hidden aspect-[4/5] h-[360px] md:h-[500px] lg:h-[600px] w-full bg-slate-900 border border-slate-800 shadow-2xl">
                         <TradingVisualization />
                     </div>
 
@@ -17,7 +18,7 @@ export default function Process() {
                                 <span className="material-icons text-xs text-white">auto_awesome</span>
                                 <span className="text-[10px] uppercase font-bold tracking-widest text-white">Design Process</span>
                             </div>
-                            <h2 className="text-6xl font-display font-bold tracking-tight text-white">Process</h2>
+                            <h2 className="text-4xl sm:text-5xl md:text-6xl font-display font-bold tracking-tight text-white">Process</h2>
                             <p className="text-secondary dark:text-secondary max-w-md leading-relaxed">
                                 Our process is straight to the forward. Our analysts collect the info and make them into
                                 easy to read and understand report.

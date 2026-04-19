@@ -13,12 +13,12 @@ export default function Pricing() {
     };
 
     return (
-        <section id="pricing" className="py-24 bg-background-dark relative">
-            <div className="max-w-7xl mx-auto px-6">
-                <h2 className="text-5xl font-display font-bold text-center mb-20 tracking-tight text-white">Pricing</h2>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <section id="pricing" className="py-16 md:py-24 bg-background-dark relative">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6">
+                <h2 className="text-4xl sm:text-5xl font-display font-bold text-center mb-12 md:mb-20 tracking-tight text-white">Pricing</h2>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
                     {/* Free Tier */}
-                    <div className="bg-slate-900 border border-white/10 text-white p-8 rounded-3xl flex flex-col h-full shadow-2xl transition-transform hover:-translate-y-2">
+                    <div className="bg-slate-900 border border-white/10 text-white p-6 sm:p-8 rounded-3xl flex flex-col h-full shadow-2xl transition-transform hover:-translate-y-2">
                         <span className="text-secondary text-sm font-medium mb-4">Free</span>
                         <div className="text-5xl font-bold mb-8 text-white">$0</div>
                         <ul className="space-y-4 mb-12 flex-grow">
@@ -38,7 +38,7 @@ export default function Pricing() {
                     </div>
 
                     {/* Pro Tier */}
-                    <div className="bg-slate-900 border border-white/10 text-white p-8 rounded-3xl flex flex-col h-full shadow-2xl transition-transform hover:-translate-y-2">
+                    <div className="bg-slate-900 border border-white/10 text-white p-6 sm:p-8 rounded-3xl flex flex-col h-full shadow-2xl transition-transform hover:-translate-y-2">
                         <span className="text-secondary text-sm font-medium mb-4">Pro</span>
                         <div className="text-5xl font-bold mb-8 text-white">$59</div>
                         <ul className="space-y-4 mb-12 flex-grow">
@@ -57,7 +57,7 @@ export default function Pricing() {
                     </div>
 
                     {/* Ultimate Tier */}
-                    <div className="bg-slate-900 border border-white/10 text-white p-8 rounded-3xl flex flex-col h-full shadow-2xl transition-transform hover:-translate-y-2">
+                    <div className="bg-slate-900 border border-white/10 text-white p-6 sm:p-8 rounded-3xl flex flex-col h-full shadow-2xl transition-transform hover:-translate-y-2">
                         <span className="text-secondary text-sm font-medium mb-4">Ultimate</span>
                         <div className="text-5xl font-bold mb-8 text-white">$109</div>
                         <ul className="space-y-4 mb-12 flex-grow">

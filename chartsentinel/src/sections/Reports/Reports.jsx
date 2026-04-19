@@ -42,9 +42,9 @@ const Reports = () => {
   }
 
   return (
-    <section id="reports" className="py-24 bg-background-dark relative">
-      <div className="max-w-7xl mx-auto px-6">
-        <h2 className="text-5xl font-display font-bold text-center mb-20 tracking-tight text-white">
+    <section id="reports" className="py-16 md:py-24 bg-background-dark relative">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6">
+        <h2 className="text-4xl sm:text-5xl font-display font-bold text-center mb-12 md:mb-20 tracking-tight text-white">
           Sample Reports
         </h2>
 

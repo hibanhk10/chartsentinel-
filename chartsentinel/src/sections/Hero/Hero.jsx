@@ -42,7 +42,7 @@ export default function Hero() {
                     <span className="text-xs font-semibold uppercase tracking-widest text-slate-300">System Online</span>
                 </div>
 
-                <h1 ref={titleRef} className="text-5xl md:text-8xl font-display font-bold mb-8 leading-[1.1] tracking-tighter text-white drop-shadow-2xl">
+                <h1 ref={titleRef} className="text-4xl sm:text-5xl md:text-7xl lg:text-8xl font-display font-bold mb-6 sm:mb-8 leading-[1.1] tracking-tighter text-white drop-shadow-2xl">
                     TRADING WITH<br />
                     <span className="text-transparent bg-clip-text bg-gradient-to-r from-white via-primary to-fuchsia-400">INFO YOU NEED</span>
                 </h1>
