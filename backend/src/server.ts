@@ -1,3 +1,6 @@
+// MUST be first — Sentry's auto-instrumentation patches modules at import time.
+import './instrument';
+
 import env from './config/env';
 import app from './app';
 import prisma from './config/db';

@@ -12,6 +12,8 @@ const envSchema = z.object({
   JWT_SECRET: z.string().min(32, 'JWT_SECRET must be at least 32 chars'),
   FRONTEND_URL: z.string().url().optional(),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
+  // Optional — when unset, Sentry stays quiet. Wire it in staging/prod only.
+  SENTRY_DSN: z.string().url().optional(),
 });
 
 const env = envSchema.parse(process.env);

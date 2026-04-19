@@ -1,4 +1,5 @@
 import express from 'express';
+import * as Sentry from '@sentry/node';
 import cors from 'cors';
 import env from './config/env';
 import { errorHandler } from './middlewares/error.middleware';
@@ -33,6 +34,11 @@ app.use('/api/reports', reportsRoutes);
 app.use('/api/news', newsRoutes);
 app.use('/api/contact', contactRoutes);
 app.use('/api/newsletter', newsletterRoutes);
+
+// Sentry's Express error handler must come AFTER routes and BEFORE our
+// custom handler, so it captures errors before they're serialised away.
+// No-ops when SENTRY_DSN is unset (init in instrument.ts guards against it).
+Sentry.setupExpressErrorHandler(app);
 
 app.use(errorHandler);
 

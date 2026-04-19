@@ -1,15 +1,37 @@
 import { useEffect } from 'react'
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  useLocation,
+} from 'react-router-dom'
 import Lenis from '@studio-freight/lenis'
 import CanvasWrapper from './components/three/CanvasWrapper'
 import useExperienceStore from './store/useExperienceStore'
 import { AuthProvider } from './contexts/AuthContext'
+import { trackPageview } from './lib/analytics'
 
 import Navbar from './components/ui/Navbar'
 import HomePage from './pages/HomePage'
 import ContactPage from './pages/ContactPage'
 import DashboardPage from './pages/DashboardPage'
 import SalesFunnelPage from './pages/SalesFunnelPage'
+
+// Drives PostHog $pageview events off the router. No-ops when PostHog isn't
+// configured — `trackPageview` guards internally on the enabled flag.
+function RouteChangeTracker() {
+  const location = useLocation()
+  useEffect(() => {
+    trackPageview(location.pathname + location.search)
+  }, [location])
+  return null
+}
+
+// Dev-only: a route that throws synchronously so we can confirm Sentry is
+// catching client errors. Kept out of the prod bundle by import.meta.env.DEV.
+function DebugSentry() {
+  throw new Error('Sentry test from /debug-sentry (frontend)')
+}
 
 export default function App() {
   const setMouse = useExperienceStore((state) => state.setMouse)
@@ -44,12 +66,16 @@ export default function App() {
           </div>
 
           <Navbar />
+          <RouteChangeTracker />
 
           <Routes>
             <Route path="/" element={<HomePage />} />
             <Route path="/contact" element={<ContactPage />} />
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/funnel" element={<SalesFunnelPage />} />
+            {import.meta.env.DEV && (
+              <Route path="/debug-sentry" element={<DebugSentry />} />
+            )}
           </Routes>
         </main>
       </Router>
