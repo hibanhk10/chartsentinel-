@@ -1,0 +1,35 @@
+# Universal ignores for the monorepo root. Each workspace has its own
+# .gitignore too — this file is just a belt-and-braces catch for things
+# that sometimes leak to the top level (editor state, OS junk, root-level
+# node_modules, env files).
+
+# dependencies
+**/node_modules/
+
+# env — never commit real secrets
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.local
+**/.env.*.local
+!**/.env.example
+
+# build output
+**/dist/
+**/.next/
+**/build/
+
+# logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# editor + OS
+.DS_Store
+.idea/
+*.swp
+*.swo
+Thumbs.db
