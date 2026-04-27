@@ -7,6 +7,7 @@ import Process from '../sections/Process/Process'
 import WhyUs from '../sections/WhyUs/WhyUs'
 import Footer from '../sections/Footer/Footer'
 import SEO from '../components/ui/SEO'
+import BreakingNewsTicker from '../components/ui/BreakingNewsTicker'
 
 export default function HomePage() {
     return (
@@ -16,6 +17,9 @@ export default function HomePage() {
                 description="Composite signals across FX, crypto, and equities. Commitment-of-traders positioning, seasonality, and chart-pattern matches — in one dashboard."
             />
             <Hero />
+            {/* Breaking-news strip just below the Hero — picks up scroll
+                readers immediately with live market-relevant headlines. */}
+            <BreakingNewsTicker />
             <WhatWeDo />
             <Reports />
             <News />
