@@ -18,6 +18,8 @@ export default function Footer() {
                     <Link className="text-secondary hover:text-primary transition-colors text-sm" to="/terms">Terms</Link>
                     <Link className="text-secondary hover:text-primary transition-colors text-sm" to="/privacy">Privacy</Link>
                     <Link className="text-secondary hover:text-primary transition-colors text-sm" to="/risk">Risk</Link>
+                    <Link className="text-secondary hover:text-primary transition-colors text-sm" to="/trust">Trust</Link>
+                    <Link className="text-secondary hover:text-primary transition-colors text-sm" to="/waitlist">Waitlist</Link>
                     <Link className="text-secondary hover:text-primary transition-colors text-sm" to="/contact">Contact</Link>
                 </div>
             </div>
