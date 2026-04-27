@@ -23,6 +23,11 @@ const envSchema = z.object({
   RESEND_API_KEY: z.string().optional(),
   EMAIL_FROM: z.string().optional(),
   APP_URL: z.string().url().optional(),
+
+  // Optional — when unset, /api/ai/interrogate returns rotating mock
+  // responses so the chat UI still works in dev. Set in staging/prod
+  // to enable real Gemini-backed answers.
+  GEMINI_API_KEY: z.string().optional(),
 });
 
 const env = envSchema.parse(process.env);
