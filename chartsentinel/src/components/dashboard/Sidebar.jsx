@@ -16,6 +16,7 @@ const Sidebar = ({ activeTab, setActiveTab }) => {
     { id: 'home', label: 'Home', icon: 'home' },
     { id: 'signals', label: 'Signals', icon: 'insights' },
     { id: 'terminal', label: 'Terminal', icon: 'monitor_heart' },
+    { id: 'mood', label: 'Mood', icon: 'mood' },
     { id: 'watchlist', label: 'Watchlist', icon: 'notifications_active' },
     { id: 'reports', label: 'Reports', icon: 'description' },
     { id: 'networking', label: 'Networking', icon: 'group' },
