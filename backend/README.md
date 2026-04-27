@@ -1,111 +1,130 @@
-# Chartsentinel Backend
+# ChartSentinel Backend
 
-A production-ready Node.js/TypeScript backend API for Chartsentinel.
+Express + TypeScript API for ChartSentinel. Prisma over Postgres
+(Supabase), JWT-based auth, transactional email via Resend, Gemini-
+backed AI surface with mock fallback, and a ported JS signal engine
+for the composite-score feed.
 
-## Installation
+See the root [`README.md`](../README.md) for the full architecture
+overview. This document covers backend-specific setup and the full
+endpoint list.
+
+## Setup
 
 ```bash
-cd backend
 npm install
-```
-
-## Environment Setup
-
-Copy the environment example file:
-
-```bash
 cp .env.example .env
-```
-
-Update `.env` with your configuration:
-
-```env
-PORT=3000
-DATABASE_URL="postgresql://username:password@localhost:5432/chartsentinel?schema=public"
-JWT_SECRET="your-super-secret-jwt-key-change-in-production"
-```
-
-## Database Setup
-
-Generate Prisma client:
-
-```bash
+# fill in DATABASE_URL, JWT_SECRET (>=32 chars), and any optional keys
 npm run prisma:generate
+npm run dev                # http://localhost:3000
 ```
 
-Run migrations (after setting up your PostgreSQL database):
+## Environment
 
-```bash
-npm run prisma:migrate
-```
+| Variable | Required | Purpose |
+|---|---|---|
+| `PORT` | no (default 3000) | HTTP listen port |
+| `DATABASE_URL` | **yes** | Postgres connection string (pooled, e.g. Supabase pooler) |
+| `JWT_SECRET` | **yes**, ≥32 chars | HMAC secret for auth tokens |
+| `FRONTEND_URL` | yes in production | CORS origin allow-list (single origin) |
+| `NODE_ENV` | no | `development` / `production` / `test` |
+| `RESEND_API_KEY`, `EMAIL_FROM`, `APP_URL` | no | Transactional email; no-ops without |
+| `GEMINI_API_KEY` | no | Real AI replies on `/api/ai/*`; mocks otherwise |
+| `SENTRY_DSN` | no | Error tracking; quiet without |
 
-## Running Locally
+## Migrations
 
-Development mode with hot reload:
+Migrations live in `migrations/*.sql` and are applied manually through
+the Supabase SQL editor (numbered in order). Latest is
+`004_waitlist_entries.sql` — apply it once before the `/api/waitlist`
+endpoint is functional.
 
-```bash
-npm run dev
-```
+## API endpoints
 
-Production build and start:
-
-```bash
-npm run build
-npm start
-```
-
-## API Endpoints
-
-Base URL: `http://localhost:3000/api`
+Base URL: `/api`. Public endpoints carry IP-based rate limits.
 
 ### Health
-- `GET /api/health` - Health check
+- `GET /api/health`
 
 ### Authentication
-- `POST /api/auth/register` - Register new user
-- `POST /api/auth/login` - Login user
+- `POST /api/auth/register`
+- `POST /api/auth/login`
+- `POST /api/auth/forgot-password` (5/15min)
+- `POST /api/auth/reset-password` (5/15min)
 
-### Reports
-- `GET /api/reports` - Get all reports
-- `GET /api/reports/:id` - Get specific report
+### Content
+- `GET /api/reports`, `GET /api/reports/:id`, `POST /api/reports` (admin)
+- `GET /api/news`, `GET /api/news/:id`, `POST /api/news` (admin)
 
-### News
-- `GET /api/news` - Get all news
-- `GET /api/news/:id` - Get specific news article
+### User-driven (auth required)
+- `GET /api/watchlist`, `POST /api/watchlist`, `DELETE /api/watchlist/:id`
+- `GET /api/referral`
 
-## Scripts
+### Public forms (5/15min rate limit)
+- `POST /api/contact` — contact form
+- `POST /api/newsletter` — mailing list subscribe
+- `POST /api/waitlist` — institutional screening (merged in from preregister site)
 
-- `npm run dev` - Start development server with hot reload
-- `npm run build` - Build TypeScript to JavaScript
-- `npm start` - Start production server
-- `npm run lint` - Run ESLint
-- `npm run prisma:generate` - Generate Prisma client
-- `npm run prisma:migrate` - Run database migrations
-- `npm run prisma:studio` - Open Prisma Studio
+### Signals
+- `GET /api/signals/composite/:ticker`
+- `GET /api/signals/seasonality/:ticker`
+- `GET /api/signals/cot/:ticker`
+- Plus extended endpoints registered by `signals/extended.js` (mood, sectors, correlations, backtest)
 
-## Technology Stack
+### AI
+- `GET /api/ai/sweep` — macro market summary (60/5min). Server-cached 5min, falls back to RSS when `GEMINI_API_KEY` is unset.
+- `POST /api/ai/alert` — single-headline impact analysis (30/5min). Per-headline cache 1h.
+- `POST /api/ai/interrogate` — Genesis chat (30/5min). Compliance-filtered, returns `{ text }` on every branch (success, mock, fallback).
 
-- **Node.js** - Runtime environment
-- **TypeScript** - Type-safe JavaScript
-- **Express** - Web framework
-- **Prisma** - ORM for database operations
-- **PostgreSQL** - Database
-- **Zod** - Schema validation
-- **JWT** - Authentication tokens
-- **bcrypt** - Password hashing
+### Payments (currently disabled — returns 503)
+- `POST /api/payments/create-checkout-session`
+- `POST /api/payments/webhook`
 
-## Project Structure
+### Admin (auth + `role: admin` required)
+- `GET /api/admin/overview`
+- `GET /api/admin/export/users.csv`
+- `GET /api/admin/export/subscribers.csv`
+- `GET /api/admin/export/messages.csv`
+
+## Project structure
 
 ```
 src/
-├── app.ts              # Express app configuration
-├── server.ts           # Server startup
+├── app.ts                    # Express app: CORS, routes, error handlers
+├── server.ts                 # HTTP server boot
+├── instrument.ts             # Sentry init (must be first import)
 ├── config/
-│   ├── env.ts          # Environment variables
-│   └── db.ts           # Database connection
-├── controllers/        # Request handlers
-├── services/           # Business logic
-├── middlewares/        # Express middlewares
-├── routes/             # API routes
-└── utils/              # Utility functions
+│   ├── env.ts                # Zod-validated env loader
+│   └── db.ts                 # Prisma client singleton
+├── controllers/              # Request handlers (one file per resource)
+├── services/                 # Business logic (auth, email, watchlist, referral, …)
+├── middlewares/              # auth, admin role check, error handler
+├── routes/                   # Route registrations
+├── scripts/                  # Cron jobs: weekly digest, watchlist alerts
+├── signals/                  # Ported JS engine: screener, seasonality, COT, backtest
+└── utils/
+
+prisma/
+├── schema.prisma             # 9 models incl. WaitlistEntry (added with merge)
+└── seed.ts                   # Demo content seeder
+
+migrations/                   # Hand-applied Supabase SQL
 ```
+
+## Scripts
+
+- `npm run dev` — hot-reload dev server (tsx)
+- `npm run build` — compile TS to `dist/`
+- `npm start` — production server from `dist/server.js`
+- `npm run prisma:generate` — regenerate Prisma client after schema changes
+- `npm run prisma:migrate` — apply Prisma migrations against `DATABASE_URL`
+- `npm run prisma:studio` — open Prisma Studio
+- `npm run digest:prod` — send the weekly digest email (cron-driven, see `scripts/`)
+- `npm run watchlist:check:prod` — evaluate watchlist thresholds and email alerts
+
+## Tech stack
+
+Express 4, TypeScript, Prisma 5, Postgres (Supabase), Zod for validation,
+JWT (HS256) + bcryptjs for auth, express-rate-limit, Resend for email,
+Sentry for error tracking, raw fetch against Gemini's REST API for the
+AI surface (no SDK dep).
