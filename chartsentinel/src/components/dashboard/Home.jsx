@@ -61,18 +61,56 @@ const DashboardHome = ({ setActiveTab }) => {
             </section>
 
             <section>
-                <h3 className="text-xs font-bold uppercase tracking-wider text-text-muted mb-6">What's new</h3>
-                <div className="relative rounded-2xl overflow-hidden aspect-video group cursor-pointer shadow-2xl border border-white/5 bg-gradient-to-br from-primary/30 via-surface-dark to-black">
-                    <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent z-10" />
-                    <div className="absolute inset-0 flex items-center justify-center z-20">
-                        <div className="w-16 h-16 bg-white/10 backdrop-blur-md rounded-full flex items-center justify-center border border-white/20 group-hover:scale-110 transition-transform">
-                            <span className="material-icons text-white text-3xl">play_arrow</span>
-                        </div>
-                    </div>
-                    <div className="absolute bottom-10 left-10 text-white max-w-md z-20">
-                        <h4 className="text-4xl font-bold leading-none mb-2 tracking-tighter">The Internet<br />Canvas</h4>
-                        <p className="text-xs text-text-secondary font-medium tracking-wide">New market analysis tool released</p>
-                    </div>
+                <h3 className="text-xs font-bold uppercase tracking-wider text-text-muted mb-6">Quick Access</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {[
+                        {
+                            id: 'terminal',
+                            label: 'Live Terminal',
+                            blurb: 'BTC/ETH/SOL with live orderbook + trades',
+                            icon: 'monitor_heart',
+                            tone: 'from-primary/30 to-fuchsia-500/10',
+                        },
+                        {
+                            id: 'mood',
+                            label: 'Market Mood',
+                            blurb: 'Fear & Greed plus a live majors radar',
+                            icon: 'mood',
+                            tone: 'from-amber-500/30 to-amber-500/5',
+                        },
+                        {
+                            id: 'signals',
+                            label: 'Signals',
+                            blurb: 'Composite scores across FX, crypto, equities',
+                            icon: 'insights',
+                            tone: 'from-emerald-500/30 to-emerald-500/5',
+                        },
+                        {
+                            id: 'watchlist',
+                            label: 'Watchlist',
+                            blurb: 'Threshold alerts on tickers you track',
+                            icon: 'notifications_active',
+                            tone: 'from-cyan-500/30 to-cyan-500/5',
+                        },
+                    ].map((tile) => (
+                        <button
+                            key={tile.id}
+                            type="button"
+                            onClick={() => setActiveTab?.(tile.id)}
+                            className={`relative text-left rounded-2xl border border-white/5 bg-gradient-to-br ${tile.tone} via-surface-dark p-5 hover:border-white/15 hover:-translate-y-0.5 transition-all overflow-hidden group`}
+                        >
+                            <div className="flex items-start justify-between mb-4">
+                                <span className="material-icons text-primary text-2xl group-hover:scale-110 transition-transform">
+                                    {tile.icon}
+                                </span>
+                                <span className="material-icons text-text-muted text-base group-hover:text-white transition-colors">
+                                    arrow_forward
+                                </span>
+                            </div>
+                            <h4 className="text-sm font-bold text-white mb-1">{tile.label}</h4>
+                            <p className="text-[11px] text-text-muted leading-relaxed">{tile.blurb}</p>
+                        </button>
+                    ))}
                 </div>
             </section>
 
