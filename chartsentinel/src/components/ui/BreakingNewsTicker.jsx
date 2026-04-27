@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { API_CONFIG } from '../../config/api';
 
 // Public RSS sources via rss2json — no API keys needed. Each source
 // times out independently so a slow feed doesn't block the rest.
@@ -88,6 +89,34 @@ export default function BreakingNewsTicker() {
 
             // Mix sources so the ticker doesn't run all-BBC then all-CoinDesk
             const shuffled = all.sort(() => Math.random() - 0.5);
+
+            // AI-alert prefix on the lead headline. Backend caches per-headline
+            // for an hour and falls back to a static "Moderate" string when
+            // GEMINI_API_KEY is unset, so this never blocks ticker startup.
+            if (shuffled.length > 0) {
+                try {
+                    const ctrl = new AbortController();
+                    const t = setTimeout(() => ctrl.abort(), 5000);
+                    const aiRes = await fetch(`${API_CONFIG.baseURL}/ai/alert`, {
+                        method: 'POST',
+                        headers: API_CONFIG.headers,
+                        body: JSON.stringify({ headline: shuffled[0].title }),
+                        signal: ctrl.signal,
+                    });
+                    clearTimeout(t);
+                    if (aiRes.ok) {
+                        const aiData = await aiRes.json();
+                        if (aiData?.analysis) {
+                            shuffled[0] = {
+                                title: `[AI ALERT: ${aiData.analysis}] ${shuffled[0].title}`,
+                                source: 'GENESIS AI',
+                            };
+                        }
+                    }
+                } catch {
+                    // Don't degrade the ticker if AI is unreachable.
+                }
+            }
 
             if (!cancelled && shuffled.length > 0) {
                 setHeadlines(shuffled);

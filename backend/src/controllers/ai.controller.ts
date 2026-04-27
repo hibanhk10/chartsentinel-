@@ -101,6 +101,132 @@ async function callGemini(userMessage: string, apiKey: string): Promise<string |
     }
 }
 
+// ---------------------------------------------------------------------------
+// /ai/sweep — macro market summary. Cached server-side for 5 min so a
+// homepage with this widget mounted on every visit doesn't hammer the
+// upstream provider. RSS fallback runs when GEMINI_API_KEY is unset
+// or the upstream call fails.
+// ---------------------------------------------------------------------------
+
+const FALLBACK_RSS_SOURCES = [
+    'https://feeds.bbci.co.uk/news/business/rss.xml',
+    'https://www.coindesk.com/arc/outboundfeeds/rss/',
+    'https://feeds.reuters.com/reuters/businessNews',
+];
+
+let sweepCache: { value: { summary: string; timestamp: number } | null; expiresAt: number } = {
+    value: null, expiresAt: 0,
+};
+
+async function rssFallbackSummary(): Promise<string> {
+    for (const rssUrl of FALLBACK_RSS_SOURCES) {
+        try {
+            const ctrl = new AbortController();
+            const timer = setTimeout(() => ctrl.abort(), 5000);
+            const resp = await fetch(
+                `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(rssUrl)}`,
+                { signal: ctrl.signal }
+            );
+            clearTimeout(timer);
+            const data = await resp.json() as any;
+            if (data?.items?.length) {
+                return `Live Insight: ${data.items[0].title}.`;
+            }
+        } catch {
+            // try next
+        }
+    }
+    return 'Market tracking active. Connectivity limited.';
+}
+
+const SWEEP_PROMPT
+    = 'You are ChartSentinel AI, an informational market analyst. Never '
+    + 'provide investment advice. Use a descriptive, not directive tone. '
+    + 'Provide a 2-sentence macro market sweep summary based on current '
+    + 'geopolitics and tech.';
+
+export const sweep = async (_req: Request, res: Response) => {
+    if (sweepCache.value && Date.now() < sweepCache.expiresAt) {
+        res.json(sweepCache.value);
+        return;
+    }
+
+    const geminiKey = process.env.GEMINI_API_KEY;
+    let summary: string;
+
+    if (geminiKey) {
+        const reply = await callGemini(SWEEP_PROMPT, geminiKey);
+        summary = reply || (await rssFallbackSummary());
+    } else {
+        summary = await rssFallbackSummary();
+    }
+
+    const data = { summary, timestamp: Date.now() };
+    sweepCache = { value: data, expiresAt: Date.now() + 5 * 60 * 1000 };
+    res.json(data);
+};
+
+// ---------------------------------------------------------------------------
+// /ai/alert — single-headline impact analysis. Cached per-headline (text
+// hash-keyed in a plain Map so we don't add a Redis dep for what is
+// effectively a memo). The breaking-news ticker calls this for the
+// lead headline so the ticker can prepend an "AI ALERT:" prefix to one
+// item per refresh cycle.
+// ---------------------------------------------------------------------------
+
+const alertSchema = z.object({
+    headline: z.string().min(1, 'Headline required').max(500),
+});
+
+const alertCache = new Map<string, { analysis: string; expiresAt: number }>();
+
+export const alert = async (req: Request, res: Response) => {
+    try {
+        const { headline } = alertSchema.parse(req.body);
+        const cached = alertCache.get(headline);
+        if (cached && Date.now() < cached.expiresAt) {
+            res.json({ analysis: cached.analysis });
+            return;
+        }
+
+        const geminiKey = process.env.GEMINI_API_KEY;
+        let analysis: string;
+
+        if (!geminiKey) {
+            analysis = 'Market impact probability: Moderate.';
+        } else {
+            const prompt
+                = 'You are ChartSentinel AI, a market analyst. Never provide '
+                + 'investment advice. Analyze this headline for market context '
+                + `in 1 short sentence. Be descriptive, not directive: ${headline}`;
+            const reply = await callGemini(prompt, geminiKey);
+            analysis = reply || 'Market impact probability: Moderate.';
+        }
+
+        // Hour-long TTL — headlines rarely change meaning within the same
+        // breaking-news cycle, and caching means the same lead headline
+        // doesn't burn 5+ Gemini calls per ticker refresh.
+        alertCache.set(headline, {
+            analysis,
+            expiresAt: Date.now() + 60 * 60 * 1000,
+        });
+        res.json({ analysis });
+    } catch (error) {
+        if (error instanceof z.ZodError) {
+            res.status(400).json({
+                success: false,
+                errors: error.errors.map((err) => ({
+                    field: err.path[0],
+                    message: err.message,
+                })),
+            });
+            return;
+        }
+        console.error('AI alert error:', error);
+        res.json({ analysis: 'Market impact probability: Moderate.' });
+    }
+};
+
 export const interrogate = async (req: Request, res: Response) => {
     try {
         const { message } = interrogateSchema.parse(req.body);
