@@ -16,6 +16,7 @@ import HomePage from './pages/HomePage'
 import ContactPage from './pages/ContactPage'
 import DashboardPage from './pages/DashboardPage'
 import SalesFunnelPage from './pages/SalesFunnelPage'
+import WaitlistPage from './pages/WaitlistPage'
 import ForgotPasswordPage from './pages/ForgotPasswordPage'
 import ResetPasswordPage from './pages/ResetPasswordPage'
 import TermsPage from './pages/legal/TermsPage'
@@ -78,6 +79,7 @@ export default function App() {
             <Route path="/contact" element={<ContactPage />} />
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/funnel" element={<SalesFunnelPage />} />
+            <Route path="/waitlist" element={<WaitlistPage />} />
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
             <Route path="/reset-password" element={<ResetPasswordPage />} />
             <Route path="/terms" element={<TermsPage />} />

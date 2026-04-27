@@ -141,3 +141,23 @@ model NewsletterSubscriber {
 
   @@map("newsletter_subscribers")
 }
+
+// Pre-launch waitlist applications. Captured before Stripe is wired up so
+// the team can manually invite approved institutional traders to the live
+// product. Migrated in from the standalone preregister site so signup
+// state lives in one place.
+model WaitlistEntry {
+  id          String   @id @default(cuid())
+  email       String   @unique
+  fullName    String
+  institution String?
+  aum         String?
+  source      String?  // e.g. "screening" / "homepage-cta" — for funnel attribution
+  userAgent   String?
+  ipAddress   String?
+  metadata    Json?    @default("{}")
+  createdAt   DateTime @default(now())
+
+  @@index([createdAt(sort: Desc)])
+  @@map("waitlist_entries")
+}
