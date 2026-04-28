@@ -18,6 +18,17 @@ model User {
   role                String               @default("user")
   isPaid              Boolean              @default(false)
   createdAt           DateTime             @default(now())
+  // Public community-map fields. All optional; only included on the public
+  // roster when locationOptIn=true AND displayName is set. lat/lng are
+  // city-centroid values supplied by the curated picker on the frontend
+  // — we never geocode user-typed strings server-side.
+  displayName         String?
+  roleTag             String?
+  city                String?
+  country             String?
+  lat                 Float?
+  lng                 Float?
+  locationOptIn       Boolean              @default(false)
   passwordResetTokens PasswordResetToken[]
   watchlistItems      WatchlistItem[]
   referralCode        ReferralCode?

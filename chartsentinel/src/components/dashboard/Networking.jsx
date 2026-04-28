@@ -1,6 +1,30 @@
+import { useCallback, useEffect, useState } from 'react';
 import MemberMap from '../ui/MemberMap';
+import MyLocationCard from './MyLocationCard';
+import { networkingService } from '../../services/networkingService';
 
 const DashboardNetworking = () => {
+    const [members, setMembers] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    const fetchMembers = useCallback(async () => {
+        try {
+            const res = await networkingService.listMembers();
+            setMembers(Array.isArray(res?.members) ? res.members : []);
+        } catch {
+            // Network/auth errors → empty roster. The map shows the
+            // "nobody on the map yet" state instead of a red banner; the
+            // failure isn't actionable for the user.
+            setMembers([]);
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        fetchMembers();
+    }, [fetchMembers]);
+
     return (
         <div className="space-y-12 animate-in fade-in duration-700">
             <header className="text-center mb-16">
@@ -29,8 +53,9 @@ const DashboardNetworking = () => {
                     </div>
                 </div>
                 <div className="h-[420px] md:h-[500px]">
-                    <MemberMap />
+                    <MemberMap members={members} loading={loading} />
                 </div>
+                <MyLocationCard onChange={fetchMembers} />
             </section>
 
             <div className="space-y-32 mb-32">

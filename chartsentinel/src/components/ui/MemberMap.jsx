@@ -20,28 +20,7 @@ const PinIcon = L.divIcon({
     popupAnchor: [0, -10],
 });
 
-// Curated demo roster — anonymized handles and city-level coordinates.
-// Replace with `GET /networking/members/public` (opt-in roster) once
-// the backend route exists; the schema mirrors what this component
-// already renders.
-const SAMPLE_MEMBERS = [
-    { handle: 'alpha-quant', city: 'New York, US',     lat: 40.71,  lng: -74.00,  role: 'Quant' },
-    { handle: 'bay-trader',  city: 'San Francisco, US', lat: 37.77,  lng: -122.42, role: 'Equities' },
-    { handle: 'maple-desk',  city: 'Toronto, CA',      lat: 43.65,  lng: -79.38,  role: 'FX' },
-    { handle: 'thames-pm',   city: 'London, UK',       lat: 51.51,  lng: -0.13,   role: 'Macro' },
-    { handle: 'alpine-vol',  city: 'Zurich, CH',       lat: 47.37,  lng: 8.54,    role: 'Vol' },
-    { handle: 'frankfurt-1', city: 'Frankfurt, DE',    lat: 50.11,  lng: 8.68,    role: 'Rates' },
-    { handle: 'soko-trader', city: 'Lagos, NG',        lat: 6.52,   lng: 3.38,    role: 'Crypto' },
-    { handle: 'mumbai-fx',   city: 'Mumbai, IN',       lat: 19.08,  lng: 72.88,   role: 'FX' },
-    { handle: 'sg-systems',  city: 'Singapore, SG',    lat: 1.35,   lng: 103.82,  role: 'Systematic' },
-    { handle: 'tokyo-prop',  city: 'Tokyo, JP',        lat: 35.68,  lng: 139.69,  role: 'Prop' },
-    { handle: 'sydney-desk', city: 'Sydney, AU',       lat: -33.87, lng: 151.21,  role: 'Commodities' },
-    { handle: 'paulista-1',  city: 'São Paulo, BR',    lat: -23.55, lng: -46.63,  role: 'EM' },
-    { handle: 'dxb-prop',    city: 'Dubai, AE',        lat: 25.20,  lng: 55.27,   role: 'Energy' },
-    { handle: 'hk-arb',      city: 'Hong Kong, HK',    lat: 22.32,  lng: 114.17,  role: 'Arb' },
-];
-
-const MemberMap = ({ members = SAMPLE_MEMBERS }) => {
+const MemberMap = ({ members = [], loading = false }) => {
     const positions = useMemo(
         () => members.map((m) => ({ ...m, position: [m.lat, m.lng] })),
         [members]
@@ -61,10 +40,23 @@ const MemberMap = ({ members = SAMPLE_MEMBERS }) => {
                 <div className="flex items-center gap-3 text-[10px] text-text-muted">
                     <span className="flex items-center gap-1.5">
                         <span className="w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_8px_#d946ef]" />
-                        {positions.length} members visible
+                        {loading
+                            ? 'Loading members…'
+                            : `${positions.length} ${positions.length === 1 ? 'member' : 'members'} visible`}
                     </span>
                 </div>
             </div>
+
+            {!loading && positions.length === 0 && (
+                <div className="absolute inset-0 z-[900] flex items-center justify-center pointer-events-none">
+                    <div className="px-5 py-4 rounded-xl bg-black/70 border border-white/10 backdrop-blur text-center max-w-xs">
+                        <p className="text-xs text-white font-bold mb-1">Nobody on the map yet</p>
+                        <p className="text-[11px] text-text-muted leading-relaxed">
+                            Be the first — opt in below to drop your pin.
+                        </p>
+                    </div>
+                </div>
+            )}
 
             <MapContainer
                 center={[20, 0]}
@@ -104,7 +96,7 @@ const MemberMap = ({ members = SAMPLE_MEMBERS }) => {
                     City-level · opt-in only · no PII
                 </span>
                 <span className="text-[9px] uppercase tracking-widest text-text-muted">
-                    Sample roster
+                    Live roster
                 </span>
             </div>
         </div>
