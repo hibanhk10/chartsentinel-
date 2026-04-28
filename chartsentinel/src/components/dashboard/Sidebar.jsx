@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 
 // Responsive sidebar:
@@ -7,29 +7,95 @@ import { useAuth } from '../../contexts/AuthContext';
 //                hamburger in the top bar toggles it, Esc closes it, and
 //                tab selection closes it too so the user can actually see
 //                the content they just asked for.
+//
+// Items are grouped into collapsible dropdown sections so the nav stays
+// scannable as the dashboard surface grows. The group containing the
+// active tab auto-opens; users can collapse or expand others freely.
 
 const Sidebar = ({ activeTab, setActiveTab }) => {
   const { user, logout } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
 
-  const navItems = [
-    { id: 'home', label: 'Home', icon: 'home' },
-    { id: 'signals', label: 'Signals', icon: 'insights' },
-    { id: 'terminal', label: 'Terminal', icon: 'monitor_heart' },
-    { id: 'mood', label: 'Mood', icon: 'mood' },
-    { id: 'interrogation', label: 'Interrogation', icon: 'psychology' },
-    { id: 'watchlist', label: 'Watchlist', icon: 'notifications_active' },
-    { id: 'reports', label: 'Reports', icon: 'description' },
-    { id: 'networking', label: 'Networking', icon: 'group' },
-    { id: 'news', label: 'Daily News', icon: 'newspaper' },
-    { id: 'coaching', label: 'Coaching', icon: 'school' },
-    { id: 'referrals', label: 'Invite friends', icon: 'card_giftcard' },
-    { id: 'about', label: 'About', icon: 'info' },
-    { id: 'contact', label: 'Contact', icon: 'mail' },
-    ...(user?.role === 'admin'
-      ? [{ id: 'admin', label: 'Admin', icon: 'admin_panel_settings' }]
-      : []),
-  ];
+  const navGroups = useMemo(
+    () => [
+      {
+        id: 'overview',
+        label: 'Overview',
+        icon: 'space_dashboard',
+        items: [{ id: 'home', label: 'Home', icon: 'home' }],
+      },
+      {
+        id: 'markets',
+        label: 'Markets',
+        icon: 'show_chart',
+        items: [
+          { id: 'signals', label: 'Signals', icon: 'insights' },
+          { id: 'terminal', label: 'Terminal', icon: 'monitor_heart' },
+          { id: 'mood', label: 'Mood', icon: 'mood' },
+          { id: 'watchlist', label: 'Watchlist', icon: 'notifications_active' },
+        ],
+      },
+      {
+        id: 'intelligence',
+        label: 'Intelligence',
+        icon: 'radar',
+        items: [
+          { id: 'intel', label: 'Threat Matrix', icon: 'public' },
+          { id: 'interrogation', label: 'Interrogation', icon: 'psychology' },
+          { id: 'reports', label: 'Reports', icon: 'description' },
+          { id: 'news', label: 'Daily News', icon: 'newspaper' },
+        ],
+      },
+      {
+        id: 'community',
+        label: 'Community',
+        icon: 'group',
+        items: [
+          { id: 'networking', label: 'Networking', icon: 'group' },
+          { id: 'coaching', label: 'Coaching', icon: 'school' },
+          { id: 'referrals', label: 'Invite friends', icon: 'card_giftcard' },
+        ],
+      },
+      {
+        id: 'support',
+        label: 'Support',
+        icon: 'help_outline',
+        items: [
+          { id: 'about', label: 'About', icon: 'info' },
+          { id: 'contact', label: 'Contact', icon: 'mail' },
+          ...(user?.role === 'admin'
+            ? [{ id: 'admin', label: 'Admin', icon: 'admin_panel_settings' }]
+            : []),
+        ],
+      },
+    ],
+    [user?.role]
+  );
+
+  const flatItems = useMemo(
+    () => navGroups.flatMap((g) => g.items),
+    [navGroups]
+  );
+
+  // Auto-open whichever group owns the active tab so navigation keeps
+  // context. Users can still expand other groups manually.
+  const groupOfActive = useMemo(
+    () => navGroups.find((g) => g.items.some((i) => i.id === activeTab))?.id,
+    [navGroups, activeTab]
+  );
+
+  // Tracks groups the user has explicitly toggled. Anything not in this
+  // map defaults to "open iff it contains the active tab". This shape
+  // lets us derive open-state purely at render time, so navigating to a
+  // new tab auto-opens its group without a setState-in-effect cycle.
+  const [overrides, setOverrides] = useState({});
+
+  const isGroupOpen = (groupId) =>
+    groupId in overrides ? overrides[groupId] : groupId === groupOfActive;
+
+  const toggleGroup = (groupId) => {
+    setOverrides((prev) => ({ ...prev, [groupId]: !isGroupOpen(groupId) }));
+  };
 
   // Esc closes the drawer on mobile.
   useEffect(() => {
@@ -69,7 +135,7 @@ const Sidebar = ({ activeTab, setActiveTab }) => {
           <span className="text-sm font-medium">Menu</span>
         </button>
         <span className="text-xs uppercase tracking-wider text-text-muted">
-          {navItems.find((i) => i.id === activeTab)?.label || 'Dashboard'}
+          {flatItems.find((i) => i.id === activeTab)?.label || 'Dashboard'}
         </span>
       </div>
 
@@ -117,20 +183,62 @@ const Sidebar = ({ activeTab, setActiveTab }) => {
           </div>
 
           <nav className="space-y-1">
-            {navItems.map((item) => (
-              <button
-                key={item.id}
-                onClick={() => handleTabClick(item.id)}
-                className={`w-full flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-                  activeTab === item.id
-                    ? 'bg-primary/10 text-primary border border-primary/20'
-                    : 'text-text-secondary hover:bg-white/5'
-                }`}
-              >
-                <span className="material-icons text-lg">{item.icon}</span>
-                {item.label}
-              </button>
-            ))}
+            {navGroups.map((group) => {
+              const isExpanded = isGroupOpen(group.id);
+              const containsActive = group.items.some((i) => i.id === activeTab);
+              return (
+                <div key={group.id}>
+                  <button
+                    onClick={() => toggleGroup(group.id)}
+                    aria-expanded={isExpanded}
+                    className={`w-full flex items-center justify-between gap-3 px-3 py-2 text-[11px] uppercase tracking-widest font-bold rounded-md transition-colors ${
+                      containsActive
+                        ? 'text-white'
+                        : 'text-text-muted hover:bg-white/5 hover:text-text-secondary'
+                    }`}
+                  >
+                    <span className="flex items-center gap-3">
+                      <span className="material-icons text-base">{group.icon}</span>
+                      {group.label}
+                    </span>
+                    <span
+                      className={`material-icons text-base transition-transform duration-200 ${
+                        isExpanded ? 'rotate-180' : ''
+                      }`}
+                    >
+                      expand_more
+                    </span>
+                  </button>
+
+                  <div
+                    className={`grid transition-all duration-200 ease-out ${
+                      isExpanded
+                        ? 'grid-rows-[1fr] opacity-100'
+                        : 'grid-rows-[0fr] opacity-0'
+                    }`}
+                  >
+                    <div className="overflow-hidden">
+                      <div className="pl-3 pt-1 pb-2 space-y-1 border-l border-white/5 ml-4">
+                        {group.items.map((item) => (
+                          <button
+                            key={item.id}
+                            onClick={() => handleTabClick(item.id)}
+                            className={`w-full flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                              activeTab === item.id
+                                ? 'bg-primary/10 text-primary border border-primary/20'
+                                : 'text-text-secondary hover:bg-white/5'
+                            }`}
+                          >
+                            <span className="material-icons text-lg">{item.icon}</span>
+                            {item.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </nav>
 
           <div className="mt-8">

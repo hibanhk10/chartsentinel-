@@ -14,9 +14,10 @@ import DashboardReferrals from '../components/dashboard/Referrals';
 import DashboardTerminal from '../components/dashboard/Terminal';
 import DashboardMood from '../components/dashboard/Mood';
 import DashboardInterrogation from '../components/dashboard/Interrogation';
+import DashboardIntel from '../components/dashboard/Intel';
 import SEO from '../components/ui/SEO';
 
-const VALID_TABS = ['home', 'signals', 'terminal', 'mood', 'interrogation', 'watchlist', 'reports', 'news', 'networking', 'coaching', 'referrals', 'about', 'contact', 'admin'];
+const VALID_TABS = ['home', 'signals', 'terminal', 'mood', 'interrogation', 'intel', 'watchlist', 'reports', 'news', 'networking', 'coaching', 'referrals', 'about', 'contact', 'admin'];
 
 const DashboardPage = () => {
     // Persist the active tab in the URL (?tab=admin) so reloads and
@@ -66,6 +67,8 @@ const DashboardPage = () => {
                 return <DashboardMood />;
             case 'interrogation':
                 return <DashboardInterrogation />;
+            case 'intel':
+                return <DashboardIntel />;
             case 'watchlist':
                 return <DashboardWatchlist />;
             case 'referrals':

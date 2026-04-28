@@ -1,7 +1,9 @@
+import MemberMap from '../ui/MemberMap';
+
 const DashboardNetworking = () => {
     return (
         <div className="space-y-12 animate-in fade-in duration-700">
-            <header className="text-center mb-24">
+            <header className="text-center mb-16">
                 <h1 className="text-5xl md:text-6xl font-bold font-display text-white mb-8 leading-[1.1]">
                     Join Our.<br />
                     <span className="text-text-muted">Discord Community.</span>
@@ -15,6 +17,21 @@ const DashboardNetworking = () => {
                     </button>
                 </div>
             </header>
+
+            <section className="space-y-6">
+                <div className="flex items-end justify-between gap-6 flex-wrap">
+                    <div>
+                        <h2 className="text-3xl font-bold font-display text-white mb-2">Members Worldwide</h2>
+                        <p className="text-text-secondary text-sm max-w-xl leading-relaxed">
+                            See where the community trades from. Locations are city-level and only
+                            shown for members who have opted in to the public roster.
+                        </p>
+                    </div>
+                </div>
+                <div className="h-[420px] md:h-[500px]">
+                    <MemberMap />
+                </div>
+            </section>
 
             <div className="space-y-32 mb-32">
                 <div className="grid md:grid-cols-2 items-center gap-12">
