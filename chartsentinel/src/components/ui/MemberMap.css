@@ -1,0 +1,101 @@
+/* Custom Leaflet styling for the community member map. Scoped via the
+   wrapper class so it doesn't leak into any future Leaflet usage. */
+
+.member-map-wrapper .leaflet-container {
+    background: #050810;
+    font-family: inherit;
+    border-radius: 1.25rem;
+}
+
+/* Pin marker — pulsing ring + solid core dot. */
+.member-map-pin {
+    position: relative;
+    width: 16px;
+    height: 16px;
+    pointer-events: auto;
+}
+
+.member-map-pin::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 9999px;
+    background: rgba(217, 70, 239, 0.4);
+    animation: member-map-pulse 2.4s ease-out infinite;
+    pointer-events: none;
+}
+
+.member-map-pin::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 10px;
+    height: 10px;
+    margin: -5px 0 0 -5px;
+    border-radius: 9999px;
+    background: radial-gradient(circle at 35% 35%, #f0abfc 0%, #d946ef 60%, #a21caf 100%);
+    box-shadow: 0 0 10px rgba(217, 70, 239, 0.6), inset 0 0 0 1.5px #fff;
+    pointer-events: none;
+}
+
+@keyframes member-map-pulse {
+    0%   { transform: scale(0.6); opacity: 0.7; }
+    80%  { transform: scale(2.4); opacity: 0; }
+    100% { transform: scale(2.4); opacity: 0; }
+}
+
+/* Popup — dark, glassy, matching the rest of the dashboard. */
+.member-map-wrapper .leaflet-popup-content-wrapper {
+    background: rgba(10, 12, 22, 0.92);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 0.75rem;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(8px);
+}
+
+.member-map-wrapper .leaflet-popup-content {
+    margin: 10px 14px;
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+.member-map-wrapper .leaflet-popup-tip {
+    background: rgba(10, 12, 22, 0.92);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.member-map-wrapper .leaflet-popup-close-button {
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.member-map-wrapper .leaflet-popup-close-button:hover {
+    color: #fff;
+}
+
+/* Zoom control restyled for dark theme. */
+.member-map-wrapper .leaflet-bar a,
+.member-map-wrapper .leaflet-bar a:hover {
+    background: rgba(15, 20, 35, 0.85);
+    color: #fff;
+    border-color: rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(8px);
+}
+
+.member-map-wrapper .leaflet-bar a:hover {
+    background: rgba(217, 70, 239, 0.18);
+}
+
+/* Attribution — keep the credit visible (license requires it) but
+   tone it down so it doesn't fight the UI. */
+.member-map-wrapper .leaflet-control-attribution {
+    background: rgba(0, 0, 0, 0.5);
+    color: rgba(255, 255, 255, 0.55);
+    font-size: 9px;
+    padding: 2px 6px;
+}
+
+.member-map-wrapper .leaflet-control-attribution a {
+    color: rgba(255, 255, 255, 0.75);
+}
