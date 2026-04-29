@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { lazy, Suspense, useEffect } from 'react'
 import {
   BrowserRouter as Router,
   Routes,
@@ -6,8 +6,36 @@ import {
   useLocation,
 } from 'react-router-dom'
 import Lenis from '@studio-freight/lenis'
-import CanvasWrapper from './components/three/CanvasWrapper'
 import useExperienceStore from './store/useExperienceStore'
+
+// Three.js + drei + fiber weigh ~1.2 MB. The canvas is decorative on every
+// route except the marketing pages that actually project Views into it.
+// Lazy-loading + per-route gating means functional routes (dashboard, legal,
+// contact, auth flows) skip the bundle entirely on initial paint.
+const CanvasWrapper = lazy(() => import('./components/three/CanvasWrapper'))
+
+// Routes where the ambient canvas adds nothing — purely functional or
+// legal/text. Anything not listed here gets the canvas (default-on so new
+// marketing pages inherit it automatically).
+const NO_CANVAS_ROUTES = new Set([
+  '/dashboard',
+  '/contact',
+  '/forgot-password',
+  '/reset-password',
+  '/terms',
+  '/privacy',
+  '/risk',
+])
+
+function RouteAwareCanvas() {
+  const { pathname } = useLocation()
+  if (NO_CANVAS_ROUTES.has(pathname)) return null
+  return (
+    <Suspense fallback={null}>
+      <CanvasWrapper />
+    </Suspense>
+  )
+}
 import { AuthProvider } from './contexts/AuthContext'
 import { trackPageview } from './lib/analytics'
 
@@ -69,7 +97,7 @@ export default function App() {
       <Router>
         <main className="bg-background-dark text-white selection:bg-primary selection:text-white">
           <div className="fixed inset-0 z-0">
-            <CanvasWrapper />
+            <RouteAwareCanvas />
           </div>
 
           <Navbar />

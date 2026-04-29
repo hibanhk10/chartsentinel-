@@ -33,6 +33,10 @@ const Sidebar = ({ activeTab, setActiveTab }) => {
           { id: 'terminal', label: 'Terminal', icon: 'monitor_heart' },
           { id: 'mood', label: 'Mood', icon: 'mood' },
           { id: 'watchlist', label: 'Watchlist', icon: 'notifications_active' },
+          { id: 'smart-money', label: 'Smart Money', icon: 'account_balance' },
+          { id: 'anomalies', label: 'Anomalies', icon: 'troubleshoot' },
+          { id: 'alert-builder', label: 'Alert Builder', icon: 'add_alert' },
+          { id: 'risk-posture', label: 'Risk Posture', icon: 'speed' },
         ],
       },
       {
@@ -41,9 +45,22 @@ const Sidebar = ({ activeTab, setActiveTab }) => {
         icon: 'radar',
         items: [
           { id: 'intel', label: 'Threat Matrix', icon: 'public' },
+          { id: 'catalysts', label: 'Catalysts', icon: 'event' },
+          { id: 'macro-themes', label: 'Macro Themes', icon: 'auto_stories' },
+          { id: 'scenarios', label: 'Scenarios', icon: 'science' },
           { id: 'interrogation', label: 'Interrogation', icon: 'psychology' },
           { id: 'reports', label: 'Reports', icon: 'description' },
           { id: 'news', label: 'Daily News', icon: 'newspaper' },
+        ],
+      },
+      {
+        id: 'toolkit',
+        label: 'Toolkit',
+        icon: 'build',
+        items: [
+          { id: 'journal', label: 'Trade Journal', icon: 'book' },
+          { id: 'briefing', label: 'Daily Briefing', icon: 'graphic_eq' },
+          { id: 'idea-cards', label: 'Idea Cards', icon: 'sticky_note_2' },
         ],
       },
       {
@@ -52,6 +69,9 @@ const Sidebar = ({ activeTab, setActiveTab }) => {
         icon: 'group',
         items: [
           { id: 'networking', label: 'Networking', icon: 'group' },
+          { id: 'conviction', label: 'Conviction Pulse', icon: 'how_to_vote' },
+          { id: 'mentor-match', label: 'Mentor Match', icon: 'handshake' },
+          { id: 'war-rooms', label: 'War Rooms', icon: 'campaign' },
           { id: 'coaching', label: 'Coaching', icon: 'school' },
           { id: 'referrals', label: 'Invite friends', icon: 'card_giftcard' },
         ],

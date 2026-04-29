@@ -5,6 +5,16 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   build: {
+    modulePreload: {
+      // The `three-vendor` chunk is ~1.2 MB and only needed on marketing
+      // routes that mount <CanvasWrapper>. Strip it from the entry HTML's
+      // modulepreload list so functional routes (dashboard, legal, contact)
+      // never download it. Dynamic-import preloads (hostType !== 'html')
+      // are left untouched, so marketing routes still warm the chunk
+      // alongside the lazy import.
+      resolveDependencies: (_filename, deps, { hostType }) =>
+        hostType === 'html' ? deps.filter((d) => !d.includes('three-vendor')) : deps,
+    },
     rollupOptions: {
       output: {
         manualChunks: {
