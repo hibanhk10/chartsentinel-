@@ -40,6 +40,12 @@ model User {
   // they haven't yet, so the frontend redirects them on next login.
   // Existing users were backfilled to createdAt by migration 008.
   onboardedAt         DateTime?
+  // Telegram delivery channel. Set when the user clicks "Connect" in
+  // Settings and hits /start in the bot with a one-time linking token;
+  // cleared when they disconnect. Username is cosmetic — we deliver to
+  // chatId, which is stable. Both null = no Telegram alerts.
+  telegramChatId      String?
+  telegramUsername    String?
   passwordResetTokens PasswordResetToken[]
   watchlistItems      WatchlistItem[]
   referralCode        ReferralCode?

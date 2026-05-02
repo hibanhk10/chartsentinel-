@@ -28,6 +28,17 @@ const envSchema = z.object({
   // responses so the chat UI still works in dev. Set in staging/prod
   // to enable real Gemini-backed answers.
   GEMINI_API_KEY: z.string().optional(),
+
+  // Telegram bot for watchlist alert delivery. When TELEGRAM_BOT_TOKEN is
+  // unset the watchlist script silently skips the Telegram path and only
+  // emails — same pattern as Resend / Gemini. Bot username is the public
+  // @handle (without the @) used to build deep links from the Settings UI:
+  // https://t.me/<username>?start=<token>. Webhook secret is matched
+  // against the X-Telegram-Bot-Api-Secret-Token header on inbound
+  // webhook calls so a third party can't forge /start events.
+  TELEGRAM_BOT_TOKEN: z.string().optional(),
+  TELEGRAM_BOT_USERNAME: z.string().optional(),
+  TELEGRAM_WEBHOOK_SECRET: z.string().optional(),
 });
 
 const env = envSchema.parse(process.env);

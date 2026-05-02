@@ -216,6 +216,8 @@ export class AuthService {
       isPaid: user.isPaid,
       totpEnabled: user.totpEnabled,
       onboardedAt: user.onboardedAt,
+      telegramLinked: Boolean(user.telegramChatId),
+      telegramUsername: user.telegramUsername,
     };
   }
 

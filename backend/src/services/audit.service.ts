@@ -18,6 +18,8 @@ export const AUDIT_EVENTS = {
   TOTP_DISABLED: 'auth.totp.disabled',
   TOTP_BACKUP_REDEEMED: 'auth.totp.backup_redeemed',
   REGISTER: 'auth.register',
+  TELEGRAM_LINKED: 'auth.telegram.linked',
+  TELEGRAM_UNLINKED: 'auth.telegram.unlinked',
 } as const;
 
 export type AuditEvent = (typeof AUDIT_EVENTS)[keyof typeof AUDIT_EVENTS];

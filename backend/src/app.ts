@@ -16,6 +16,7 @@ import referralRoutes from './routes/referral.routes';
 import waitlistRoutes from './routes/waitlist.routes';
 import aiRoutes from './routes/ai.routes';
 import networkingRoutes from './routes/networking.routes';
+import telegramRoutes from './routes/telegram.routes';
 import { registerSignalRoutes } from './routes/signals.routes';
 
 const app = express();
@@ -47,6 +48,7 @@ app.use('/api/referral', referralRoutes);
 app.use('/api/waitlist', waitlistRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/networking', networkingRoutes);
+app.use('/api/telegram', telegramRoutes);
 
 // Signal engine — registers /api/signals/* endpoints directly on the app
 // since the ported JS module uses absolute paths rather than a Router.

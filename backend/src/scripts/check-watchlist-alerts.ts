@@ -26,6 +26,7 @@ import {
   sendWatchlistAlertEmail,
   type WatchlistAlertTrigger,
 } from '../services/email.service';
+import { telegramService } from '../services/telegram.service';
 import { computeCompositeScore } from '../routes/signals.routes';
 
 type ScoredItem = {
@@ -60,9 +61,20 @@ function crossedThreshold(item: ScoredItem): WatchlistAlertTrigger | null {
   return null;
 }
 
+function formatTriggerLine(t: WatchlistAlertTrigger): string {
+  // Plain-text variant used by both email subject lines and Telegram
+  // bodies. Direction → arrow keeps it scannable on a phone notification.
+  const arrow = t.direction === 'above' ? '▲' : '▼';
+  return `${arrow} ${t.ticker} ${t.score >= 0 ? '+' : ''}${t.score} (crossed ${t.direction === 'above' ? '+' : ''}${t.threshold})`;
+}
+
 async function main() {
   const items = await prisma.watchlistItem.findMany({
-    include: { user: { select: { email: true } } },
+    include: {
+      user: {
+        select: { email: true, telegramChatId: true },
+      },
+    },
   });
 
   if (!items.length) {
@@ -93,7 +105,7 @@ async function main() {
 
   const triggersByUser = new Map<
     string,
-    { email: string; triggers: WatchlistAlertTrigger[] }
+    { email: string; telegramChatId: string | null; triggers: WatchlistAlertTrigger[] }
   >();
   const now = new Date();
 
@@ -115,6 +127,7 @@ async function main() {
     if (trigger && item.user?.email) {
       const bucket = triggersByUser.get(item.userId) ?? {
         email: item.user.email,
+        telegramChatId: item.user.telegramChatId ?? null,
         triggers: [],
       };
       bucket.triggers.push(trigger);
@@ -137,20 +150,40 @@ async function main() {
     return;
   }
 
-  let sent = 0;
-  let failed = 0;
-  for (const { email, triggers } of triggersByUser.values()) {
+  let emailSent = 0;
+  let emailFailed = 0;
+  let telegramSent = 0;
+  let telegramFailed = 0;
+
+  for (const { email, telegramChatId, triggers } of triggersByUser.values()) {
+    // Email is the durable channel — we attempt it for every user, even
+    // if Telegram is also linked. A user who removes the bot from their
+    // chat shouldn't silently miss alerts.
     try {
       await sendWatchlistAlertEmail(email, triggers);
-      sent += 1;
+      emailSent += 1;
     } catch (err) {
-      failed += 1;
+      emailFailed += 1;
       console.error(`[watchlist] email send failed for ${email}:`, err);
+    }
+
+    // Telegram is best-effort. The service short-circuits to false when
+    // no bot token is configured, so this branch is a no-op in dev or on
+    // deploys without the env var. On a real failure we already logged
+    // the cause inside sendMessage().
+    if (telegramChatId) {
+      const lines = triggers.map(formatTriggerLine).join('\n');
+      const ok = await telegramService.sendMessage(
+        telegramChatId,
+        `<b>ChartSentinel watchlist</b>\n${telegramService.escapeHtml(lines)}`
+      );
+      if (ok) telegramSent += 1;
+      else telegramFailed += 1;
     }
   }
 
   console.log(
-    `[watchlist] evaluated=${items.length} users_notified=${sent} failed=${failed}`,
+    `[watchlist] evaluated=${items.length} email_sent=${emailSent} email_failed=${emailFailed} telegram_sent=${telegramSent} telegram_failed=${telegramFailed}`,
   );
 }
 

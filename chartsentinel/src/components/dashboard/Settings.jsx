@@ -16,6 +16,8 @@ import api from '../../services/api';
 
 const Settings = () => {
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
+  const [telegramLinked, setTelegramLinked] = useState(false);
+  const [telegramUsername, setTelegramUsername] = useState(null);
   const [hydrating, setHydrating] = useState(true);
 
   // The transient state machine described above.
@@ -26,6 +28,10 @@ const Settings = () => {
   const [disablePassword, setDisablePassword] = useState('');
   const [disableCode, setDisableCode] = useState('');
 
+  // Transient state for the Telegram section. linkData holds the deep-link
+  // URL the server hands back; clearing it returns to the default view.
+  const [telegramLinkData, setTelegramLinkData] = useState(null);
+
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
   const [notice, setNotice] = useState(null);
@@ -34,12 +40,16 @@ const Settings = () => {
     try {
       const me = await api.get('/auth/me');
       setTwoFactorEnabled(!!me.totpEnabled);
+      setTelegramLinked(!!me.telegramLinked);
+      setTelegramUsername(me.telegramUsername ?? null);
     } catch {
       // /auth/me may not be wired in older deploys — fall back to the
       // cached user blob, which never knew about totpEnabled. Treats
       // missing data as "off", which is the safe display default.
       const cached = authService.getCurrentUser();
       setTwoFactorEnabled(!!(cached && cached.totpEnabled));
+      setTelegramLinked(!!(cached && cached.telegramLinked));
+      setTelegramUsername((cached && cached.telegramUsername) ?? null);
     } finally {
       setHydrating(false);
     }
@@ -124,6 +134,52 @@ const Settings = () => {
       setNotice('Backup codes copied.');
     } catch {
       setNotice('Copy failed — select and copy manually.');
+    }
+  };
+
+  const startTelegramLink = async () => {
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const data = await api.post('/telegram/link/start', {});
+      setTelegramLinkData(data);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // Polls /auth/me for up to ~2 minutes after the user opens the deep link
+  // so the linked-state UI flips on its own without the user needing to
+  // refresh. The webhook handler on the backend is what actually sets the
+  // chatId; this is just the frontend noticing.
+  const refreshTelegramStatus = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      await refresh();
+      if (telegramLinked) {
+        setTelegramLinkData(null);
+        setNotice('Telegram connected. Watchlist alerts will go there too.');
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const disconnectTelegram = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      await api.post('/telegram/unlink', {});
+      await refresh();
+      setNotice('Telegram disconnected.');
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -332,6 +388,102 @@ const Settings = () => {
               </button>
             </div>
           </form>
+        )}
+      </section>
+
+      <section className="rounded-2xl border border-white/5 bg-surface-dark p-6 mt-6">
+        <header className="flex items-start justify-between gap-4 mb-4">
+          <div>
+            <h2 className="text-lg font-semibold text-white flex items-center gap-2">
+              <span className="material-icons text-primary">send</span>
+              Telegram alerts
+            </h2>
+            <p className="text-sm text-text-secondary mt-1">
+              Get watchlist alerts as Telegram messages, on top of email.
+              Faster and harder to miss on a phone.
+            </p>
+          </div>
+          <span
+            className={`text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded-full ${
+              telegramLinked
+                ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30'
+                : 'bg-white/5 text-text-muted border border-white/10'
+            }`}
+          >
+            {telegramLinked ? 'Linked' : 'Off'}
+          </span>
+        </header>
+
+        {telegramLinked && (
+          <div className="space-y-3">
+            <p className="text-sm text-text-secondary">
+              Linked
+              {telegramUsername ? (
+                <> as <span className="font-mono text-white">@{telegramUsername}</span></>
+              ) : null}
+              . You can disconnect at any time — email alerts will keep
+              working.
+            </p>
+            <button
+              onClick={disconnectTelegram}
+              disabled={busy}
+              className="px-4 py-2 bg-red-500/15 text-red-200 border border-red-500/30 text-sm font-bold rounded-lg hover:bg-red-500/25 transition-colors disabled:opacity-50"
+            >
+              {busy ? 'Working…' : 'Disconnect Telegram'}
+            </button>
+          </div>
+        )}
+
+        {!telegramLinked && !telegramLinkData && (
+          <button
+            onClick={startTelegramLink}
+            disabled={busy}
+            className="px-4 py-2 bg-primary text-white text-sm font-bold rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
+          >
+            {busy ? 'Preparing…' : 'Connect Telegram'}
+          </button>
+        )}
+
+        {!telegramLinked && telegramLinkData && (
+          <div className="space-y-4">
+            <p className="text-sm text-text-secondary">
+              Open the link below — Telegram will start a chat with{' '}
+              <span className="font-mono text-white">@{telegramLinkData.botUsername}</span>{' '}
+              and we'll attach this account to that chat. The link expires
+              in 10 minutes.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <a
+                href={telegramLinkData.deepLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-1 text-center py-2 bg-primary text-white font-bold rounded-lg hover:bg-primary/90 transition-colors"
+              >
+                Open Telegram
+              </a>
+              <button
+                onClick={refreshTelegramStatus}
+                disabled={busy}
+                className="px-4 py-2 bg-white/10 text-white font-medium rounded-lg hover:bg-white/15 transition-colors disabled:opacity-50"
+              >
+                {busy ? 'Checking…' : "I've finished — check"}
+              </button>
+              <button
+                onClick={() => setTelegramLinkData(null)}
+                className="px-4 py-2 text-sm text-text-secondary hover:text-white"
+              >
+                Cancel
+              </button>
+            </div>
+            <details className="text-xs text-text-muted">
+              <summary className="cursor-pointer hover:text-white">
+                Can't open Telegram? Use this URL manually
+              </summary>
+              <code className="block mt-2 break-all bg-black/40 p-2 rounded text-text-secondary">
+                {telegramLinkData.deepLink}
+              </code>
+            </details>
+          </div>
         )}
       </section>
     </div>
