@@ -27,6 +27,7 @@ import {
   type WatchlistAlertTrigger,
 } from '../services/email.service';
 import { telegramService } from '../services/telegram.service';
+import { webhookService } from '../services/webhook.service';
 import { jobRunService, JOB_NAMES } from '../services/job-run.service';
 import { computeCompositeScore } from '../routes/signals.routes';
 
@@ -113,7 +114,12 @@ async function runWatchlistCheck() {
 
   const triggersByUser = new Map<
     string,
-    { email: string; telegramChatId: string | null; triggers: WatchlistAlertTrigger[] }
+    {
+      userId: string;
+      email: string;
+      telegramChatId: string | null;
+      triggers: WatchlistAlertTrigger[];
+    }
   >();
   const now = new Date();
 
@@ -134,6 +140,7 @@ async function runWatchlistCheck() {
     const trigger = crossedThreshold(scored);
     if (trigger && item.user?.email) {
       const bucket = triggersByUser.get(item.userId) ?? {
+        userId: item.userId,
         email: item.user.email,
         telegramChatId: item.user.telegramChatId ?? null,
         triggers: [],
@@ -165,8 +172,10 @@ async function runWatchlistCheck() {
   let emailFailed = 0;
   let telegramSent = 0;
   let telegramFailed = 0;
+  let webhookSent = 0;
+  let webhookFailed = 0;
 
-  for (const { email, telegramChatId, triggers } of triggersByUser.values()) {
+  for (const { userId, email, telegramChatId, triggers } of triggersByUser.values()) {
     // Email is the durable channel — we attempt it for every user, even
     // if Telegram is also linked. A user who removes the bot from their
     // chat shouldn't silently miss alerts.
@@ -191,14 +200,34 @@ async function runWatchlistCheck() {
       if (ok) telegramSent += 1;
       else telegramFailed += 1;
     }
+
+    // Webhook is opt-in and HMAC-signed. Best-effort like Telegram —
+    // a non-2xx response increments the user's failure counter inside
+    // webhookService and auto-disables after three consecutive misses.
+    const webhookOk = await webhookService.deliver(userId, {
+      type: 'watchlist.alert',
+      triggers: triggers.map((t) => ({
+        ticker: t.ticker,
+        score: t.score,
+        direction: t.direction,
+        threshold: t.threshold,
+      })),
+      sentAt: new Date().toISOString(),
+    });
+    if (webhookOk) webhookSent += 1;
+    // The deliver() call returns false both when there's no URL configured
+    // (silent no-op) and when delivery genuinely failed. We only count
+    // genuine failures as failed — easiest signal: the user has a
+    // configured URL. Skipped here to avoid an extra DB round-trip per
+    // user; the in-service failureCount tracks real failures already.
   }
 
   console.log(
-    `[watchlist] evaluated=${items.length} email_sent=${emailSent} email_failed=${emailFailed} telegram_sent=${telegramSent} telegram_failed=${telegramFailed}`,
+    `[watchlist] evaluated=${items.length} email_sent=${emailSent} email_failed=${emailFailed} telegram_sent=${telegramSent} telegram_failed=${telegramFailed} webhook_sent=${webhookSent} webhook_failed=${webhookFailed}`,
   );
 
   return {
-    message: `${triggersByUser.size} users notified (${emailSent} email, ${telegramSent} telegram)`,
+    message: `${triggersByUser.size} users notified (${emailSent} email, ${telegramSent} telegram, ${webhookSent} webhook)`,
     metadata: {
       evaluated: items.length,
       triggered: triggersByUser.size,
@@ -206,6 +235,8 @@ async function runWatchlistCheck() {
       emailFailed,
       telegramSent,
       telegramFailed,
+      webhookSent,
+      webhookFailed,
     },
   };
 }

@@ -218,6 +218,8 @@ export class AuthService {
       onboardedAt: user.onboardedAt,
       telegramLinked: Boolean(user.telegramChatId),
       telegramUsername: user.telegramUsername,
+      webhookConfigured: Boolean(user.webhookUrl),
+      webhookDisabled: Boolean(user.webhookDisabledAt),
     };
   }
 

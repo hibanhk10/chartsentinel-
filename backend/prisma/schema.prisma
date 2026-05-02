@@ -46,6 +46,14 @@ model User {
   // chatId, which is stable. Both null = no Telegram alerts.
   telegramChatId      String?
   telegramUsername    String?
+  // Webhook delivery for watchlist alerts. URL is what we POST to;
+  // secret is the HMAC-SHA256 key for the X-ChartSentinel-Signature
+  // header. failureCount/disabledAt drive automatic backoff after
+  // three consecutive POST failures.
+  webhookUrl          String?
+  webhookSecret       String?
+  webhookFailureCount Int                  @default(0)
+  webhookDisabledAt   DateTime?
   passwordResetTokens PasswordResetToken[]
   watchlistItems      WatchlistItem[]
   referralCode        ReferralCode?

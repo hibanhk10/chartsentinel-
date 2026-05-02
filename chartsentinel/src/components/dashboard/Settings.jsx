@@ -32,6 +32,16 @@ const Settings = () => {
   // URL the server hands back; clearing it returns to the default view.
   const [telegramLinkData, setTelegramLinkData] = useState(null);
 
+  // Webhook section state. Mirrors the GET /webhook response shape.
+  // newSecret is set just-in-time after a successful save / rotate so we
+  // can show the user the secret exactly once.
+  const [webhookUrl, setWebhookUrl] = useState('');
+  const [webhookConfigured, setWebhookConfigured] = useState(false);
+  const [webhookDisabled, setWebhookDisabled] = useState(false);
+  const [webhookFailures, setWebhookFailures] = useState(0);
+  const [newWebhookSecret, setNewWebhookSecret] = useState(null);
+  const [webhookInput, setWebhookInput] = useState('');
+
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
   const [notice, setNotice] = useState(null);
@@ -42,6 +52,25 @@ const Settings = () => {
       setTwoFactorEnabled(!!me.totpEnabled);
       setTelegramLinked(!!me.telegramLinked);
       setTelegramUsername(me.telegramUsername ?? null);
+      setWebhookConfigured(!!me.webhookConfigured);
+      setWebhookDisabled(!!me.webhookDisabled);
+
+      // Webhook detail (URL + failureCount) lives on a separate endpoint
+      // that requires auth. Fetch only when /me confirms one is set;
+      // otherwise the columns stay at their defaults.
+      if (me.webhookConfigured) {
+        try {
+          const w = await api.get('/webhook');
+          setWebhookUrl(w.url || '');
+          setWebhookFailures(w.failureCount || 0);
+        } catch {
+          // Silent: a hiccup here just leaves the URL blank in the
+          // form. The user can re-enter and re-save.
+        }
+      } else {
+        setWebhookUrl('');
+        setWebhookFailures(0);
+      }
     } catch {
       // /auth/me may not be wired in older deploys — fall back to the
       // cached user blob, which never knew about totpEnabled. Treats
@@ -176,6 +205,54 @@ const Settings = () => {
       await api.post('/telegram/unlink', {});
       await refresh();
       setNotice('Telegram disconnected.');
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const saveWebhook = async () => {
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+    setNewWebhookSecret(null);
+    try {
+      const resp = await api.post('/webhook', { url: webhookInput.trim() });
+      setNewWebhookSecret(resp.secret);
+      setWebhookInput('');
+      await refresh();
+      setNotice('Webhook saved. Copy the secret below — we won’t show it again.');
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const sendWebhookTest = async () => {
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      await api.post('/webhook/test', {});
+      setNotice('Test event delivered successfully.');
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const removeWebhook = async () => {
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      await api.delete('/webhook');
+      setNewWebhookSecret(null);
+      await refresh();
+      setNotice('Webhook removed.');
     } catch (err) {
       setError(err.message);
     } finally {
@@ -483,6 +560,112 @@ const Settings = () => {
                 {telegramLinkData.deepLink}
               </code>
             </details>
+          </div>
+        )}
+      </section>
+
+      <section className="rounded-2xl border border-white/5 bg-surface-dark p-6 mt-6">
+        <header className="flex items-start justify-between gap-4 mb-4">
+          <div>
+            <h2 className="text-lg font-semibold text-white flex items-center gap-2">
+              <span className="material-icons text-primary">webhook</span>
+              Webhook alerts
+            </h2>
+            <p className="text-sm text-text-secondary mt-1">
+              POST watchlist alerts to your own endpoint. Each request carries an
+              <code className="text-xs text-white bg-black/40 mx-1 px-1 rounded">X-ChartSentinel-Signature</code>
+              HMAC-SHA256 header so you can verify the body wasn&apos;t forged.
+            </p>
+          </div>
+          <span
+            className={`text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded-full ${
+              webhookDisabled
+                ? 'bg-red-500/15 text-red-300 border border-red-500/30'
+                : webhookConfigured
+                  ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30'
+                  : 'bg-white/5 text-text-muted border border-white/10'
+            }`}
+          >
+            {webhookDisabled ? 'Disabled' : webhookConfigured ? 'Active' : 'Off'}
+          </span>
+        </header>
+
+        {webhookDisabled && (
+          <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 text-sm text-red-200 mb-4">
+            Auto-disabled after {webhookFailures} consecutive failures. Update
+            the URL below to re-enable.
+          </div>
+        )}
+
+        {webhookConfigured && webhookUrl && (
+          <div className="bg-white/[0.03] border border-white/5 rounded-lg p-3 mb-4 text-sm">
+            <div className="text-text-muted text-xs mb-1">Currently delivering to</div>
+            <code className="text-white break-all">{webhookUrl}</code>
+            {webhookFailures > 0 && !webhookDisabled && (
+              <div className="text-amber-300 text-xs mt-2">
+                {webhookFailures} recent failure{webhookFailures === 1 ? '' : 's'}.
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="space-y-3">
+          <div>
+            <label className="block text-xs text-text-secondary mb-1.5">
+              Endpoint URL
+            </label>
+            <input
+              type="url"
+              value={webhookInput}
+              onChange={(e) => setWebhookInput(e.target.value)}
+              placeholder={webhookConfigured ? 'Paste a new URL to rotate' : 'https://example.com/hooks/chartsentinel'}
+              className="w-full bg-black/30 border border-white/10 rounded-md px-3 py-2 text-sm text-white placeholder-white/30"
+            />
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={saveWebhook}
+              disabled={busy || !webhookInput.trim()}
+              className="px-4 py-2 bg-primary text-white text-sm font-bold rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
+            >
+              {busy ? 'Saving…' : webhookConfigured ? 'Rotate URL & secret' : 'Save webhook'}
+            </button>
+            {webhookConfigured && !webhookDisabled && (
+              <button
+                onClick={sendWebhookTest}
+                disabled={busy}
+                className="px-4 py-2 bg-white/5 hover:bg-white/10 text-white text-sm font-medium rounded-lg disabled:opacity-50 transition-colors"
+              >
+                Send test event
+              </button>
+            )}
+            {webhookConfigured && (
+              <button
+                onClick={removeWebhook}
+                disabled={busy}
+                className="px-4 py-2 bg-red-500/15 text-red-200 border border-red-500/30 text-sm font-bold rounded-lg hover:bg-red-500/25 transition-colors disabled:opacity-50"
+              >
+                Remove
+              </button>
+            )}
+          </div>
+        </div>
+
+        {newWebhookSecret && (
+          <div className="mt-4 bg-amber-500/10 border border-amber-500/30 rounded-lg p-4">
+            <div className="text-amber-200 text-xs font-bold uppercase tracking-widest mb-2">
+              Save this secret now
+            </div>
+            <code className="block bg-black/40 text-white text-xs break-all p-2 rounded">
+              {newWebhookSecret}
+            </code>
+            <p className="text-xs text-amber-200 mt-2">
+              Use it as the HMAC-SHA256 key to verify each request body
+              against the
+              <code className="text-white bg-black/40 mx-1 px-1 rounded">X-ChartSentinel-Signature</code>
+              header. We won&apos;t show this secret again — rotate the URL to
+              get a new one.
+            </p>
           </div>
         )}
       </section>
