@@ -34,6 +34,7 @@ const Sidebar = ({ activeTab, setActiveTab }) => {
           { id: 'mood', label: 'Mood', icon: 'mood' },
           { id: 'watchlist', label: 'Watchlist', icon: 'notifications_active' },
           { id: 'backtester', label: 'Backtester', icon: 'history' },
+          { id: 'seasonality-calendar', label: 'Seasonality', icon: 'calendar_month' },
           { id: 'smart-money', label: 'Smart Money', icon: 'account_balance' },
           { id: 'anomalies', label: 'Anomalies', icon: 'troubleshoot' },
           { id: 'alert-builder', label: 'Alert Builder', icon: 'add_alert' },

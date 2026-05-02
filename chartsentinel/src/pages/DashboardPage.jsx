@@ -37,8 +37,9 @@ const DashboardMentorMatch = lazy(() => import('../components/dashboard/MentorMa
 const DashboardWarRooms = lazy(() => import('../components/dashboard/WarRooms'));
 const DashboardSettings = lazy(() => import('../components/dashboard/Settings'));
 const DashboardBacktester = lazy(() => import('../components/dashboard/Backtester'));
+const DashboardSeasonalityCalendar = lazy(() => import('../components/dashboard/SeasonalityCalendar'));
 
-const VALID_TABS = ['home', 'signals', 'terminal', 'mood', 'interrogation', 'intel', 'catalysts', 'macro-themes', 'scenarios', 'smart-money', 'anomalies', 'alert-builder', 'risk-posture', 'journal', 'briefing', 'idea-cards', 'conviction', 'mentor-match', 'war-rooms', 'watchlist', 'backtester', 'reports', 'news', 'networking', 'coaching', 'referrals', 'settings', 'about', 'contact', 'admin'];
+const VALID_TABS = ['home', 'signals', 'terminal', 'mood', 'interrogation', 'intel', 'catalysts', 'macro-themes', 'scenarios', 'smart-money', 'anomalies', 'alert-builder', 'risk-posture', 'journal', 'briefing', 'idea-cards', 'conviction', 'mentor-match', 'war-rooms', 'watchlist', 'backtester', 'seasonality-calendar', 'reports', 'news', 'networking', 'coaching', 'referrals', 'settings', 'about', 'contact', 'admin'];
 
 const TabFallback = () => (
     <div className="flex items-center justify-center h-64 text-text-secondary">
@@ -155,6 +156,8 @@ const DashboardPage = () => {
                 return <DashboardWatchlist />;
             case 'backtester':
                 return <DashboardBacktester />;
+            case 'seasonality-calendar':
+                return <DashboardSeasonalityCalendar />;
             case 'referrals':
                 return <DashboardReferrals />;
             case 'reports':

@@ -288,6 +288,82 @@ function computeSeasonality(priceData, lookbackYears = 10) {
 }
 
 /**
+ * Aggregate priceData into 12 calendar-month buckets so the UI can render a
+ * year-at-a-glance calendar heatmap. Different question than computeSeasonality
+ * (which is trading-day-indexed) — we want a stable answer to "which months
+ * have historically been strongest for this ticker?".
+ *
+ * Returns { months: [{ month, avgReturn, winRate, years, bestYearReturn,
+ * worstYearReturn }], years, sampleStart, sampleEnd } where month is 1..12
+ * and avgReturn/bestYearReturn/worstYearReturn are percentages.
+ */
+function computeSeasonalityCalendar(priceData, lookbackYears = 10) {
+  if (!priceData || priceData.length < 252) return null;
+
+  // First pass — group daily closes by year/month so we can compute the
+  // first-of-month and last-of-month price per bucket. Using first/last
+  // close is more robust than summing daily returns: it sidesteps the
+  // missing-day / weekend / holiday gaps that introduce noise into a
+  // sum-of-returns calc.
+  const buckets = {}; // year -> month -> { firstClose, lastClose }
+  for (const d of priceData) {
+    const year = parseInt(d.date.slice(0, 4), 10);
+    const month = parseInt(d.date.slice(5, 7), 10);
+    if (!buckets[year]) buckets[year] = {};
+    if (!buckets[year][month]) {
+      buckets[year][month] = { firstClose: d.close, lastClose: d.close, firstDate: d.date, lastDate: d.date };
+    } else {
+      buckets[year][month].lastClose = d.close;
+      buckets[year][month].lastDate = d.date;
+    }
+  }
+
+  const years = Object.keys(buckets).map(Number).sort();
+  if (years.length < 3) return null;
+  const useYears = years.slice(-lookbackYears);
+
+  // Second pass — for each month 1..12, collect monthly % returns across
+  // the lookback window. Skip months that don't have both a first and last
+  // close (e.g. the current in-progress month gets skipped if we ran the
+  // job mid-month).
+  const monthly = Array.from({ length: 12 }, () => []);
+  for (const year of useYears) {
+    const yearBuckets = buckets[year];
+    if (!yearBuckets) continue;
+    for (let m = 1; m <= 12; m++) {
+      const b = yearBuckets[m];
+      if (!b || !b.firstClose) continue;
+      const ret = ((b.lastClose - b.firstClose) / b.firstClose) * 100;
+      if (Number.isFinite(ret)) monthly[m - 1].push({ year, ret });
+    }
+  }
+
+  const months = monthly.map((entries, idx) => {
+    if (!entries.length) {
+      return { month: idx + 1, avgReturn: 0, winRate: 0, years: 0, bestYearReturn: 0, worstYearReturn: 0 };
+    }
+    const returns = entries.map((e) => e.ret);
+    const avg = returns.reduce((a, b) => a + b, 0) / returns.length;
+    const wins = returns.filter((r) => r > 0).length;
+    return {
+      month: idx + 1,
+      avgReturn: parseFloat(avg.toFixed(2)),
+      winRate: parseFloat((wins / returns.length).toFixed(2)),
+      years: returns.length,
+      bestYearReturn: parseFloat(Math.max(...returns).toFixed(2)),
+      worstYearReturn: parseFloat(Math.min(...returns).toFixed(2)),
+    };
+  });
+
+  return {
+    months,
+    years: useYears,
+    sampleStart: priceData[0]?.date ?? null,
+    sampleEnd: priceData[priceData.length - 1]?.date ?? null,
+  };
+}
+
+/**
  * Get the current seasonal signal for a ticker.
  * Returns a score from -100 to +100 based on where we are in the seasonal pattern.
  */
@@ -511,6 +587,7 @@ export {
   computeCOTScore,
   computeCompositeScore,
   computeSeasonality,
+  computeSeasonalityCalendar,
   fetchCOTData,
   fetchFredSeries,
   fetchYahooHistory,
@@ -556,6 +633,33 @@ export function registerSignalRoutes(app) {
     } catch (err) {
       console.error('[Seasonality]', err);
       res.status(500).json({ error: 'Failed to compute seasonality' });
+    }
+  });
+
+  // ── Seasonality calendar (year-at-a-glance heatmap) ──
+  app.get('/api/signals/seasonality-calendar/:ticker', async (req, res) => {
+    try {
+      const ticker = req.params.ticker;
+      const years = parseInt(req.query.years, 10) || 10;
+
+      const cacheKey = `seasonality_calendar_${ticker}_${years}`;
+      const cached = cache.get(cacheKey);
+      if (cached) return res.json(cached);
+
+      const priceData = await fetchYahooHistory(ticker, Math.max(years + 1, 11));
+      if (!priceData.length)
+        return res.status(404).json({ error: 'No price data available for this ticker' });
+
+      const calendar = computeSeasonalityCalendar(priceData, years);
+      if (!calendar)
+        return res.status(404).json({ error: 'Insufficient data for seasonality calendar' });
+
+      const result = { ticker, ...calendar };
+      cache.set(cacheKey, result, SIX_HOURS);
+      res.json(result);
+    } catch (err) {
+      console.error('[SeasonalityCalendar]', err);
+      res.status(500).json({ error: 'Failed to compute seasonality calendar' });
     }
   });
 
