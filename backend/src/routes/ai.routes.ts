@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
-import { alert, interrogate, sweep } from '../controllers/ai.controller';
+import { alert, explainScore, interrogate, sweep } from '../controllers/ai.controller';
 
 const router = Router();
 
@@ -29,5 +29,6 @@ const sweepLimiter = rateLimit({
 router.get('/sweep', sweepLimiter, sweep);
 router.post('/alert', aiLimiter, alert);
 router.post('/interrogate', aiLimiter, interrogate);
+router.post('/explain-score', aiLimiter, explainScore);
 
 export default router;

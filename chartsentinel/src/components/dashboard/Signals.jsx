@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { API_CONFIG } from '../../config/api';
+import ExplainScoreModal from './ExplainScoreModal';
 
 // Consumes the signals engine ported from chartsentinel-preregister.
 // Scores throughout are on a -100..+100 scale (except win rate which is
@@ -86,6 +87,7 @@ export default function DashboardSignals() {
 
 function ScreenerPanel({ onSelectTicker }) {
   const [state, setState] = useState({ status: 'loading', data: null, error: null });
+  const [explainTarget, setExplainTarget] = useState(null);
 
   useEffect(() => {
     let active = true;
@@ -123,6 +125,7 @@ function ScreenerPanel({ onSelectTicker }) {
             <th className="text-right font-semibold px-4 py-3">Season</th>
             <th className="text-right font-semibold px-4 py-3">COT</th>
             <th className="text-right font-semibold px-4 py-3">Pattern</th>
+            <th className="text-right font-semibold px-4 py-3 w-12"></th>
           </tr>
         </thead>
         <tbody>
@@ -154,10 +157,24 @@ function ScreenerPanel({ onSelectTicker }) {
               <td className="px-4 py-3 text-right text-text-secondary">
                 {fmt(row.components?.pattern)}
               </td>
+              <td className="px-4 py-3 text-right">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setExplainTarget(row);
+                  }}
+                  className="text-text-muted hover:text-primary transition-colors"
+                  title="Explain this score"
+                  aria-label={`Explain ${row.ticker} score`}
+                >
+                  <span className="material-icons text-base">auto_awesome</span>
+                </button>
+              </td>
             </tr>
           ))}
         </tbody>
       </table>
+      <ExplainScoreModal data={explainTarget} onClose={() => setExplainTarget(null)} />
     </div>
   );
 }

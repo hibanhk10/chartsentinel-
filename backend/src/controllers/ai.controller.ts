@@ -57,7 +57,11 @@ function pickRandom<T>(arr: T[]): T {
     return arr[Math.floor(Math.random() * arr.length)];
 }
 
-async function callGemini(userMessage: string, apiKey: string): Promise<string | null> {
+async function callGemini(
+    userMessage: string,
+    apiKey: string,
+    systemPrompt: string = SYSTEM_PROMPT,
+): Promise<string | null> {
     // Promise.race keeps the request bounded — Gemini occasionally
     // takes 20+ seconds to first byte and we'd rather show a fallback
     // than hang the chat UI.
@@ -78,7 +82,7 @@ async function callGemini(userMessage: string, apiKey: string): Promise<string |
                     {
                         role: 'user',
                         parts: [
-                            { text: `${SYSTEM_PROMPT}\n\nUser query: "${userMessage}"` },
+                            { text: `${systemPrompt}\n\nUser query: "${userMessage}"` },
                         ],
                     },
                 ],
@@ -264,5 +268,109 @@ export const interrogate = async (req: Request, res: Response) => {
         // response so the UI doesn't break.
         console.error('AI interrogate error:', error);
         res.json({ text: pickRandom(FAILURE_FALLBACKS) });
+    }
+};
+
+// ---------------------------------------------------------------------------
+// /ai/explain-score — plain-English breakdown of a ticker's composite score.
+// Caller passes the components we just computed (rather than the server
+// re-fetching) so latency is bounded by Gemini and we don't double-pay the
+// upstream Yahoo / CFTC calls.
+//
+// Cached server-side keyed by (ticker, rounded score) for 15 min — the
+// explanation is stable as long as the inputs don't move materially.
+// ---------------------------------------------------------------------------
+
+const explainScoreSchema = z.object({
+    ticker: z.string().trim().min(1).max(20),
+    score: z.number().int().min(-100).max(100),
+    signal: z.string().trim().max(20),
+    components: z.object({
+        seasonal: z.number(),
+        cot: z.number(),
+        pattern: z.number(),
+    }),
+});
+
+const EXPLAIN_PROMPT
+    = 'You are ChartSentinel AI, an informational market analyst. Given a '
+    + 'composite signal score and its three component contributions, write a '
+    + '3-sentence plain-English breakdown of what is driving the score. '
+    + 'Identify which component dominates, mention the direction (bullish/bearish/'
+    + 'neutral), and ground each claim in the supplied numbers. Never recommend '
+    + 'a trade or a position. Do not include a disclaimer in the response — '
+    + 'the UI surfaces one separately.';
+
+const EXPLAIN_FALLBACKS = [
+    'Composite score reflects a blended view of seasonality, CFTC positioning, and historical pattern matches. Detailed AI breakdown unavailable; check the per-component bars for the underlying contributions.',
+    'AI breakdown is temporarily unavailable. The score combines three weighted components — refer to the component bars to see which is pulling the composite in this direction.',
+];
+
+type ExplainCacheKey = string;
+const explainCache = new Map<ExplainCacheKey, { text: string; expiresAt: number }>();
+const EXPLAIN_TTL_MS = 15 * 60 * 1000;
+
+function explainCacheKey(input: z.infer<typeof explainScoreSchema>): ExplainCacheKey {
+    // Round each component to the nearest 5 so trivial drift between
+    // requests still hits the cache. The ticker is uppercased so
+    // ?ticker=btc-usd and ?ticker=BTC-USD don't get separate cache rows.
+    const r = (n: number) => Math.round(n / 5) * 5;
+    return `${input.ticker.toUpperCase()}|${r(input.score)}|${r(input.components.seasonal)}|${r(input.components.cot)}|${r(input.components.pattern)}`;
+}
+
+export const explainScore = async (req: Request, res: Response) => {
+    try {
+        const input = explainScoreSchema.parse(req.body);
+        const cacheKey = explainCacheKey(input);
+        const cached = explainCache.get(cacheKey);
+        if (cached && Date.now() < cached.expiresAt) {
+            res.json({ text: cached.text, cached: true });
+            return;
+        }
+
+        const geminiKey = process.env.GEMINI_API_KEY;
+        if (!geminiKey) {
+            res.json({ text: pickRandom(EXPLAIN_FALLBACKS) });
+            return;
+        }
+
+        // Compose a structured user message — Gemini does well with key-value
+        // bullet inputs and we want it grounded strictly in these numbers.
+        const userMessage
+            = `Ticker: ${input.ticker}\n`
+            + `Composite score: ${input.score} (${input.signal})\n`
+            + `Component contributions:\n`
+            + `  • Seasonal: ${input.components.seasonal}\n`
+            + `  • COT positioning: ${input.components.cot}\n`
+            + `  • Historical pattern match: ${input.components.pattern}\n`
+            + `Explain in 3 sentences which component dominates and why.`;
+
+        const reply = await callGemini(userMessage, geminiKey, EXPLAIN_PROMPT);
+        const text = reply || pickRandom(EXPLAIN_FALLBACKS);
+
+        if (reply) {
+            // Only cache real Gemini replies — caching a fallback would pin a
+            // generic string in front of users for 15 min after the key
+            // briefly fails.
+            explainCache.set(cacheKey, {
+                text,
+                expiresAt: Date.now() + EXPLAIN_TTL_MS,
+            });
+        }
+
+        res.json({ text, cached: false });
+    } catch (error) {
+        if (error instanceof z.ZodError) {
+            res.status(400).json({
+                success: false,
+                errors: error.errors.map((err) => ({
+                    field: err.path[0],
+                    message: err.message,
+                })),
+            });
+            return;
+        }
+        console.error('AI explain-score error:', error);
+        res.json({ text: pickRandom(EXPLAIN_FALLBACKS) });
     }
 };

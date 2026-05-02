@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { API_CONFIG } from '../../config/api';
+import ExplainScoreModal from './ExplainScoreModal';
 
 // Persistent watchlist with per-ticker composite-score thresholds. Writes
 // hit /api/watchlist — reads happen every time the tab mounts so the list
@@ -38,6 +39,29 @@ export default function DashboardWatchlist() {
   });
   const [formStatus, setFormStatus] = useState('idle');
   const [formError, setFormError] = useState(null);
+
+  // Explainer modal state. We don't have per-component scores in the
+  // watchlist row, so on click we fetch /signals/score/:ticker and pass
+  // its full component breakdown to the modal. null = closed.
+  const [explainTarget, setExplainTarget] = useState(null);
+  const [explainLoading, setExplainLoading] = useState(null);
+
+  async function openExplainer(ticker) {
+    setExplainLoading(ticker);
+    try {
+      const score = await fetchJson(`/signals/score/${encodeURIComponent(ticker)}`);
+      setExplainTarget({
+        ticker,
+        score: score.composite?.score ?? 0,
+        signal: score.composite?.signal ?? 'neutral',
+        components: score.composite?.components ?? { seasonal: 0, cot: 0, pattern: 0 },
+      });
+    } catch (err) {
+      setError(`Could not load ${ticker} score: ${err.message}`);
+    } finally {
+      setExplainLoading(null);
+    }
+  }
 
   async function reload() {
     setStatus('loading');
@@ -201,6 +225,8 @@ export default function DashboardWatchlist() {
         </div>
       )}
 
+      <ExplainScoreModal data={explainTarget} onClose={() => setExplainTarget(null)} />
+
       {status === 'ready' && items.length > 0 && (
         <div className="border border-white/5 rounded-xl overflow-hidden">
           <table className="w-full text-sm">
@@ -233,12 +259,25 @@ export default function DashboardWatchlist() {
                       : 'never'}
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <button
-                      onClick={() => handleDelete(item.id)}
-                      className="text-xs text-rose-300 hover:text-rose-200 transition-colors"
-                    >
-                      Remove
-                    </button>
+                    <div className="flex items-center justify-end gap-3">
+                      <button
+                        onClick={() => openExplainer(item.ticker)}
+                        disabled={explainLoading === item.ticker}
+                        className="text-text-muted hover:text-primary transition-colors disabled:opacity-40"
+                        title="Explain this score"
+                        aria-label={`Explain ${item.ticker} score`}
+                      >
+                        <span className="material-icons text-base">
+                          {explainLoading === item.ticker ? 'hourglass_empty' : 'auto_awesome'}
+                        </span>
+                      </button>
+                      <button
+                        onClick={() => handleDelete(item.id)}
+                        className="text-xs text-rose-300 hover:text-rose-200 transition-colors"
+                      >
+                        Remove
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
