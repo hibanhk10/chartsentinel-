@@ -113,6 +113,18 @@ function ScreenerPanel({ onSelectTicker }) {
   }
 
   return (
+    <div>
+      <div className="flex justify-end mb-3">
+        <a
+          href={`${API_CONFIG.baseURL}/signals/export.csv`}
+          download
+          className="inline-flex items-center gap-2 px-3 py-1.5 bg-white/5 hover:bg-white/10 text-white text-xs font-medium rounded-md border border-white/10 transition-colors"
+          title="Download today's screener as CSV"
+        >
+          <span className="material-icons text-base">download</span>
+          Export today&apos;s snapshot
+        </a>
+      </div>
     <div className="border border-white/5 rounded-xl overflow-x-auto">
       <table className="w-full text-sm">
         <thead className="bg-white/[0.03] text-text-muted text-xs uppercase tracking-wider">
@@ -175,6 +187,7 @@ function ScreenerPanel({ onSelectTicker }) {
         </tbody>
       </table>
       <ExplainScoreModal data={explainTarget} onClose={() => setExplainTarget(null)} />
+    </div>
     </div>
   );
 }

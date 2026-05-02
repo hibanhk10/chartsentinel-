@@ -838,6 +838,115 @@ export function registerSignalRoutes(app) {
     }
   });
 
+  // ── Screener CSV export ──
+  // Reuses the screener_all cache so a download right after a JSON load
+  // is free. If the cache is cold the underlying screener computation
+  // runs the same way the JSON endpoint would.
+  app.get('/api/signals/export.csv', async (_req, res) => {
+    try {
+      let response = cache.get('screener_all');
+      if (!response) {
+        // Synthesise the cache by calling through the JSON handler logic.
+        // Simplest path: redirect to the screener and let the user retry —
+        // but that's a poor UX. Instead, do a thin re-run here. The
+        // duplication is acceptable; ALL_TICKERS is short (~80 entries).
+        const cotData = await fetchCOTData();
+        const results = [];
+        const batchSize = 5;
+        for (let i = 0; i < ALL_TICKERS.length; i += batchSize) {
+          const batch = ALL_TICKERS.slice(i, i + batchSize);
+          const batchResults = await Promise.all(
+            batch.map(async (ticker) => {
+              try {
+                const priceData = await fetchYahooHistory(ticker, 11);
+                if (!priceData || priceData.length < 100) return null;
+                const latestPrice = priceData[priceData.length - 1]?.close;
+                if (!latestPrice) return null;
+                const seasonality =
+                  priceData.length >= 252 ? computeSeasonality(priceData, 10) : null;
+                const seasonalSignal = seasonality ? getSeasonalSignal(seasonality) : 0;
+                const currencyFromTicker = ticker
+                  .replace('USD=X', '')
+                  .replace('=X', '')
+                  .slice(0, 3);
+                const cotScore = computeCOTScore(cotData, currencyFromTicker);
+                const patternResult =
+                  priceData.length > 200 ? findPatternMatches(priceData) : null;
+                const composite = computeCompositeScore(seasonalSignal, cotScore, patternResult);
+                const prevPrice = priceData[priceData.length - 2]?.close;
+                const dayChange = prevPrice
+                  ? ((latestPrice - prevPrice) / prevPrice) * 100
+                  : 0;
+                return {
+                  ticker,
+                  price: latestPrice,
+                  dayChange: parseFloat(dayChange.toFixed(2)),
+                  score: composite.score,
+                  signal: composite.signal,
+                  components: composite.components,
+                };
+              } catch {
+                return null;
+              }
+            }),
+          );
+          results.push(...batchResults.filter(Boolean));
+        }
+        results.sort((a, b) => Math.abs(b.score) - Math.abs(a.score));
+        response = {
+          timestamp: new Date().toISOString(),
+          count: results.length,
+          assets: results,
+        };
+        cache.set('screener_all', response, ONE_HOUR);
+      }
+
+      // Hand-rolled CSV. Quote everything, double internal quotes, CRLF
+      // line endings — same shape as the admin exports' csvEscape.
+      const esc = (v) => {
+        if (v == null) return '""';
+        const s = typeof v === 'object' ? JSON.stringify(v) : String(v);
+        return `"${s.replace(/"/g, '""')}"`;
+      };
+      const headers = [
+        'ticker',
+        'price',
+        'dayChangePct',
+        'compositeScore',
+        'signal',
+        'seasonal',
+        'cot',
+        'pattern',
+      ];
+      const lines = [headers.map(esc).join(',')];
+      for (const a of response.assets) {
+        lines.push(
+          [
+            a.ticker,
+            a.price,
+            a.dayChange,
+            a.score,
+            a.signal,
+            a.components?.seasonal ?? '',
+            a.components?.cot ?? '',
+            a.components?.pattern ?? '',
+          ]
+            .map(esc)
+            .join(','),
+        );
+      }
+      const body = lines.join('\r\n') + '\r\n';
+
+      const filename = `chartsentinel-signals-${new Date().toISOString().slice(0, 10)}.csv`;
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.send(body);
+    } catch (err) {
+      console.error('[Screener export]', err);
+      res.status(500).json({ error: 'Failed to export signals' });
+    }
+  });
+
   // ── FRED macro data ──
   app.get('/api/signals/macro', async (_req, res) => {
     try {

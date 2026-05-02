@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import prisma from '../config/db';
 import { auditService } from '../services/audit.service';
 import { jobRunService } from '../services/job-run.service';
+import { toCsv, sendCsv } from '../lib/csv';
 
 // Admin-only overview endpoints. Guarded by the admin middleware at the
 // route layer, so the controllers can trust req.user.role === 'admin' here.
@@ -91,28 +92,7 @@ export const overviewController = async (_req: AuthRequest, res: Response) => {
 };
 
 // --- CSV exports -----------------------------------------------------------
-
-// Minimal, RFC 4180-ish CSV: quote every field, escape embedded quotes by
-// doubling them, join fields with commas and rows with CRLF. Handles the
-// three export surfaces we actually need right now (users, subscribers,
-// contact messages). If we grow this further, move into a shared util.
-function csvEscape(value: unknown): string {
-  if (value == null) return '""';
-  const str = value instanceof Date ? value.toISOString() : String(value);
-  return `"${str.replace(/"/g, '""')}"`;
-}
-
-function toCsv(headers: string[], rows: unknown[][]): string {
-  const head = headers.map(csvEscape).join(',');
-  const body = rows.map((r) => r.map(csvEscape).join(',')).join('\r\n');
-  return `${head}\r\n${body}\r\n`;
-}
-
-function sendCsv(res: Response, filename: string, body: string) {
-  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-  res.send(body);
-}
+// Helpers live in lib/csv.ts so the signals export endpoint can reuse them.
 
 export const exportUsersController = async (_req: AuthRequest, res: Response) => {
   const users = await prisma.user.findMany({
