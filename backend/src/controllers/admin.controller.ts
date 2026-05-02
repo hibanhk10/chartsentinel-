@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import prisma from '../config/db';
 import { auditService } from '../services/audit.service';
+import { jobRunService } from '../services/job-run.service';
 
 // Admin-only overview endpoints. Guarded by the admin middleware at the
 // route layer, so the controllers can trust req.user.role === 'admin' here.
@@ -165,6 +166,24 @@ export const auditLogController = async (req: AuthRequest, res: Response) => {
   const userId = typeof req.query.userId === 'string' ? req.query.userId : undefined;
 
   const result = await auditService.list({ page, limit, event, userId });
+  res.json(result);
+};
+
+// Job runs. Two views from one endpoint:
+//   ?summary=1 → latest run per job, for the dashboard "what's healthy" card
+//   default    → paginated history, newest-first, optional name filter
+export const jobRunsController = async (req: AuthRequest, res: Response) => {
+  if (req.query.summary === '1') {
+    const summary = await jobRunService.latestPerJob();
+    res.json({ rows: summary });
+    return;
+  }
+
+  const page = parsePositiveInt(req.query.page, 1);
+  const limit = parsePositiveInt(req.query.limit, 50);
+  const name = typeof req.query.name === 'string' && req.query.name ? req.query.name : undefined;
+
+  const result = await jobRunService.list({ page, limit, name });
   res.json(result);
 };
 

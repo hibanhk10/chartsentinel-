@@ -109,6 +109,8 @@ const DashboardAdmin = () => {
 
             <AdminOverview />
 
+            <AdminJobRuns />
+
             <AdminAuditLog />
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -525,6 +527,232 @@ function AdminAuditLog() {
                             <button
                                 onClick={() => setPage((p) => p + 1)}
                                 disabled={!state.data.hasMore}
+                                className="px-3 py-1 rounded-md bg-white/5 hover:bg-white/10 text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                            >
+                                Next
+                            </button>
+                        </div>
+                    </div>
+                </>
+            )}
+        </section>
+    );
+}
+
+// ── Job runs ───────────────────────────────────────────────────────────────
+//
+// Two-section view: a "latest run per job" health card on top, and a
+// paginated history table below. The summary card answers "did the digest
+// go out last Friday?" at a glance; the history is for digging in when it
+// didn't.
+
+const JOB_DEFINITIONS = [
+    { name: 'weekly-digest', label: 'Weekly digest', staleAfterHours: 24 * 8 },
+    { name: 'watchlist-check', label: 'Watchlist alerts', staleAfterHours: 2 },
+];
+
+function formatRelative(date) {
+    const ms = Date.now() - new Date(date).getTime();
+    const mins = Math.round(ms / 60000);
+    if (mins < 1) return 'just now';
+    if (mins < 60) return `${mins} min ago`;
+    const hours = Math.round(mins / 60);
+    if (hours < 48) return `${hours}h ago`;
+    return `${Math.round(hours / 24)}d ago`;
+}
+
+function jobHealth(row, staleAfterHours) {
+    if (!row) return { tone: 'unknown', label: 'Never run' };
+    if (row.status === 'failure') return { tone: 'bad', label: 'Failed' };
+    const ageHours = (Date.now() - new Date(row.finishedAt).getTime()) / 3_600_000;
+    if (ageHours > staleAfterHours) {
+        return { tone: 'warn', label: 'Stale' };
+    }
+    return { tone: 'good', label: 'OK' };
+}
+
+function AdminJobRuns() {
+    const [summary, setSummary] = useState({ status: 'loading', rows: [], error: null });
+    const [historyName, setHistoryName] = useState('');
+    const [historyPage, setHistoryPage] = useState(1);
+    const [history, setHistory] = useState({ status: 'loading', data: null, error: null });
+
+    useEffect(() => {
+        let active = true;
+        const token = localStorage.getItem('authToken');
+        fetch(`${API_CONFIG.baseURL}/admin/job-runs?summary=1`, {
+            headers: { ...API_CONFIG.headers, Authorization: `Bearer ${token}` },
+        })
+            .then(async (r) => {
+                const body = await r.json().catch(() => ({}));
+                if (!r.ok) throw new Error(body.error || `HTTP ${r.status}`);
+                return body;
+            })
+            .then((body) => active && setSummary({ status: 'ready', rows: body.rows || [], error: null }))
+            .catch((err) => active && setSummary({ status: 'error', rows: [], error: err.message }));
+        return () => {
+            active = false;
+        };
+    }, []);
+
+    useEffect(() => {
+        let active = true;
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setHistory((h) => ({ ...h, status: 'loading' }));
+        const token = localStorage.getItem('authToken');
+        const params = new URLSearchParams({ page: String(historyPage), limit: '20' });
+        if (historyName) params.set('name', historyName);
+
+        fetch(`${API_CONFIG.baseURL}/admin/job-runs?${params.toString()}`, {
+            headers: { ...API_CONFIG.headers, Authorization: `Bearer ${token}` },
+        })
+            .then(async (r) => {
+                const body = await r.json().catch(() => ({}));
+                if (!r.ok) throw new Error(body.error || `HTTP ${r.status}`);
+                return body;
+            })
+            .then((data) => active && setHistory({ status: 'ready', data, error: null }))
+            .catch((err) => active && setHistory({ status: 'error', data: null, error: err.message }));
+        return () => {
+            active = false;
+        };
+    }, [historyName, historyPage]);
+
+    return (
+        <section className="bg-surface-dark border border-white/5 rounded-2xl p-6">
+            <header className="mb-4">
+                <h3 className="font-bold text-sm text-white">Scheduled jobs</h3>
+                <p className="text-xs text-text-muted mt-1">
+                    Latest run of each scheduled job, plus full history.
+                </p>
+            </header>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                {JOB_DEFINITIONS.map((def) => {
+                    const row = summary.rows.find((r) => r.name === def.name);
+                    const health = jobHealth(row, def.staleAfterHours);
+                    const toneClass = {
+                        good: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
+                        warn: 'bg-amber-500/15 text-amber-300 border-amber-500/30',
+                        bad: 'bg-red-500/15 text-red-300 border-red-500/30',
+                        unknown: 'bg-white/5 text-text-muted border-white/10',
+                    }[health.tone];
+
+                    return (
+                        <div key={def.name} className="bg-background-dark/40 border border-white/5 rounded-xl p-4">
+                            <div className="flex items-center justify-between mb-2">
+                                <h4 className="text-white font-medium text-sm">{def.label}</h4>
+                                <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded-full border ${toneClass}`}>
+                                    {health.label}
+                                </span>
+                            </div>
+                            {row ? (
+                                <div className="text-xs text-text-secondary space-y-1">
+                                    <div>
+                                        <span className="text-text-muted">Last run </span>
+                                        {formatRelative(row.finishedAt)}
+                                        <span className="text-text-muted"> · </span>
+                                        {row.durationMs}ms
+                                    </div>
+                                    {row.message && (
+                                        <div className="text-text-muted truncate">{row.message}</div>
+                                    )}
+                                </div>
+                            ) : (
+                                <div className="text-xs text-text-muted">No runs recorded yet.</div>
+                            )}
+                        </div>
+                    );
+                })}
+            </div>
+
+            <div className="flex items-center justify-between mb-3">
+                <h4 className="text-xs font-bold uppercase tracking-widest text-text-muted">
+                    Run history
+                </h4>
+                <select
+                    value={historyName}
+                    onChange={(e) => {
+                        setHistoryName(e.target.value);
+                        setHistoryPage(1);
+                    }}
+                    className="bg-background-dark/50 border border-white/10 focus:border-primary focus:ring-1 focus:ring-primary rounded-md px-3 py-1.5 text-xs text-white outline-none"
+                >
+                    <option value="">All jobs</option>
+                    {JOB_DEFINITIONS.map((def) => (
+                        <option key={def.name} value={def.name}>
+                            {def.label}
+                        </option>
+                    ))}
+                </select>
+            </div>
+
+            {history.status === 'loading' && (
+                <div className="space-y-2">
+                    {Array.from({ length: 4 }).map((_, i) => (
+                        <div key={i} className="h-10 bg-white/[0.03] rounded-md animate-pulse" />
+                    ))}
+                </div>
+            )}
+
+            {history.status === 'error' && (
+                <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4 text-sm text-red-300">
+                    Could not load job history: {history.error}
+                </div>
+            )}
+
+            {history.status === 'ready' && history.data.rows.length === 0 && (
+                <p className="text-sm text-text-secondary py-6 text-center">No runs match.</p>
+            )}
+
+            {history.status === 'ready' && history.data.rows.length > 0 && (
+                <>
+                    <div className="overflow-x-auto -mx-6">
+                        <table className="min-w-full text-xs">
+                            <thead className="text-text-muted border-b border-white/5">
+                                <tr>
+                                    <th className="text-left px-6 py-2 font-medium">When</th>
+                                    <th className="text-left px-3 py-2 font-medium">Job</th>
+                                    <th className="text-left px-3 py-2 font-medium">Status</th>
+                                    <th className="text-left px-3 py-2 font-medium">Duration</th>
+                                    <th className="text-left px-6 py-2 font-medium">Message</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-white/5">
+                                {history.data.rows.map((row) => (
+                                    <tr key={row.id} className="text-text-secondary hover:bg-white/[0.02]">
+                                        <td className="px-6 py-2 whitespace-nowrap text-text-muted">
+                                            {new Date(row.finishedAt).toLocaleString()}
+                                        </td>
+                                        <td className="px-3 py-2 font-mono text-white">{row.name}</td>
+                                        <td className={`px-3 py-2 font-mono ${row.status === 'success' ? 'text-emerald-300' : 'text-red-300'}`}>
+                                            {row.status}
+                                        </td>
+                                        <td className="px-3 py-2 font-mono">{row.durationMs}ms</td>
+                                        <td className="px-6 py-2 text-text-muted truncate max-w-md">
+                                            {row.message || ''}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div className="flex items-center justify-between mt-4 text-xs text-text-muted">
+                        <span>
+                            Page {history.data.page} of {Math.max(1, Math.ceil(history.data.total / history.data.limit))} · {history.data.total} runs
+                        </span>
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => setHistoryPage((p) => Math.max(1, p - 1))}
+                                disabled={historyPage === 1}
+                                className="px-3 py-1 rounded-md bg-white/5 hover:bg-white/10 text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                            >
+                                Previous
+                            </button>
+                            <button
+                                onClick={() => setHistoryPage((p) => p + 1)}
+                                disabled={!history.data.hasMore}
                                 className="px-3 py-1 rounded-md bg-white/5 hover:bg-white/10 text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                             >
                                 Next

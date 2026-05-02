@@ -7,6 +7,7 @@ import {
   exportSubscribersController,
   exportMessagesController,
   auditLogController,
+  jobRunsController,
 } from '../controllers/admin.controller';
 
 const router = Router();
@@ -16,6 +17,7 @@ router.use(requireAdmin);
 
 router.get('/overview', overviewController);
 router.get('/audit-log', auditLogController);
+router.get('/job-runs', jobRunsController);
 
 // Exports stream as Content-Disposition attachments so browsers save them
 // with sensible filenames. No pagination — current data volumes are small;

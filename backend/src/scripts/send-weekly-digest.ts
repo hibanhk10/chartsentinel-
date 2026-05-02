@@ -21,12 +21,17 @@
 import '../instrument';
 import prisma from '../config/db';
 import { sendWeeklyDigestEmail } from '../services/email.service';
+import { jobRunService, JOB_NAMES } from '../services/job-run.service';
 
 const APP_URL = process.env.APP_URL || 'http://localhost:5173';
 const WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 const SEND_SPACING_MS = 100; // ~10 messages/second — well under Resend defaults
 
 async function main() {
+  return jobRunService.track(JOB_NAMES.WEEKLY_DIGEST, runWeeklyDigest);
+}
+
+async function runWeeklyDigest() {
   const since = new Date(Date.now() - WINDOW_MS);
 
   const [reports, news, subscribers] = await Promise.all([
@@ -47,12 +52,18 @@ async function main() {
 
   if (!reports.length && !news.length) {
     console.log('[digest] nothing new in the last 7 days — skipping send.');
-    return;
+    return {
+      message: 'nothing new in the last 7 days',
+      metadata: { reports: 0, news: 0, subscribers: subscribers.length },
+    };
   }
 
   if (!subscribers.length) {
     console.log('[digest] no subscribers — skipping send.');
-    return;
+    return {
+      message: 'no subscribers',
+      metadata: { reports: reports.length, news: news.length, subscribers: 0 },
+    };
   }
 
   const items = {
@@ -92,6 +103,17 @@ async function main() {
   }
 
   console.log(`[digest] done — sent=${sent} failed=${failed}`);
+
+  return {
+    message: `${sent} digests sent, ${failed} failed`,
+    metadata: {
+      reports: reports.length,
+      news: news.length,
+      subscribers: subscribers.length,
+      sent,
+      failed,
+    },
+  };
 }
 
 main()

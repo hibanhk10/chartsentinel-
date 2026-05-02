@@ -27,6 +27,7 @@ import {
   type WatchlistAlertTrigger,
 } from '../services/email.service';
 import { telegramService } from '../services/telegram.service';
+import { jobRunService, JOB_NAMES } from '../services/job-run.service';
 import { computeCompositeScore } from '../routes/signals.routes';
 
 type ScoredItem = {
@@ -69,6 +70,10 @@ function formatTriggerLine(t: WatchlistAlertTrigger): string {
 }
 
 async function main() {
+  return jobRunService.track(JOB_NAMES.WATCHLIST_CHECK, runWatchlistCheck);
+}
+
+async function runWatchlistCheck() {
   const items = await prisma.watchlistItem.findMany({
     include: {
       user: {
@@ -79,7 +84,10 @@ async function main() {
 
   if (!items.length) {
     console.log('[watchlist] no items to evaluate.');
-    return;
+    return {
+      message: 'no watchlist items',
+      metadata: { evaluated: 0, triggered: 0 },
+    };
   }
 
   // Memoise per-ticker composite scores — several users often watch the
@@ -147,7 +155,10 @@ async function main() {
 
   if (!triggersByUser.size) {
     console.log(`[watchlist] evaluated ${items.length} items — no triggers.`);
-    return;
+    return {
+      message: `evaluated ${items.length} items, no triggers`,
+      metadata: { evaluated: items.length, triggered: 0 },
+    };
   }
 
   let emailSent = 0;
@@ -185,6 +196,18 @@ async function main() {
   console.log(
     `[watchlist] evaluated=${items.length} email_sent=${emailSent} email_failed=${emailFailed} telegram_sent=${telegramSent} telegram_failed=${telegramFailed}`,
   );
+
+  return {
+    message: `${triggersByUser.size} users notified (${emailSent} email, ${telegramSent} telegram)`,
+    metadata: {
+      evaluated: items.length,
+      triggered: triggersByUser.size,
+      emailSent,
+      emailFailed,
+      telegramSent,
+      telegramFailed,
+    },
+  };
 }
 
 main()

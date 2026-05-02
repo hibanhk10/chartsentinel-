@@ -55,6 +55,25 @@ model User {
   @@map("users")
 }
 
+// One row per execution of a scheduled job (weekly digest, watchlist alert
+// checker). Inserted only at completion — anything mid-flight is invisible
+// here. Powers the admin "did the digest go out last Friday?" view without
+// anyone needing to read Railway / cron logs.
+model JobRun {
+  id         String   @id @default(cuid())
+  name       String
+  status     String
+  startedAt  DateTime
+  finishedAt DateTime
+  durationMs Int
+  message    String?
+  metadata   Json?
+
+  @@index([name, startedAt(sort: Desc)])
+  @@index([startedAt(sort: Desc)])
+  @@map("job_runs")
+}
+
 // Append-only history of security-relevant events: logins, 2FA enrolment,
 // password resets, eventually destructive admin operations. Not authoritative
 // state — just a forensic record. No FK relation to User on purpose so
