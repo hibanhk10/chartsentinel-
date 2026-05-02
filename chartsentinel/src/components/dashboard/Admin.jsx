@@ -109,6 +109,8 @@ const DashboardAdmin = () => {
 
             <AdminOverview />
 
+            <AdminAuditLog />
+
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 <Section title="New Report">
                     <form onSubmit={submitReport} noValidate>
@@ -377,5 +379,160 @@ function RecentList({ title, items }) {
                 </ul>
             )}
         </div>
+    );
+}
+
+// ── Audit log ──────────────────────────────────────────────────────────────
+//
+// Paginated viewer over /api/admin/audit-log. Filters by event prefix
+// (e.g. "auth.login") so an admin can scope to "all login activity" without
+// needing to enumerate every full event id.
+
+const EVENT_FILTER_OPTIONS = [
+    { value: '', label: 'All events' },
+    { value: 'auth.login.success', label: 'Login success' },
+    { value: 'auth.login.failure', label: 'Login failure' },
+    { value: 'auth.login.2fa_required', label: '2FA challenge issued' },
+    { value: 'auth.login.2fa_success', label: '2FA verified' },
+    { value: 'auth.login.2fa_failure', label: '2FA failed' },
+    { value: 'auth.totp.enabled', label: 'TOTP enabled' },
+    { value: 'auth.totp.disabled', label: 'TOTP disabled' },
+    { value: 'auth.password.reset_requested', label: 'Password reset requested' },
+    { value: 'auth.register', label: 'Register' },
+];
+
+function AdminAuditLog() {
+    const [page, setPage] = useState(1);
+    const [eventFilter, setEventFilter] = useState('');
+    const [state, setState] = useState({ status: 'loading', data: null, error: null });
+
+    useEffect(() => {
+        let active = true;
+        // Reset to loading on param change so the table doesn't show stale
+        // rows while the new page/filter loads. Linter flags this as a
+        // setState-in-effect — intentional here, the alternative pattern
+        // (deriving loading from a request-key) is more code for the same
+        // observable behaviour.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setState((s) => ({ ...s, status: 'loading' }));
+        const token = localStorage.getItem('authToken');
+        const params = new URLSearchParams({ page: String(page), limit: '50' });
+        if (eventFilter) params.set('event', eventFilter);
+
+        fetch(`${API_CONFIG.baseURL}/admin/audit-log?${params.toString()}`, {
+            headers: { ...API_CONFIG.headers, Authorization: `Bearer ${token}` },
+        })
+            .then(async (r) => {
+                const body = await r.json().catch(() => ({}));
+                if (!r.ok) throw new Error(body.error || body.message || `HTTP ${r.status}`);
+                return body;
+            })
+            .then((data) => active && setState({ status: 'ready', data, error: null }))
+            .catch((err) => active && setState({ status: 'error', data: null, error: err.message }));
+        return () => {
+            active = false;
+        };
+    }, [page, eventFilter]);
+
+    return (
+        <section className="bg-surface-dark border border-white/5 rounded-2xl p-6">
+            <div className="flex items-center justify-between mb-4 gap-4 flex-wrap">
+                <div>
+                    <h3 className="font-bold text-sm text-white">Audit log</h3>
+                    <p className="text-xs text-text-muted mt-1">
+                        Security-relevant events. Newest first.
+                    </p>
+                </div>
+                <select
+                    value={eventFilter}
+                    onChange={(e) => {
+                        setEventFilter(e.target.value);
+                        setPage(1);
+                    }}
+                    className="bg-background-dark/50 border border-white/10 focus:border-primary focus:ring-1 focus:ring-primary rounded-md px-3 py-2 text-sm text-white outline-none"
+                >
+                    {EVENT_FILTER_OPTIONS.map((o) => (
+                        <option key={o.value} value={o.value}>
+                            {o.label}
+                        </option>
+                    ))}
+                </select>
+            </div>
+
+            {state.status === 'loading' && (
+                <div className="space-y-2">
+                    {Array.from({ length: 6 }).map((_, i) => (
+                        <div key={i} className="h-10 bg-white/[0.03] rounded-md animate-pulse" />
+                    ))}
+                </div>
+            )}
+
+            {state.status === 'error' && (
+                <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4 text-sm text-red-300">
+                    Could not load audit log: {state.error}
+                </div>
+            )}
+
+            {state.status === 'ready' && state.data.rows.length === 0 && (
+                <p className="text-sm text-text-secondary py-6 text-center">
+                    No events match.
+                </p>
+            )}
+
+            {state.status === 'ready' && state.data.rows.length > 0 && (
+                <>
+                    <div className="overflow-x-auto -mx-6">
+                        <table className="min-w-full text-xs">
+                            <thead className="text-text-muted border-b border-white/5">
+                                <tr>
+                                    <th className="text-left px-6 py-2 font-medium">When</th>
+                                    <th className="text-left px-3 py-2 font-medium">Event</th>
+                                    <th className="text-left px-3 py-2 font-medium">User</th>
+                                    <th className="text-left px-3 py-2 font-medium">IP</th>
+                                    <th className="text-left px-6 py-2 font-medium">Detail</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-white/5">
+                                {state.data.rows.map((row) => (
+                                    <tr key={row.id} className="text-text-secondary hover:bg-white/[0.02]">
+                                        <td className="px-6 py-2 whitespace-nowrap text-text-muted">
+                                            {new Date(row.createdAt).toLocaleString()}
+                                        </td>
+                                        <td className="px-3 py-2 font-mono text-white">{row.event}</td>
+                                        <td className="px-3 py-2 font-mono">{row.userId || '—'}</td>
+                                        <td className="px-3 py-2 font-mono">{row.ip || '—'}</td>
+                                        <td className="px-6 py-2 font-mono text-text-muted truncate max-w-xs">
+                                            {row.metadata ? JSON.stringify(row.metadata) : ''}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div className="flex items-center justify-between mt-4 text-xs text-text-muted">
+                        <span>
+                            Page {state.data.page} of {Math.max(1, Math.ceil(state.data.total / state.data.limit))} · {state.data.total} events
+                        </span>
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                                disabled={page === 1}
+                                className="px-3 py-1 rounded-md bg-white/5 hover:bg-white/10 text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                            >
+                                Previous
+                            </button>
+                            <button
+                                onClick={() => setPage((p) => p + 1)}
+                                disabled={!state.data.hasMore}
+                                className="px-3 py-1 rounded-md bg-white/5 hover:bg-white/10 text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                            >
+                                Next
+                            </button>
+                        </div>
+                    </div>
+                </>
+            )}
+        </section>
     );
 }

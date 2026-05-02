@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import prisma from '../config/db';
+import { auditService } from '../services/audit.service';
 
 // Admin-only overview endpoints. Guarded by the admin middleware at the
 // route layer, so the controllers can trust req.user.role === 'admin' here.
@@ -153,3 +154,22 @@ export const exportMessagesController = async (_req: AuthRequest, res: Response)
 
   sendCsv(res, `chartsentinel-messages-${new Date().toISOString().slice(0, 10)}.csv`, csv);
 };
+
+// Audit log viewer. Paginated, optional event/user filters. The list is
+// newest-first so an oncall reviewer sees current activity immediately;
+// limit caps at 200 server-side regardless of what the client asks for.
+export const auditLogController = async (req: AuthRequest, res: Response) => {
+  const page = parsePositiveInt(req.query.page, 1);
+  const limit = parsePositiveInt(req.query.limit, 50);
+  const event = typeof req.query.event === 'string' ? req.query.event : undefined;
+  const userId = typeof req.query.userId === 'string' ? req.query.userId : undefined;
+
+  const result = await auditService.list({ page, limit, event, userId });
+  res.json(result);
+};
+
+function parsePositiveInt(value: unknown, fallback: number): number {
+  if (typeof value !== 'string') return fallback;
+  const n = Number.parseInt(value, 10);
+  return Number.isFinite(n) && n > 0 ? n : fallback;
+}

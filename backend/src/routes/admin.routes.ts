@@ -6,6 +6,7 @@ import {
   exportUsersController,
   exportSubscribersController,
   exportMessagesController,
+  auditLogController,
 } from '../controllers/admin.controller';
 
 const router = Router();
@@ -14,6 +15,7 @@ router.use(authenticateToken);
 router.use(requireAdmin);
 
 router.get('/overview', overviewController);
+router.get('/audit-log', auditLogController);
 
 // Exports stream as Content-Disposition attachments so browsers save them
 // with sensible filenames. No pagination — current data volumes are small;

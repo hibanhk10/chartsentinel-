@@ -45,6 +45,24 @@ model User {
   @@map("users")
 }
 
+// Append-only history of security-relevant events: logins, 2FA enrolment,
+// password resets, eventually destructive admin operations. Not authoritative
+// state — just a forensic record. No FK relation to User on purpose so
+// deleting a user doesn't cascade away their audit trail.
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  event     String
+  ip        String?
+  userAgent String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([event, createdAt(sort: Desc)])
+  @@map("audit_logs")
+}
+
 // One code per user, generated on first access to the "invite friends" UI.
 // Human-readable (e.g. JOE-9K3Q) so people can type it from a phone screen,
 // not just click links. `usageCount` is denormalised for read-heavy displays

@@ -1,6 +1,8 @@
 import { Request, Response } from 'express';
 import { z } from 'zod';
 import { AuthService } from '../services/auth.service';
+import { auditService, AUDIT_EVENTS, fingerprintFromRequest } from '../services/audit.service';
+import prisma from '../config/db';
 
 interface AuthedRequest extends Request {
   user?: { id: string; email: string; role: string };
@@ -42,6 +44,13 @@ export const registerController = async (req: Request, res: Response) => {
   try {
     const { email, password, referralCode } = registerSchema.parse(req.body);
     const result = await authService.register(email, password, referralCode);
+    const { ip, userAgent } = fingerprintFromRequest(req);
+    auditService.record({
+      event: AUDIT_EVENTS.REGISTER,
+      userId: result.user.id,
+      ip,
+      userAgent,
+    });
     res.status(201).json(result);
   } catch (error) {
     if (error instanceof Error) {
@@ -56,8 +65,46 @@ export const loginController = async (req: Request, res: Response) => {
   try {
     const { email, password } = loginSchema.parse(req.body);
     const result = await authService.login(email, password);
+    const { ip, userAgent } = fingerprintFromRequest(req);
+
+    // Resolve userId for the audit row in both branches. The challenge
+    // branch doesn't include the user object directly (the client only
+    // needs the challenge token at that step), so we look it up by
+    // email — same record we already authenticated against.
+    if ('requires2fa' in result) {
+      const owner = await prisma.user.findUnique({
+        where: { email },
+        select: { id: true },
+      });
+      auditService.record({
+        event: AUDIT_EVENTS.LOGIN_2FA_REQUIRED,
+        userId: owner?.id ?? null,
+        ip,
+        userAgent,
+      });
+    } else {
+      auditService.record({
+        event: AUDIT_EVENTS.LOGIN_SUCCESS,
+        userId: result.user.id,
+        ip,
+        userAgent,
+      });
+    }
     res.json(result);
   } catch (error) {
+    // Failed-login audit. We log the email so an admin can see "10 failures
+    // for this address in the last hour" without revealing whether the
+    // account exists in the response itself.
+    const { ip, userAgent } = fingerprintFromRequest(req);
+    const email = (req.body && typeof req.body === 'object' && 'email' in req.body)
+      ? String((req.body as { email?: unknown }).email ?? '')
+      : '';
+    auditService.record({
+      event: AUDIT_EVENTS.LOGIN_FAILURE,
+      ip,
+      userAgent,
+      metadata: { email },
+    });
     if (error instanceof Error) {
       res.status(400).json({ error: error.message });
     } else {
@@ -140,6 +187,13 @@ export const beginTwoFactorSetupController = async (req: AuthedRequest, res: Res
       return;
     }
     const setup = await authService.beginTwoFactorSetup(req.user.id);
+    const { ip, userAgent } = fingerprintFromRequest(req);
+    auditService.record({
+      event: AUDIT_EVENTS.TOTP_SETUP_STARTED,
+      userId: req.user.id,
+      ip,
+      userAgent,
+    });
     res.json(setup);
   } catch (error) {
     res.status(400).json({ error: error instanceof Error ? error.message : 'Setup failed.' });
@@ -154,6 +208,13 @@ export const enableTwoFactorController = async (req: AuthedRequest, res: Respons
     }
     const { code } = enable2faSchema.parse(req.body);
     const result = await authService.confirmTwoFactorSetup(req.user.id, code);
+    const { ip, userAgent } = fingerprintFromRequest(req);
+    auditService.record({
+      event: AUDIT_EVENTS.TOTP_ENABLED,
+      userId: req.user.id,
+      ip,
+      userAgent,
+    });
     res.json(result);
   } catch (error) {
     res.status(400).json({ error: error instanceof Error ? error.message : 'Could not enable 2FA.' });
@@ -168,6 +229,13 @@ export const disableTwoFactorController = async (req: AuthedRequest, res: Respon
     }
     const { password, code } = disable2faSchema.parse(req.body);
     await authService.disableTwoFactor(req.user.id, password, code);
+    const { ip, userAgent } = fingerprintFromRequest(req);
+    auditService.record({
+      event: AUDIT_EVENTS.TOTP_DISABLED,
+      userId: req.user.id,
+      ip,
+      userAgent,
+    });
     res.json({ ok: true });
   } catch (error) {
     res.status(400).json({ error: error instanceof Error ? error.message : 'Could not disable 2FA.' });
@@ -178,8 +246,21 @@ export const verifyTwoFactorController = async (req: Request, res: Response) => 
   try {
     const { challengeToken, code } = verify2faSchema.parse(req.body);
     const result = await authService.verifyTwoFactor(challengeToken, code);
+    const { ip, userAgent } = fingerprintFromRequest(req);
+    auditService.record({
+      event: AUDIT_EVENTS.LOGIN_2FA_SUCCESS,
+      userId: result.user.id,
+      ip,
+      userAgent,
+    });
     res.json(result);
   } catch (error) {
+    const { ip, userAgent } = fingerprintFromRequest(req);
+    auditService.record({
+      event: AUDIT_EVENTS.LOGIN_2FA_FAILURE,
+      ip,
+      userAgent,
+    });
     res.status(400).json({ error: error instanceof Error ? error.message : 'Verification failed.' });
   }
 };
