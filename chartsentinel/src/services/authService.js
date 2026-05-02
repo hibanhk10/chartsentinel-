@@ -70,6 +70,12 @@ export const authService = {
     return api.post('/auth/2fa/disable', { password, code });
   },
 
+  // Finalise first-run onboarding. Server creates watchlist items for each
+  // ticker and stamps users.onboardedAt so the wizard never fires again.
+  async completeOnboarding(tickers, threshold) {
+    return api.post('/auth/onboarding/complete', { tickers, threshold });
+  },
+
   logout() {
     localStorage.removeItem('authToken');
     localStorage.removeItem('user');

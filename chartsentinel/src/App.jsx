@@ -19,6 +19,7 @@ const CanvasWrapper = lazy(() => import('./components/three/CanvasWrapper'))
 // marketing pages inherit it automatically).
 const NO_CANVAS_ROUTES = new Set([
   '/dashboard',
+  '/onboarding',
   '/contact',
   '/forgot-password',
   '/reset-password',
@@ -43,6 +44,7 @@ import Navbar from './components/ui/Navbar'
 import HomePage from './pages/HomePage'
 import ContactPage from './pages/ContactPage'
 import DashboardPage from './pages/DashboardPage'
+import OnboardingPage from './pages/OnboardingPage'
 import SalesFunnelPage from './pages/SalesFunnelPage'
 import WaitlistPage from './pages/WaitlistPage'
 import TrustPage from './pages/TrustPage'
@@ -107,6 +109,7 @@ export default function App() {
             <Route path="/" element={<HomePage />} />
             <Route path="/contact" element={<ContactPage />} />
             <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/onboarding" element={<OnboardingPage />} />
             <Route path="/funnel" element={<SalesFunnelPage />} />
             <Route path="/waitlist" element={<WaitlistPage />} />
             <Route path="/trust" element={<TrustPage />} />

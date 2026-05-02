@@ -166,6 +166,30 @@ export const meController = async (req: AuthedRequest, res: Response) => {
   }
 };
 
+const completeOnboardingSchema = z.object({
+  // Cap at 10 to match the wizard UI; one is the floor so we don't ship
+  // a user into the dashboard with an empty watchlist they then have to
+  // populate themselves — the whole point of the wizard.
+  tickers: z.array(z.string().min(1).max(20)).min(1).max(10),
+  // Composite score threshold band. Default 60 = "strong" signals only,
+  // mirroring the strong_buy / strong_sell cutoff in computeCompositeScore.
+  threshold: z.number().int().min(10).max(100).default(60),
+});
+
+export const completeOnboardingController = async (req: AuthedRequest, res: Response) => {
+  try {
+    if (!req.user) {
+      res.status(401).json({ error: 'Sign in first.' });
+      return;
+    }
+    const { tickers, threshold } = completeOnboardingSchema.parse(req.body);
+    await authService.completeOnboarding(req.user.id, tickers, threshold);
+    res.json({ ok: true });
+  } catch (error) {
+    res.status(400).json({ error: error instanceof Error ? error.message : 'Could not save onboarding.' });
+  }
+};
+
 // ── Two-factor (TOTP) ──────────────────────────────────────────────────────
 
 const verify2faSchema = z.object({

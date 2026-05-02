@@ -36,6 +36,10 @@ model User {
   totpSecret          String?
   totpEnabled         Boolean              @default(false)
   totpBackupCodes     String[]             @default([])
+  // Set the moment the user finishes the first-run wizard. Null means
+  // they haven't yet, so the frontend redirects them on next login.
+  // Existing users were backfilled to createdAt by migration 008.
+  onboardedAt         DateTime?
   passwordResetTokens PasswordResetToken[]
   watchlistItems      WatchlistItem[]
   referralCode        ReferralCode?

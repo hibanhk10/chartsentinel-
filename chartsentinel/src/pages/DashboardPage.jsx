@@ -1,9 +1,10 @@
-import { lazy, Suspense, useCallback, useEffect } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import Sidebar from '../components/dashboard/Sidebar';
 import DashboardHome from '../components/dashboard/Home';
 import SEO from '../components/ui/SEO';
+import api from '../services/api';
 
 // Home stays eagerly imported because it's the default landing tab —
 // lazy-loading it would just cost a flash of the Suspense fallback on
@@ -65,6 +66,12 @@ const DashboardPage = () => {
     const { isAuthenticated, loading, login } = useAuth();
     const navigate = useNavigate();
 
+    // Onboarding guard. We can't read onboardedAt off the JWT (it isn't in
+    // the token payload), so we GET /auth/me on first dashboard mount.
+    // null = still hydrating, false = need to send them through the wizard,
+    // true = they're done, render normally.
+    const [onboardingChecked, setOnboardingChecked] = useState(null);
+
     useEffect(() => {
         if (!loading && !isAuthenticated) {
             // Redirect to home and open login via query param
@@ -72,7 +79,30 @@ const DashboardPage = () => {
         }
     }, [isAuthenticated, loading, navigate, login]);
 
-    if (loading) {
+    useEffect(() => {
+        if (loading || !isAuthenticated) return;
+        let active = true;
+        api
+            .get('/auth/me')
+            .then((me) => {
+                if (!active) return;
+                if (!me.onboardedAt) {
+                    navigate('/onboarding', { replace: true });
+                } else {
+                    setOnboardingChecked(true);
+                }
+            })
+            // /auth/me will exist on the backend now, but a transient
+            // failure shouldn't strand the user — let them through and
+            // assume they're onboarded; the wizard flag is a UX nudge,
+            // not a security boundary.
+            .catch(() => active && setOnboardingChecked(true));
+        return () => {
+            active = false;
+        };
+    }, [isAuthenticated, loading, navigate]);
+
+    if (loading || (isAuthenticated && onboardingChecked === null)) {
         return <div className="min-h-screen bg-background-dark flex items-center justify-center text-white">Loading...</div>;
     }
 

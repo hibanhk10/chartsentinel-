@@ -203,9 +203,9 @@ export class AuthService {
 
   // Returns the current user's profile + 2FA status. Used by the Settings
   // page to render the right primary action and by any client that wants
-  // a fresh view of mutable flags (isPaid, totpEnabled) after the JWT was
-  // minted. The response shape is intentionally narrow — no password
-  // hash, no TOTP secret, no backup codes.
+  // a fresh view of mutable flags (isPaid, totpEnabled, onboardedAt) after
+  // the JWT was minted. The response shape is intentionally narrow — no
+  // password hash, no TOTP secret, no backup codes.
   async getMe(userId: string) {
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new Error('User not found.');
@@ -215,7 +215,43 @@ export class AuthService {
       role: user.role,
       isPaid: user.isPaid,
       totpEnabled: user.totpEnabled,
+      onboardedAt: user.onboardedAt,
     };
+  }
+
+  // Complete first-run onboarding. Bulk-creates watchlist items for the
+  // chosen tickers (skipping any the user already follows — re-running
+  // never produces duplicates) and sets onboardedAt so the frontend stops
+  // routing back here. Wrapped in a transaction so a partial state — some
+  // tickers added, onboardedAt unset — is impossible.
+  async completeOnboarding(userId: string, tickers: string[], threshold: number) {
+    if (tickers.length === 0) {
+      throw new Error('Pick at least one ticker.');
+    }
+
+    // Symmetric thresholds: composite score above +threshold fires a
+    // bullish alert, below -threshold fires a bearish one. Most users
+    // don't need asymmetric bands at signup time, and the watchlist
+    // edit UI lets them tune per-ticker later.
+    const thresholdAbove = threshold;
+    const thresholdBelow = -threshold;
+
+    await prisma.$transaction([
+      ...tickers.map((ticker) =>
+        prisma.watchlistItem.upsert({
+          where: { userId_ticker: { userId, ticker } },
+          create: { userId, ticker, thresholdAbove, thresholdBelow },
+          // Don't clobber per-ticker thresholds the user already set if
+          // they ever come back through onboarding. Existing rows keep
+          // their existing tuning.
+          update: {},
+        })
+      ),
+      prisma.user.update({
+        where: { id: userId },
+        data: { onboardedAt: new Date() },
+      }),
+    ]);
   }
 
   // Tear down 2FA. Requires the password (so a stolen session can't
