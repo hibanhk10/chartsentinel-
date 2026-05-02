@@ -5,6 +5,7 @@ import prisma from '../config/db';
 import env from '../config/env';
 import { sendPasswordResetEmail, sendWelcomeEmail } from './email.service';
 import { referralService } from './referral.service';
+import { totpService } from './totp.service';
 
 // Password-reset token lifetime. Short enough that a stolen email sitting in
 // an unattended inbox is unlikely to be usable long after; long enough that
@@ -77,6 +78,19 @@ export class AuthService {
       throw new Error('Invalid credentials');
     }
 
+    // 2FA gate. When the user has TOTP enabled, the password check alone
+    // isn't enough to mint a session token — we hand back a short-lived
+    // challenge token instead. The frontend then collects the 6-digit code
+    // and POSTs it to /api/auth/2fa/verify, which exchanges the challenge
+    // for a real session JWT.
+    if (user.totpEnabled) {
+      const challengeToken = this.generateChallengeToken(user.id);
+      return {
+        requires2fa: true as const,
+        challengeToken,
+      };
+    }
+
     const token = this.generateToken(user.id, user.email, user.role);
 
     return {
@@ -88,6 +102,132 @@ export class AuthService {
       },
       token,
     };
+  }
+
+  // Exchanges a challenge token + TOTP (or backup) code for a session JWT.
+  // Returning the same shape as login() means the frontend can use one
+  // post-auth code path regardless of whether 2FA was involved.
+  async verifyTwoFactor(challengeToken: string, code: string) {
+    let payload: { id: string; purpose?: string };
+    try {
+      payload = jwt.verify(challengeToken, env.JWT_SECRET) as typeof payload;
+    } catch {
+      throw new Error('This sign-in attempt has expired. Start over.');
+    }
+    if (payload.purpose !== '2fa-challenge') {
+      throw new Error('This sign-in attempt has expired. Start over.');
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: payload.id } });
+    if (!user || !user.totpEnabled || !user.totpSecret) {
+      throw new Error('Two-factor is not configured for this account.');
+    }
+
+    const codeOk = totpService.verifyCode(user.totpSecret, code);
+    if (!codeOk) {
+      // Fall back to the backup-code path. Each redemption is one-shot:
+      // on success we splice the matching hash out of the stored array,
+      // so the same code can never be reused.
+      const remaining = await totpService.consumeBackupCode(user.totpBackupCodes, code);
+      if (!remaining) {
+        throw new Error('That code did not match.');
+      }
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { totpBackupCodes: remaining },
+      });
+    }
+
+    const token = this.generateToken(user.id, user.email, user.role);
+    return {
+      user: {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        isPaid: user.isPaid,
+      },
+      token,
+    };
+  }
+
+  // Begin the TOTP setup flow. Persists the secret immediately so the
+  // server can verify the first code in confirmTwoFactorSetup. The user's
+  // `totpEnabled` flag stays false until that confirmation lands; an
+  // abandoned setup leaves a dormant secret that will be overwritten by
+  // the next setup attempt.
+  async beginTwoFactorSetup(userId: string) {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new Error('User not found.');
+    if (user.totpEnabled) {
+      throw new Error('Two-factor is already enabled. Disable it first to re-enrol.');
+    }
+
+    const setup = await totpService.generateSetup(user.email);
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { totpSecret: setup.secret },
+    });
+    return {
+      otpauthUrl: setup.otpauthUrl,
+      qrDataUrl: setup.qrDataUrl,
+    };
+  }
+
+  // Confirm the in-progress setup with a fresh code from the user's
+  // authenticator. On success we flip totpEnabled and hand back ten
+  // backup codes — shown to the user once, never recoverable later.
+  async confirmTwoFactorSetup(userId: string, code: string) {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new Error('User not found.');
+    if (user.totpEnabled) {
+      throw new Error('Two-factor is already enabled.');
+    }
+    if (!user.totpSecret) {
+      throw new Error('Start the setup flow first.');
+    }
+    if (!totpService.verifyCode(user.totpSecret, code)) {
+      throw new Error('That code did not match.');
+    }
+
+    const { plain, hashes } = await totpService.generateBackupCodes();
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        totpEnabled: true,
+        totpBackupCodes: hashes,
+      },
+    });
+
+    return { backupCodes: plain };
+  }
+
+  // Tear down 2FA. Requires the password (so a stolen session can't
+  // disable it) plus a current TOTP code (so a stolen password alone
+  // can't either). Either condition failing aborts.
+  async disableTwoFactor(userId: string, password: string, code: string) {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new Error('User not found.');
+    if (!user.totpEnabled || !user.totpSecret) {
+      throw new Error('Two-factor is not enabled on this account.');
+    }
+
+    const passwordOk = await bcrypt.compare(password, user.passwordHash);
+    if (!passwordOk) throw new Error('Invalid credentials.');
+
+    const codeOk = totpService.verifyCode(user.totpSecret, code);
+    const backupOk = !codeOk
+      ? (await totpService.consumeBackupCode(user.totpBackupCodes, code)) !== null
+      : false;
+    if (!codeOk && !backupOk) throw new Error('That code did not match.');
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        totpSecret: null,
+        totpEnabled: false,
+        totpBackupCodes: [],
+      },
+    });
   }
 
   // Fire-and-forget: always resolves successfully, even if no user exists
@@ -152,9 +292,21 @@ export class AuthService {
 
   private generateToken(id: string, email: string, role: string): string {
     return jwt.sign(
-      { id, email, role },
+      { id, email, role, purpose: 'session' },
       env.JWT_SECRET,
       { expiresIn: '24h' }
+    );
+  }
+
+  // Short-lived JWT issued after a successful password check when the
+  // user still owes a TOTP code. The auth middleware rejects anything
+  // with `purpose === '2fa-challenge'`, so this token can do exactly one
+  // thing: be exchanged at /api/auth/2fa/verify for a real session JWT.
+  private generateChallengeToken(id: string): string {
+    return jwt.sign(
+      { id, purpose: '2fa-challenge' },
+      env.JWT_SECRET,
+      { expiresIn: '5m' }
     );
   }
 }

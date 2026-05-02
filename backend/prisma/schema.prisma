@@ -29,6 +29,13 @@ model User {
   lat                 Float?
   lng                 Float?
   locationOptIn       Boolean              @default(false)
+  // TOTP-based 2FA. totpSecret is set the moment a user starts setup;
+  // totpEnabled flips only after they confirm a valid code, so an
+  // abandoned setup never locks anyone out. Backup codes are bcrypt
+  // hashes — one entry per code, spliced out on redemption.
+  totpSecret          String?
+  totpEnabled         Boolean              @default(false)
+  totpBackupCodes     String[]             @default([])
   passwordResetTokens PasswordResetToken[]
   watchlistItems      WatchlistItem[]
   referralCode        ReferralCode?

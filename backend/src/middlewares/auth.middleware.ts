@@ -20,7 +20,16 @@ export const authenticateToken = (req: AuthRequest, res: Response, next: NextFun
       res.status(403).json({ error: 'Invalid token' });
       return;
     }
-    req.user = user as { id: string; email: string; role: string };
+    // 2FA challenge tokens are scoped to the /api/auth/2fa/verify exchange
+    // — block them everywhere else so a stolen challenge can't read mail
+    // or list watchlists. Tokens minted before the `purpose` field
+    // existed have it undefined, so backward compatibility holds.
+    const claims = user as { id: string; email: string; role: string; purpose?: string };
+    if (claims.purpose === '2fa-challenge') {
+      res.status(403).json({ error: 'Invalid token' });
+      return;
+    }
+    req.user = claims;
     next();
   });
 };

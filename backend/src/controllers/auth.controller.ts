@@ -2,7 +2,16 @@ import { Request, Response } from 'express';
 import { z } from 'zod';
 import { AuthService } from '../services/auth.service';
 
+interface AuthedRequest extends Request {
+  user?: { id: string; email: string; role: string };
+}
+
 const authService = new AuthService();
+
+// Six-digit TOTP codes are the common case; some authenticators emit eight.
+// Backup codes are 10 hex characters. Allowing 6-12 covers all three with
+// one schema and one error message.
+const codeSchema = z.string().trim().min(6).max(12);
 
 const registerSchema = z.object({
   email: z.string().email(),
@@ -94,5 +103,70 @@ export const resetPasswordController = async (req: Request, res: Response) => {
     } else {
       res.status(500).json({ error: 'Internal server error' });
     }
+  }
+};
+
+// ── Two-factor (TOTP) ──────────────────────────────────────────────────────
+
+const verify2faSchema = z.object({
+  challengeToken: z.string().min(10),
+  code: codeSchema,
+});
+
+const enable2faSchema = z.object({ code: codeSchema });
+
+const disable2faSchema = z.object({
+  password: z.string().min(6),
+  code: codeSchema,
+});
+
+export const beginTwoFactorSetupController = async (req: AuthedRequest, res: Response) => {
+  try {
+    if (!req.user) {
+      res.status(401).json({ error: 'Sign in first.' });
+      return;
+    }
+    const setup = await authService.beginTwoFactorSetup(req.user.id);
+    res.json(setup);
+  } catch (error) {
+    res.status(400).json({ error: error instanceof Error ? error.message : 'Setup failed.' });
+  }
+};
+
+export const enableTwoFactorController = async (req: AuthedRequest, res: Response) => {
+  try {
+    if (!req.user) {
+      res.status(401).json({ error: 'Sign in first.' });
+      return;
+    }
+    const { code } = enable2faSchema.parse(req.body);
+    const result = await authService.confirmTwoFactorSetup(req.user.id, code);
+    res.json(result);
+  } catch (error) {
+    res.status(400).json({ error: error instanceof Error ? error.message : 'Could not enable 2FA.' });
+  }
+};
+
+export const disableTwoFactorController = async (req: AuthedRequest, res: Response) => {
+  try {
+    if (!req.user) {
+      res.status(401).json({ error: 'Sign in first.' });
+      return;
+    }
+    const { password, code } = disable2faSchema.parse(req.body);
+    await authService.disableTwoFactor(req.user.id, password, code);
+    res.json({ ok: true });
+  } catch (error) {
+    res.status(400).json({ error: error instanceof Error ? error.message : 'Could not disable 2FA.' });
+  }
+};
+
+export const verifyTwoFactorController = async (req: Request, res: Response) => {
+  try {
+    const { challengeToken, code } = verify2faSchema.parse(req.body);
+    const result = await authService.verifyTwoFactor(challengeToken, code);
+    res.json(result);
+  } catch (error) {
+    res.status(400).json({ error: error instanceof Error ? error.message : 'Verification failed.' });
   }
 };
