@@ -5,6 +5,7 @@ import {
   loginController,
   forgotPasswordController,
   resetPasswordController,
+  meController,
   beginTwoFactorSetupController,
   enableTwoFactorController,
   disableTwoFactorController,
@@ -42,6 +43,7 @@ router.post('/register', registerController);
 router.post('/login', loginController);
 router.post('/forgot-password', resetLimiter, forgotPasswordController);
 router.post('/reset-password', resetLimiter, resetPasswordController);
+router.get('/me', authenticateToken, meController);
 
 // 2FA endpoints. Setup/enable/disable require a session JWT so an
 // unauthenticated caller can't poke around. /verify is the one path that

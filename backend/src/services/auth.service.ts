@@ -201,6 +201,23 @@ export class AuthService {
     return { backupCodes: plain };
   }
 
+  // Returns the current user's profile + 2FA status. Used by the Settings
+  // page to render the right primary action and by any client that wants
+  // a fresh view of mutable flags (isPaid, totpEnabled) after the JWT was
+  // minted. The response shape is intentionally narrow — no password
+  // hash, no TOTP secret, no backup codes.
+  async getMe(userId: string) {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new Error('User not found.');
+    return {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      isPaid: user.isPaid,
+      totpEnabled: user.totpEnabled,
+    };
+  }
+
   // Tear down 2FA. Requires the password (so a stolen session can't
   // disable it) plus a current TOTP code (so a stolen password alone
   // can't either). Either condition failing aborts.

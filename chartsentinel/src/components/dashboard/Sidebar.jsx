@@ -81,6 +81,7 @@ const Sidebar = ({ activeTab, setActiveTab }) => {
         label: 'Support',
         icon: 'help_outline',
         items: [
+          { id: 'settings', label: 'Settings', icon: 'settings' },
           { id: 'about', label: 'About', icon: 'info' },
           { id: 'contact', label: 'Contact', icon: 'mail' },
           ...(user?.role === 'admin'

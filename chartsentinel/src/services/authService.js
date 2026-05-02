@@ -26,14 +26,48 @@ export const authService = {
 
   async login(credentials) {
     const response = await api.post('/auth/login', credentials);
-    
-    // Store token in localStorage
-    if (response.token) {
+
+    // Two response shapes possible:
+    //   { user, token }                              — normal login
+    //   { requires2fa: true, challengeToken }        — 2FA gate
+    // Persist only on the first; the second is handled by verifyTwoFactor.
+    if (response.token && response.user) {
       localStorage.setItem('authToken', response.token);
       localStorage.setItem('user', JSON.stringify(response.user));
     }
-    
+
     return response;
+  },
+
+  // Exchange a 2FA challenge token + 6-digit (or backup) code for a session
+  // JWT. Persists on success the same way login() does so the rest of the
+  // app sees a normal authenticated session afterwards.
+  async verifyTwoFactor(challengeToken, code) {
+    const response = await api.post('/auth/2fa/verify', { challengeToken, code });
+    if (response.token && response.user) {
+      localStorage.setItem('authToken', response.token);
+      localStorage.setItem('user', JSON.stringify(response.user));
+    }
+    return response;
+  },
+
+  // Begin TOTP setup — returns the otpauth URI + a PNG data URL of the QR.
+  // The server has already persisted the candidate secret; the user proves
+  // possession by submitting a code via enableTwoFactor below.
+  async beginTwoFactorSetup() {
+    return api.post('/auth/2fa/setup', {});
+  },
+
+  // Confirm setup. Returns { backupCodes } — shown to the user exactly once.
+  async enableTwoFactor(code) {
+    return api.post('/auth/2fa/enable', { code });
+  },
+
+  // Tear down 2FA. Requires both a fresh password and a current TOTP code
+  // (or a still-valid backup code) so neither stolen credential alone can
+  // turn the second factor off.
+  async disableTwoFactor(password, code) {
+    return api.post('/auth/2fa/disable', { password, code });
   },
 
   logout() {

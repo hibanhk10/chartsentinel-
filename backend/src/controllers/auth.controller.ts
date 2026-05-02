@@ -106,6 +106,19 @@ export const resetPasswordController = async (req: Request, res: Response) => {
   }
 };
 
+export const meController = async (req: AuthedRequest, res: Response) => {
+  try {
+    if (!req.user) {
+      res.status(401).json({ error: 'Sign in first.' });
+      return;
+    }
+    const me = await authService.getMe(req.user.id);
+    res.json(me);
+  } catch (error) {
+    res.status(400).json({ error: error instanceof Error ? error.message : 'Lookup failed.' });
+  }
+};
+
 // ── Two-factor (TOTP) ──────────────────────────────────────────────────────
 
 const verify2faSchema = z.object({

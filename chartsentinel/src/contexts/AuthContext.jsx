@@ -100,6 +100,14 @@ export const AuthProvider = ({ children }) => {
     dispatch({ type: 'LOGIN_START' });
     try {
       const response = await authService.login(credentials);
+      // 2FA gate: server returns a challenge token instead of a session.
+      // Stop the loading spinner but don't flip isAuthenticated yet — the
+      // caller (LoginModal) reads requires2fa from the response and shows
+      // the code-entry step.
+      if (response.requires2fa) {
+        dispatch({ type: 'LOGIN_FAILURE', payload: null });
+        return response;
+      }
       dispatch({
         type: 'LOGIN_SUCCESS',
         payload: response
@@ -110,6 +118,21 @@ export const AuthProvider = ({ children }) => {
         type: 'LOGIN_FAILURE',
         payload: error.message
       });
+      throw error;
+    }
+  };
+
+  // Second step of 2FA login. Treated as part of the login flow rather than
+  // as a standalone verb so the success path dispatches LOGIN_SUCCESS — same
+  // shape, same effect on isAuthenticated, no special handling downstream.
+  const verifyTwoFactor = async (challengeToken, code) => {
+    dispatch({ type: 'LOGIN_START' });
+    try {
+      const response = await authService.verifyTwoFactor(challengeToken, code);
+      dispatch({ type: 'LOGIN_SUCCESS', payload: response });
+      return response;
+    } catch (error) {
+      dispatch({ type: 'LOGIN_FAILURE', payload: error.message });
       throw error;
     }
   };
@@ -140,6 +163,7 @@ export const AuthProvider = ({ children }) => {
   const value = {
     ...state,
     login,
+    verifyTwoFactor,
     register,
     logout,
   };

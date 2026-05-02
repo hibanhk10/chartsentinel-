@@ -34,8 +34,9 @@ const DashboardIdeaCards = lazy(() => import('../components/dashboard/IdeaCards'
 const DashboardConviction = lazy(() => import('../components/dashboard/Conviction'));
 const DashboardMentorMatch = lazy(() => import('../components/dashboard/MentorMatch'));
 const DashboardWarRooms = lazy(() => import('../components/dashboard/WarRooms'));
+const DashboardSettings = lazy(() => import('../components/dashboard/Settings'));
 
-const VALID_TABS = ['home', 'signals', 'terminal', 'mood', 'interrogation', 'intel', 'catalysts', 'macro-themes', 'scenarios', 'smart-money', 'anomalies', 'alert-builder', 'risk-posture', 'journal', 'briefing', 'idea-cards', 'conviction', 'mentor-match', 'war-rooms', 'watchlist', 'reports', 'news', 'networking', 'coaching', 'referrals', 'about', 'contact', 'admin'];
+const VALID_TABS = ['home', 'signals', 'terminal', 'mood', 'interrogation', 'intel', 'catalysts', 'macro-themes', 'scenarios', 'smart-money', 'anomalies', 'alert-builder', 'risk-posture', 'journal', 'briefing', 'idea-cards', 'conviction', 'mentor-match', 'war-rooms', 'watchlist', 'reports', 'news', 'networking', 'coaching', 'referrals', 'settings', 'about', 'contact', 'admin'];
 
 const TabFallback = () => (
     <div className="flex items-center justify-center h-64 text-text-secondary">
@@ -131,6 +132,8 @@ const DashboardPage = () => {
                 return <DashboardNetworking />;
             case 'coaching':
                 return <DashboardCoaching />;
+            case 'settings':
+                return <DashboardSettings />;
             case 'admin':
                 return <DashboardAdmin />;
             default:
