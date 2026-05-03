@@ -42,6 +42,23 @@ const Settings = () => {
   const [newWebhookSecret, setNewWebhookSecret] = useState(null);
   const [webhookInput, setWebhookInput] = useState('');
 
+  // Signal weights — sliders for the four composite components. Stored
+  // raw on the server (e.g. 30/30/30/10) and normalised at scoring time,
+  // so users see exactly the numbers they typed when they come back.
+  const [signalWeights, setSignalWeights] = useState({
+    seasonal: 30,
+    cot: 25,
+    pattern: 30,
+    base: 15,
+  });
+  const [defaultWeights, setDefaultWeights] = useState({
+    seasonal: 0.3,
+    cot: 0.25,
+    pattern: 0.3,
+    base: 0.15,
+  });
+  const [weightsDirty, setWeightsDirty] = useState(false);
+
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
   const [notice, setNotice] = useState(null);
@@ -54,6 +71,24 @@ const Settings = () => {
       setTelegramUsername(me.telegramUsername ?? null);
       setWebhookConfigured(!!me.webhookConfigured);
       setWebhookDisabled(!!me.webhookDisabled);
+
+      // Signal weights live on a separate endpoint — fetch alongside.
+      try {
+        const w = await api.get('/signals/me/weights');
+        // Server returns normalised fractions; rescale to 0..100 for the
+        // slider UI so users think in points, not decimals.
+        const fromFractions = (obj) => ({
+          seasonal: Math.round((obj?.seasonal ?? 0.3) * 100),
+          cot: Math.round((obj?.cot ?? 0.25) * 100),
+          pattern: Math.round((obj?.pattern ?? 0.3) * 100),
+          base: Math.round((obj?.base ?? 0.15) * 100),
+        });
+        setSignalWeights(fromFractions(w.weights));
+        setDefaultWeights(w.defaults || defaultWeights);
+        setWeightsDirty(false);
+      } catch {
+        // Older deploy without the endpoint — keep local defaults.
+      }
 
       // Webhook detail (URL + failureCount) lives on a separate endpoint
       // that requires auth. Fetch only when /me confirms one is set;
@@ -237,6 +272,44 @@ const Settings = () => {
     try {
       await api.post('/webhook/test', {});
       setNotice('Test event delivered successfully.');
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const updateWeight = (key, value) => {
+    setSignalWeights((w) => ({ ...w, [key]: Number(value) }));
+    setWeightsDirty(true);
+  };
+
+  const saveWeights = async () => {
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      // Server expects either fractions (0..1) or arbitrary positives that
+      // it'll normalise. We send the raw slider values so the round-trip
+      // is lossless — what the user typed comes back to them next visit.
+      await api.post('/signals/me/weights', signalWeights);
+      await refresh();
+      setNotice('Signal mix saved.');
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const resetWeights = async () => {
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      await api.delete('/signals/me/weights');
+      await refresh();
+      setNotice('Signal mix reset to defaults.');
     } catch (err) {
       setError(err.message);
     } finally {
@@ -668,6 +741,78 @@ const Settings = () => {
             </p>
           </div>
         )}
+      </section>
+
+      <section className="rounded-2xl border border-white/5 bg-surface-dark p-6 mt-6">
+        <header className="flex items-start justify-between gap-4 mb-4">
+          <div>
+            <h2 className="text-lg font-semibold text-white flex items-center gap-2">
+              <span className="material-icons text-primary">tune</span>
+              Signal mix
+            </h2>
+            <p className="text-sm text-text-secondary mt-1">
+              Tune how much each component contributes to your composite
+              score. Numbers are rescaled at scoring time so they don&apos;t
+              need to add to 100.
+            </p>
+          </div>
+          {weightsDirty && (
+            <span className="text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30">
+              Unsaved
+            </span>
+          )}
+        </header>
+
+        <div className="space-y-4">
+          {[
+            { key: 'seasonal', label: 'Seasonality', hint: 'Where we are in the historical seasonal pattern' },
+            { key: 'cot', label: 'COT positioning', hint: 'How institutional traders are positioned (forex)' },
+            { key: 'pattern', label: 'Pattern matching', hint: 'Similar historical price patterns and forward returns' },
+            { key: 'base', label: 'Macro / base', hint: 'Background factor that smooths the blend' },
+          ].map(({ key, label, hint }) => (
+            <div key={key}>
+              <div className="flex items-baseline justify-between mb-1.5">
+                <label htmlFor={`sw-${key}`} className="text-sm text-white">
+                  {label}
+                  <span className="text-text-muted text-xs ml-2">
+                    default {Math.round((defaultWeights[key] ?? 0) * 100)}
+                  </span>
+                </label>
+                <span className="font-mono text-white text-sm">
+                  {signalWeights[key]}
+                </span>
+              </div>
+              <input
+                id={`sw-${key}`}
+                type="range"
+                min="0"
+                max="100"
+                step="5"
+                value={signalWeights[key]}
+                onChange={(e) => updateWeight(key, e.target.value)}
+                className="w-full accent-primary"
+              />
+              <p className="text-[11px] text-text-muted mt-1">{hint}</p>
+            </div>
+          ))}
+        </div>
+
+        <div className="flex flex-wrap gap-2 mt-5">
+          <button
+            onClick={saveWeights}
+            disabled={busy || !weightsDirty}
+            className="px-4 py-2 bg-primary text-white text-sm font-bold rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
+          >
+            {busy ? 'Saving…' : 'Save mix'}
+          </button>
+          <button
+            onClick={resetWeights}
+            disabled={busy}
+            className="px-4 py-2 bg-white/5 hover:bg-white/10 text-white text-sm font-medium rounded-lg disabled:opacity-50 transition-colors"
+          >
+            Reset to defaults
+          </button>
+        </div>
       </section>
     </div>
   );

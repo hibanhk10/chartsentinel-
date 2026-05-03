@@ -541,12 +541,40 @@ function pearsonCorrelation(x, y) {
 
 // ── 5. COMPOSITE SCORING ────────────────────────────────────────────────────
 
+// Default weighting for users who haven't customised their mix.
+// Exported so callers (per-user weight fetcher, tests) can fall back to it.
+const DEFAULT_SIGNAL_WEIGHTS = { seasonal: 0.3, cot: 0.25, pattern: 0.3, base: 0.15 };
+
+// Normalise a user-supplied weight object so the four components sum to 1.
+// Negative values are clamped to zero and missing keys take the default.
+// Returns a fresh object so the caller can mutate it without surprising us.
+function normalizeSignalWeights(input) {
+  const merged = {
+    seasonal: Math.max(0, Number(input?.seasonal ?? DEFAULT_SIGNAL_WEIGHTS.seasonal)),
+    cot: Math.max(0, Number(input?.cot ?? DEFAULT_SIGNAL_WEIGHTS.cot)),
+    pattern: Math.max(0, Number(input?.pattern ?? DEFAULT_SIGNAL_WEIGHTS.pattern)),
+    base: Math.max(0, Number(input?.base ?? DEFAULT_SIGNAL_WEIGHTS.base)),
+  };
+  const total = merged.seasonal + merged.cot + merged.pattern + merged.base;
+  if (!Number.isFinite(total) || total <= 0) return { ...DEFAULT_SIGNAL_WEIGHTS };
+  return {
+    seasonal: merged.seasonal / total,
+    cot: merged.cot / total,
+    pattern: merged.pattern / total,
+    base: merged.base / total,
+  };
+}
+
 /**
  * Compute composite score for a ticker combining all signals.
- * Weights: Seasonality (30%), COT (25%), Pattern (30%), Macro (15%)
+ * Default weights: Seasonality (30%), COT (25%), Pattern (30%), Macro (15%)
+ *
+ * `customWeights` lets callers override the blend with their own; null
+ * (or omitted) uses the defaults. The override path is what powers the
+ * per-user "adjustable signal mix" feature on /api/signals/me/score.
  */
-function computeCompositeScore(seasonalSignal, cotScore, patternResult) {
-  const weights = { seasonal: 0.3, cot: 0.25, pattern: 0.3, base: 0.15 };
+function computeCompositeScore(seasonalSignal, cotScore, patternResult, customWeights = null) {
+  const weights = customWeights ? normalizeSignalWeights(customWeights) : DEFAULT_SIGNAL_WEIGHTS;
 
   const seasonalScore = seasonalSignal || 0;
   const cotSignal = cotScore?.score || 0;
@@ -580,12 +608,38 @@ function computeCompositeScore(seasonalSignal, cotScore, patternResult) {
   };
 }
 
+// Orchestrator: fetch all the inputs and produce a composite score for a
+// single ticker. Used by the watchlist alert script and by anywhere else
+// that wants a one-call "score this ticker" without going through HTTP.
+// Accepts optional custom weights for per-user adjustable mix.
+async function computeScoreForTicker(ticker, customWeights = null) {
+  const [priceData, cotData] = await Promise.all([fetchYahooHistory(ticker, 11), fetchCOTData()]);
+  if (!priceData || priceData.length === 0) return null;
+
+  const seasonality = priceData.length >= 252 ? computeSeasonality(priceData, 10) : null;
+  const seasonalSignal = seasonality ? getSeasonalSignal(seasonality) : 0;
+  const currencyFromTicker = ticker.replace('USD=X', '').replace('=X', '').slice(0, 3);
+  const cotScore = computeCOTScore(cotData, currencyFromTicker);
+  const patternResult = priceData.length > 200 ? findPatternMatches(priceData) : null;
+  const composite = computeCompositeScore(seasonalSignal, cotScore, patternResult, customWeights);
+
+  return {
+    ticker,
+    composite: composite.score,
+    signal: composite.signal,
+    components: composite.components,
+  };
+}
+
 // ── EXPRESS ROUTES ──────────────────────────────────────────────────────────
 
 export {
   ALL_TICKERS,
+  DEFAULT_SIGNAL_WEIGHTS,
   computeCOTScore,
   computeCompositeScore,
+  computeScoreForTicker,
+  normalizeSignalWeights,
   computeSeasonality,
   computeSeasonalityCalendar,
   fetchCOTData,

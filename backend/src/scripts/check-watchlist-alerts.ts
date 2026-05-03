@@ -29,7 +29,7 @@ import {
 import { telegramService } from '../services/telegram.service';
 import { webhookService } from '../services/webhook.service';
 import { jobRunService, JOB_NAMES } from '../services/job-run.service';
-import { computeCompositeScore } from '../routes/signals.routes';
+import { computeScoreForTicker } from '../routes/signals.routes';
 
 type ScoredItem = {
   id: string;
@@ -99,9 +99,7 @@ async function runWatchlistCheck() {
   async function scoreFor(ticker: string): Promise<number | null> {
     if (scoresByTicker.has(ticker)) return scoresByTicker.get(ticker) ?? null;
     try {
-      const result = (await computeCompositeScore(ticker)) as {
-        composite?: number;
-      } | null;
+      const result = await computeScoreForTicker(ticker);
       const value = result && typeof result.composite === 'number' ? result.composite : null;
       scoresByTicker.set(ticker, value);
       return value;

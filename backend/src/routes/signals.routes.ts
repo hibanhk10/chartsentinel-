@@ -26,17 +26,60 @@ export function registerSignalRoutes(app: Express): void {
 
 // Re-export the pure functions for anywhere else in the backend that wants
 // to read a composite score, seasonality, or COT positioning without going
-// through HTTP (e.g. the weekly digest, future alerts, admin UI).
+// through HTTP (e.g. the weekly digest, future alerts, admin UI). The
+// engine returns plain objects synchronously — historic typings here
+// claimed Promise<unknown> by accident, which masks the real shape from
+// downstream callers. Keep these in sync with engine.js when its API
+// changes.
+
+// Pure composite scorer — caller supplies the three component results.
+// Most callers want computeScoreForTicker below, which orchestrates the
+// fetches and inputs; this lower-level form is here for tests and for
+// the screener path that has all three already in scope.
 export const computeCompositeScore: (
+  seasonalSignal: number,
+  cotScore: unknown,
+  patternResult: unknown,
+  customWeights?: { seasonal: number; cot: number; pattern: number; base: number } | null,
+) => {
+  score: number;
+  signal: string;
+  components: { seasonal: number; cot: number; pattern: number };
+} = engine.computeCompositeScore;
+
+// One-call "score this ticker" — fetches Yahoo + COT, runs the sub-signals,
+// and returns the composite. Per-user weights are optional.
+export const computeScoreForTicker: (
   ticker: string,
-) => Promise<unknown> = engine.computeCompositeScore;
+  customWeights?: { seasonal: number; cot: number; pattern: number; base: number } | null,
+) => Promise<{
+  ticker: string;
+  composite: number;
+  signal: string;
+  components: { seasonal: number; cot: number; pattern: number };
+} | null> = engine.computeScoreForTicker;
 
 export const computeSeasonality: (
-  ticker: string,
-) => Promise<unknown> = engine.computeSeasonality;
+  priceData: Array<{ date: string; close: number }>,
+  lookbackYears?: number,
+) => unknown = engine.computeSeasonality;
 
-export const computeCOTScore: (
-  ticker: string,
-) => Promise<unknown> = engine.computeCOTScore;
+export const computeCOTScore: (cotData: unknown, currency: string) => unknown =
+  engine.computeCOTScore;
 
 export const ALL_TICKERS: string[] = engine.ALL_TICKERS;
+
+// Engine internals exposed for the TS route layer that powers the
+// adjustable-weights endpoints and the portfolio aggregator. These bypass
+// HTTP because the calling routes already have auth + user weight lookup
+// in scope.
+export const fetchYahooHistory: (ticker: string, years?: number) => Promise<Array<{ date: string; close: number }>> =
+  engine.fetchYahooHistory;
+export const fetchCOTData: () => Promise<unknown[]> = engine.fetchCOTData;
+export const getSeasonalSignal: (seasonality: unknown) => number = engine.getSeasonalSignal;
+export const findPatternMatches: (priceData: Array<{ close: number }>) => unknown = engine.findPatternMatches;
+export const DEFAULT_SIGNAL_WEIGHTS: { seasonal: number; cot: number; pattern: number; base: number } =
+  engine.DEFAULT_SIGNAL_WEIGHTS;
+export const normalizeSignalWeights: (
+  input: Partial<{ seasonal: number; cot: number; pattern: number; base: number }> | null,
+) => { seasonal: number; cot: number; pattern: number; base: number } = engine.normalizeSignalWeights;

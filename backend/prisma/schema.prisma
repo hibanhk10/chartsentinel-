@@ -54,6 +54,11 @@ model User {
   webhookSecret       String?
   webhookFailureCount Int                  @default(0)
   webhookDisabledAt   DateTime?
+  // Per-user composite weights as JSON ({ seasonal, cot, pattern, base }).
+  // Null = use the default 0.30/0.25/0.30/0.15 blend. Server normalises
+  // to sum to 1.0 before scoring so a user-supplied (40, 40, 40, 0) still
+  // works (gets re-scaled to (0.333, 0.333, 0.333, 0)).
+  signalWeights       Json?
   passwordResetTokens PasswordResetToken[]
   watchlistItems      WatchlistItem[]
   referralCode        ReferralCode?
