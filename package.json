@@ -1,6 +1,9 @@
 {
     "name": "chartsentinel-root",
     "private": true,
+    "engines": {
+        "node": ">=20"
+    },
     "scripts": {
         "build": "npm run build --prefix backend",
         "start": "npm start --prefix backend",

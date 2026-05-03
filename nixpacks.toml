@@ -1,0 +1,6 @@
+# Pin Node 20 for Railway's Nixpacks builder. The backend declares
+# engines.node ">=20" but Nixpacks looks for nixpacks.toml at the repo
+# root rather than the service directory; without this, Railway picks
+# Node 18 (its current default) and tsc fails.
+[variables]
+NODE_VERSION = "20"

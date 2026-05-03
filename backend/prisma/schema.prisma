@@ -6,8 +6,8 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
 }
 
@@ -160,15 +160,15 @@ model ReferralCode {
 // referred user starts paying) — separating capture from reward avoids
 // premature payouts on free signups.
 model ReferralRedemption {
-  id              String    @id @default(cuid())
+  id              String       @id @default(cuid())
   codeId          String
   code            ReferralCode @relation(fields: [codeId], references: [id], onDelete: Cascade)
   referrerId      String
-  referrer        User      @relation("ReferralsMade", fields: [referrerId], references: [id], onDelete: Cascade)
-  referredUserId  String    @unique
-  referredUser    User      @relation("ReferralReceived", fields: [referredUserId], references: [id], onDelete: Cascade)
+  referrer        User         @relation("ReferralsMade", fields: [referrerId], references: [id], onDelete: Cascade)
+  referredUserId  String       @unique
+  referredUser    User         @relation("ReferralReceived", fields: [referredUserId], references: [id], onDelete: Cascade)
   rewardGrantedAt DateTime?
-  createdAt       DateTime  @default(now())
+  createdAt       DateTime     @default(now())
 
   @@index([referrerId])
   @@index([codeId])
@@ -181,16 +181,16 @@ model ReferralRedemption {
 // cron from spamming users on consecutive runs while the score stays above
 // (or below) the threshold.
 model WatchlistItem {
-  id              String    @id @default(cuid())
-  userId          String
-  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  ticker          String
-  thresholdAbove  Float?
-  thresholdBelow  Float?
-  lastScore       Float?
-  lastNotifiedAt  DateTime?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  id             String    @id @default(cuid())
+  userId         String
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ticker         String
+  thresholdAbove Float?
+  thresholdBelow Float?
+  lastScore      Float?
+  lastNotifiedAt DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   @@unique([userId, ticker])
   @@index([userId])
@@ -221,7 +221,7 @@ model Report {
   summary   String
   content   String
   createdAt DateTime @default(now())
-  
+
   @@map("reports")
 }
 
@@ -230,7 +230,7 @@ model News {
   title       String
   content     String
   publishedAt DateTime @default(now())
-  
+
   @@map("news")
 }
 
@@ -262,7 +262,7 @@ model WaitlistEntry {
   fullName    String
   institution String?
   aum         String?
-  source      String?  // e.g. "screening" / "homepage-cta" — for funnel attribution
+  source      String? // e.g. "screening" / "homepage-cta" — for funnel attribution
   userAgent   String?
   ipAddress   String?
   metadata    Json?    @default("{}")
