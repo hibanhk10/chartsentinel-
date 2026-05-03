@@ -72,6 +72,22 @@ model User {
 // Named basket of holdings — lets a user define an actual portfolio and
 // get a weighted composite score across it. Cascade delete from User so
 // account closure tears the portfolio down with it.
+// Short opaque tokens for the Telegram /start linking flow. Telegram caps
+// the /start parameter at 64 chars [A-Za-z0-9_-]; a signed JWT can't
+// fit, so we hand out a random 24-char id and look it up here. Rows are
+// deleted on consume; expired rows are swept lazily on the next
+// consume-like read.
+model TelegramLinkToken {
+  token     String   @id
+  userId    String
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("telegram_link_tokens")
+}
+
 model Portfolio {
   id        String          @id @default(cuid())
   userId    String

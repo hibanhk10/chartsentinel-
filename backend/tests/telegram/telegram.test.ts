@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { telegramService } from '../../src/services/telegram.service';
 
-// JWT_SECRET is read from env at module load — vitest inherits the dev .env
-// so the value is whatever the local backend uses. The token contents we
-// care about (purpose claim, userId round-trip) don't depend on the
-// specific secret value.
+// Linking-token tests are now DB-backed (TelegramLinkToken table) and
+// belong in an integration suite once we wire one up. The unit-test
+// surface here is just the pure helpers — escapeHtml + the configuration
+// probes — which don't need Prisma.
 
 describe('telegramService.escapeHtml', () => {
   it('escapes the three Telegram-HTML special characters', () => {
@@ -20,31 +20,6 @@ describe('telegramService.escapeHtml', () => {
   it('escapes ampersand first so the &lt; / &gt; substitutions are not double-encoded', () => {
     // If we escaped < before & we would produce &amp;lt; for "<".
     expect(telegramService.escapeHtml('<&>')).toBe('&lt;&amp;&gt;');
-  });
-});
-
-describe('telegramService linking token', () => {
-  it('round-trips a userId on a freshly minted token', () => {
-    const token = telegramService.generateLinkToken('user-abc');
-    expect(telegramService.verifyLinkToken(token)).toBe('user-abc');
-  });
-
-  it('returns null on a string that is not a JWT', () => {
-    expect(telegramService.verifyLinkToken('not-a-token')).toBeNull();
-    expect(telegramService.verifyLinkToken('')).toBeNull();
-  });
-
-  it("returns null when the token's purpose isn't 'telegram-link'", async () => {
-    // Mint a token by hand with a different purpose, using the same
-    // secret as the service. We import jsonwebtoken at the top of the
-    // test rather than using a vitest mock so the test verifies real
-    // behaviour, not a stub.
-    const jwt = (await import('jsonwebtoken')).default;
-    const env = (await import('../../src/config/env')).default;
-    const sessionToken = jwt.sign({ id: 'user-xyz', purpose: 'session' }, env.JWT_SECRET, {
-      expiresIn: '1h',
-    });
-    expect(telegramService.verifyLinkToken(sessionToken)).toBeNull();
   });
 });
 

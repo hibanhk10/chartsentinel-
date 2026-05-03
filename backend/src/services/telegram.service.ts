@@ -1,10 +1,18 @@
-import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
 import env from '../config/env';
+import prisma from '../config/db';
 
 // Telegram Bot API client. Two responsibilities:
 //   1. sendMessage(chatId, text) — outbound delivery for watchlist alerts
-//   2. linking-token plumbing — short-lived JWTs that the bot's /start
-//      handler exchanges for a chatId attached to a real user
+//   2. linking-token plumbing — short opaque ids the bot's /start handler
+//      exchanges for a chatId attached to a real user
+//
+// Linking-token note: we used to mint a JWT here, but Telegram's deep-link
+// /start parameter is capped at 64 chars [A-Za-z0-9_-] and a JWT both
+// overflows the limit and contains '.' separators that get silently
+// dropped. The bot then receives /start with no payload, no user
+// attribution, and no link ever happens. The fix is a 24-char random
+// id stored in TelegramLinkToken (10-min TTL, single-use).
 //
 // All outbound work is best-effort: the bot may be unconfigured, the
 // network may be flaky, or Telegram may rate-limit. Callers that depend
@@ -12,7 +20,7 @@ import env from '../config/env';
 // that don't (audit-style notifications) can ignore the result.
 
 const API_BASE = 'https://api.telegram.org';
-const LINK_TOKEN_TTL = '10m';
+const LINK_TOKEN_TTL_MS = 10 * 60 * 1000;
 
 export const telegramService = {
   /** True iff the bot has been configured. Used by the linking endpoint
@@ -26,33 +34,50 @@ export const telegramService = {
     return env.TELEGRAM_BOT_USERNAME ?? null;
   },
 
-  /** Sign a one-time token that proves "this user wants to link a chat".
-   *  Carries `purpose: 'telegram-link'` so it can never be used as a
-   *  session token; the auth middleware already rejects anything with a
-   *  non-session purpose claim, and the linking handler verifies the
-   *  string explicitly. 10-minute TTL is plenty for the user to tap a
-   *  deep link and hit /start. */
-  generateLinkToken(userId: string): string {
-    return jwt.sign(
-      { id: userId, purpose: 'telegram-link' },
-      env.JWT_SECRET,
-      { expiresIn: LINK_TOKEN_TTL }
-    );
+  /** Mint a one-time linking token. Persists it server-side keyed to the
+   *  requesting user id; the bot's /start handler swaps the token for the
+   *  user id via consumeLinkToken below. 24 hex chars (96 bits) is way
+   *  inside Telegram's 64-char start-param limit, easily fits the
+   *  [A-Za-z0-9_-] alphabet, and is well past the brute-force threshold
+   *  for a 10-minute TTL. */
+  async generateLinkToken(userId: string): Promise<string> {
+    const token = crypto.randomBytes(12).toString('hex');
+    const expiresAt = new Date(Date.now() + LINK_TOKEN_TTL_MS);
+    await prisma.telegramLinkToken.create({
+      data: { token, userId, expiresAt },
+    });
+    return token;
   },
 
-  /** Verify and decode a linking token. Returns the user id or null —
-   *  callers translate null into a user-facing "this link expired"
-   *  message. We never throw because the bot handler treats every error
+  /** Look up + delete a linking token. Returns the owning user id or null
+   *  if the token is missing, expired, or already consumed. We always
+   *  delete on read so a leaked token can't be reused, and we sweep any
+   *  expired rows we encounter for the requesting user as a side effect.
+   *  Caller translates null into a user-facing "this link expired"
+   *  message; we never throw because the bot handler treats every error
    *  uniformly. */
-  verifyLinkToken(token: string): string | null {
+  async consumeLinkToken(token: string): Promise<string | null> {
     try {
-      const payload = jwt.verify(token, env.JWT_SECRET) as {
-        id?: string;
-        purpose?: string;
-      };
-      if (payload.purpose !== 'telegram-link' || !payload.id) return null;
-      return payload.id;
-    } catch {
+      // deleteMany so a missing or already-consumed token returns count=0
+      // instead of throwing; we do a separate findUnique first to know
+      // whether the row was valid before delete swallows it.
+      const row = await prisma.telegramLinkToken.findUnique({ where: { token } });
+      if (!row) return null;
+      await prisma.telegramLinkToken.delete({ where: { token } });
+      if (row.expiresAt.getTime() < Date.now()) return null;
+
+      // Lazy sweep: clean up any other expired tokens owned by the same
+      // user. Cheap because it's at most a handful of rows per user, and
+      // it keeps the table bounded without a separate cron.
+      await prisma.telegramLinkToken
+        .deleteMany({
+          where: { userId: row.userId, expiresAt: { lt: new Date() } },
+        })
+        .catch(() => undefined);
+
+      return row.userId;
+    } catch (err) {
+      console.error('[telegram] consumeLinkToken failed:', err);
       return null;
     }
   },

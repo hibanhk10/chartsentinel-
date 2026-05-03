@@ -29,7 +29,7 @@ export const telegramLinkStartController = async (req: AuthedRequest, res: Respo
     return;
   }
 
-  const token = telegramService.generateLinkToken(req.user.id);
+  const token = await telegramService.generateLinkToken(req.user.id);
   res.json({
     botUsername: telegramService.botUsername(),
     deepLink: `https://t.me/${telegramService.botUsername()}?start=${token}`,
@@ -108,7 +108,7 @@ export const telegramWebhookController = async (req: Request, res: Response) => 
     return;
   }
 
-  const userId = telegramService.verifyLinkToken(startMatch[1]);
+  const userId = await telegramService.consumeLinkToken(startMatch[1]);
   if (!userId) {
     await telegramService.sendMessage(
       chatId,
