@@ -29,6 +29,28 @@ const envSchema = z.object({
   // to enable real Gemini-backed answers.
   GEMINI_API_KEY: z.string().optional(),
 
+  // Stripe billing. Behaviour matrix:
+  //   PAYMENTS_ENABLED unset / false → /api/payments/* returns 503 with a
+  //                                    "payments are disabled" message,
+  //                                    Pro features stay open for everyone
+  //                                    (free-tier mode, useful for dev /
+  //                                    pre-launch).
+  //   PAYMENTS_ENABLED=true → checkout + webhook are live, isPaid gating
+  //                            kicks in on the Pro endpoints (webhooks,
+  //                            signal mix, portfolio, signal export).
+  //
+  // STRIPE_PRICE_PRO / _ULTIMATE are the Price IDs from the Stripe
+  // dashboard. We avoid passing raw amounts to checkout — Stripe Price
+  // objects let you change plans without redeploying.
+  PAYMENTS_ENABLED: z
+    .string()
+    .optional()
+    .transform((v) => v === 'true' || v === '1'),
+  STRIPE_SECRET_KEY: z.string().optional(),
+  STRIPE_WEBHOOK_SECRET: z.string().optional(),
+  STRIPE_PRICE_PRO: z.string().optional(),
+  STRIPE_PRICE_ULTIMATE: z.string().optional(),
+
   // Telegram bot for watchlist alert delivery. When TELEGRAM_BOT_TOKEN is
   // unset the watchlist script silently skips the Telegram path and only
   // emails — same pattern as Resend / Gemini. Bot username is the public
