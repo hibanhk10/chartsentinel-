@@ -15,10 +15,13 @@ export default defineConfig({
       resolveDependencies: (_filename, deps, { hostType }) =>
         hostType === 'html' ? deps.filter((d) => !d.includes('three-vendor')) : deps,
     },
-    // 600 KB threshold suppresses the warning for the three-vendor chunk
-    // — three.js itself is the floor on that bundle. Our own code stays
-    // well below this so a real future regression still surfaces.
-    chunkSizeWarningLimit: 600,
+    // 1300 KB threshold accommodates the three-vendor chunk (three.js +
+    // R3F + drei + postprocessing land at ~1.2 MB combined, already
+    // lazy-loaded and HTML-modulepreload-stripped for non-marketing
+    // routes). Our own application code stays well below this — the
+    // current next-largest chunk is the entry bundle at ~400 KB — so a
+    // real future regression still surfaces above the warning line.
+    chunkSizeWarningLimit: 1300,
     rollupOptions: {
       output: {
         manualChunks: {

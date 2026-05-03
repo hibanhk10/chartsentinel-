@@ -284,11 +284,18 @@ const DashboardPortfolio = () => {
                             <p className="text-sm text-text-muted py-2">No holdings yet — add one below.</p>
                         )}
                         {editorRows.map((row, idx) => (
-                            <div key={idx} className="grid grid-cols-12 gap-2 items-center">
+                            // Mobile: stack ticker, weight, remove on top of each
+                            // other (a 12-col split at 320px gives a 56px-wide
+                            // dropdown that can't show full ticker names).
+                            // sm+ goes back to the inline grid.
+                            <div
+                                key={idx}
+                                className="flex flex-col gap-2 sm:grid sm:grid-cols-12 sm:gap-2 sm:items-center"
+                            >
                                 <select
                                     value={row.ticker}
                                     onChange={(e) => updateRow(idx, 'ticker', e.target.value)}
-                                    className="col-span-7 bg-black/30 border border-white/10 rounded-md px-3 py-2 text-sm text-white"
+                                    className="sm:col-span-7 bg-black/30 border border-white/10 rounded-md px-3 py-2 text-sm text-white"
                                 >
                                     <option value="">Pick ticker…</option>
                                     {tickers.map((t) => (
@@ -301,11 +308,11 @@ const DashboardPortfolio = () => {
                                     min="0"
                                     value={row.weight}
                                     onChange={(e) => updateRow(idx, 'weight', e.target.value)}
-                                    className="col-span-3 bg-black/30 border border-white/10 rounded-md px-3 py-2 text-sm text-white text-right font-mono"
+                                    className="sm:col-span-3 bg-black/30 border border-white/10 rounded-md px-3 py-2 text-sm text-white text-right font-mono"
                                 />
                                 <button
                                     onClick={() => removeRow(idx)}
-                                    className="col-span-2 text-xs text-text-muted hover:text-red-300 transition-colors"
+                                    className="sm:col-span-2 self-end sm:self-auto px-2 py-1 sm:p-0 text-xs text-text-muted hover:text-red-300 transition-colors"
                                 >
                                     Remove
                                 </button>
