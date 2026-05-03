@@ -15,6 +15,10 @@ export default defineConfig({
       resolveDependencies: (_filename, deps, { hostType }) =>
         hostType === 'html' ? deps.filter((d) => !d.includes('three-vendor')) : deps,
     },
+    // 600 KB threshold suppresses the warning for the three-vendor chunk
+    // — three.js itself is the floor on that bundle. Our own code stays
+    // well below this so a real future regression still surfaces.
+    chunkSizeWarningLimit: 600,
     rollupOptions: {
       output: {
         manualChunks: {
@@ -24,6 +28,16 @@ export default defineConfig({
           'charts-vendor': ['lightweight-charts'],
           // Animation libraries
           'motion-vendor': ['framer-motion', 'gsap'],
+          // Rich-text editor (admin-only). Pulling TipTap into its own
+          // chunk shrinks the Admin route from ~400 KB to a thin wrapper
+          // and lets TipTap cache separately, so an admin returning later
+          // doesn't re-download it on every unrelated Admin code change.
+          'tiptap-vendor': [
+            '@tiptap/react',
+            '@tiptap/starter-kit',
+            '@tiptap/extension-link',
+            '@tiptap/extension-image',
+          ],
           // React core
           'react-vendor': ['react', 'react-dom', 'react-router-dom'],
         },
