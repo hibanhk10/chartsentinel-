@@ -19,6 +19,7 @@ import networkingRoutes from './routes/networking.routes';
 import telegramRoutes from './routes/telegram.routes';
 import webhookRoutes from './routes/webhook.routes';
 import signalsPersonalRoutes from './routes/signals-personal.routes';
+import portfolioRoutes from './routes/portfolio.routes';
 import { registerSignalRoutes } from './routes/signals.routes';
 
 const app = express();
@@ -53,6 +54,7 @@ app.use('/api/networking', networkingRoutes);
 app.use('/api/telegram', telegramRoutes);
 app.use('/api/webhook', webhookRoutes);
 app.use('/api/signals/me', signalsPersonalRoutes);
+app.use('/api/portfolios', portfolioRoutes);
 
 // Signal engine — registers /api/signals/* endpoints directly on the app
 // since the ported JS module uses absolute paths rather than a Router.

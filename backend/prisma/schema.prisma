@@ -61,11 +61,43 @@ model User {
   signalWeights       Json?
   passwordResetTokens PasswordResetToken[]
   watchlistItems      WatchlistItem[]
+  portfolios          Portfolio[]
   referralCode        ReferralCode?
   referralsMade       ReferralRedemption[] @relation("ReferralsMade")
   referralReceived    ReferralRedemption?  @relation("ReferralReceived")
 
   @@map("users")
+}
+
+// Named basket of holdings — lets a user define an actual portfolio and
+// get a weighted composite score across it. Cascade delete from User so
+// account closure tears the portfolio down with it.
+model Portfolio {
+  id        String          @id @default(cuid())
+  userId    String
+  name      String
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items     PortfolioItem[]
+
+  @@index([userId])
+  @@map("portfolios")
+}
+
+// Child row: (ticker, weight) inside a portfolio. Weight is a raw
+// decimal; the aggregator normalises before scoring. unique(portfolioId,
+// ticker) prevents duplicate holdings of the same instrument.
+model PortfolioItem {
+  id          String    @id @default(cuid())
+  portfolioId String
+  ticker      String
+  weight      Float
+  portfolio   Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+
+  @@unique([portfolioId, ticker])
+  @@index([portfolioId])
+  @@map("portfolio_items")
 }
 
 // One row per execution of a scheduled job (weekly digest, watchlist alert

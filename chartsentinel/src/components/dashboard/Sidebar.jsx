@@ -35,6 +35,7 @@ const Sidebar = ({ activeTab, setActiveTab }) => {
           { id: 'watchlist', label: 'Watchlist', icon: 'notifications_active' },
           { id: 'backtester', label: 'Backtester', icon: 'history' },
           { id: 'seasonality-calendar', label: 'Seasonality', icon: 'calendar_month' },
+          { id: 'portfolio', label: 'Portfolio', icon: 'pie_chart' },
           { id: 'smart-money', label: 'Smart Money', icon: 'account_balance' },
           { id: 'anomalies', label: 'Anomalies', icon: 'troubleshoot' },
           { id: 'alert-builder', label: 'Alert Builder', icon: 'add_alert' },
