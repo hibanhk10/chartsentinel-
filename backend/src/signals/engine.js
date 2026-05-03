@@ -147,19 +147,43 @@ async function fetchFredSeries(seriesId) {
 }
 
 /**
- * Fetch CFTC Commitment of Traders data (free, from CFTC public API).
- * Returns positioning data for major Forex futures.
+ * Fetch CFTC Commitment of Traders data for forex futures.
+ *
+ * Uses the Traders in Financial Futures (TFF) report, dataset gpe5-46if
+ * on the CFTC's Socrata-backed public API. The earlier code pointed at
+ * jun7-fc8e — that's the agricultural disaggregated futures dataset
+ * (wheat, corn, etc.), which doesn't carry forex contracts at all and
+ * silently returned an empty array. Symptom: the dashboard's COT panel
+ * permanently showed the Tuesday-cadence empty-state message even on
+ * Wednesdays after a fresh report.
+ *
+ * Field mapping notes for future readers:
+ *   TFF                          Legacy name (older code expected)
+ *   ─────────────────────────────────────────────────────────────────
+ *   dealer_positions_*           commLong / commShort (intermediaries)
+ *   lev_money_positions_* +      noncommLong / noncommShort
+ *     asset_mgr_positions_*        (large speculators)
+ *
+ * Aggregating leveraged funds (hedge funds) plus asset managers gives
+ * the closest analogue to "non-commercial" in the legacy disaggregated
+ * report — both groups take directional bets, dealers don't.
  */
 async function fetchCOTData() {
   const cacheKey = 'cot_latest';
   const cached = cache.get(cacheKey);
   if (cached) return cached;
 
-  // CFTC Socrata API — Traders in Financial Futures
-  const url =
-    'https://publicreporting.cftc.gov/resource/jun7-fc8e.json?$limit=200&$order=report_date_as_yyyy_mm_dd DESC&$where=report_date_as_yyyy_mm_dd > "' +
-    new Date(Date.now() - 90 * ONE_DAY).toISOString().split('T')[0] +
-    '"';
+  // Build the Socrata URL via URLSearchParams so $where / $order with
+  // spaces and quotes are encoded correctly. Plain string concat
+  // sometimes worked, sometimes returned 400s depending on the runtime
+  // fetch implementation.
+  const ninetyDaysAgo = new Date(Date.now() - 90 * ONE_DAY).toISOString().split('T')[0];
+  const params = new URLSearchParams({
+    $limit: '200',
+    $order: 'report_date_as_yyyy_mm_dd DESC',
+    $where: `report_date_as_yyyy_mm_dd > "${ninetyDaysAgo}"`,
+  });
+  const url = `https://publicreporting.cftc.gov/resource/gpe5-46if.json?${params.toString()}`;
 
   try {
     const resp = await fetch(url, {
@@ -168,39 +192,49 @@ async function fetchCOTData() {
     if (!resp.ok) throw new Error(`CFTC HTTP ${resp.status}`);
     const raw = await resp.json();
 
-    // Map CFTC contract names to our currency symbols
-    const currencyMap = {
-      'EURO FX': 'EUR',
-      'JAPANESE YEN': 'JPY',
-      'BRITISH POUND': 'GBP',
-      'AUSTRALIAN DOLLAR': 'AUD',
-      'CANADIAN DOLLAR': 'CAD',
-      'SWISS FRANC': 'CHF',
-      'NEW ZEALAND DOLLAR': 'NZD',
-      'U.S. DOLLAR INDEX': 'USD',
-    };
+    // Map CFTC contract names to our currency symbols. Keep ordering by
+    // longer/more-specific keys first so "EURO FX/BRITISH POUND XRATE"
+    // doesn't accidentally match the EUR bucket.
+    const currencyMatchers = [
+      { match: 'U.S. DOLLAR INDEX', currency: 'USD' },
+      { match: 'NEW ZEALAND DOLLAR', currency: 'NZD' },
+      { match: 'AUSTRALIAN DOLLAR', currency: 'AUD' },
+      { match: 'CANADIAN DOLLAR', currency: 'CAD' },
+      { match: 'JAPANESE YEN', currency: 'JPY' },
+      { match: 'BRITISH POUND', currency: 'GBP' },
+      { match: 'SWISS FRANC', currency: 'CHF' },
+      // Match plain "EURO FX" only (not the EURO/X cross rates).
+      { match: 'EURO FX', currency: 'EUR', exact: true },
+    ];
+
+    const num = (v) => parseInt(v, 10) || 0;
 
     const data = raw
-      .filter((r) => {
-        const name = (r.contract_market_name || '').toUpperCase();
-        return Object.keys(currencyMap).some((k) => name.includes(k));
-      })
       .map((r) => {
-        const name = (r.contract_market_name || '').toUpperCase();
-        const currency =
-          Object.entries(currencyMap).find(([k]) => name.includes(k))?.[1] || 'UNKNOWN';
+        const name = (r.contract_market_name || '').toUpperCase().trim();
+        const matcher = currencyMatchers.find((m) =>
+          m.exact ? name === m.match : name.includes(m.match),
+        );
+        if (!matcher) return null;
+
+        // "Non-commercial" speculators = leveraged funds + asset managers.
+        // Dealers stay as the commercial proxy.
+        const noncommLong = num(r.lev_money_positions_long) + num(r.asset_mgr_positions_long);
+        const noncommShort = num(r.lev_money_positions_short) + num(r.asset_mgr_positions_short);
+        const commLong = num(r.dealer_positions_long_all);
+        const commShort = num(r.dealer_positions_short_all);
+
         return {
-          currency,
+          currency: matcher.currency,
           date: r.report_date_as_yyyy_mm_dd,
-          noncommLong: parseInt(r.noncomm_positions_long_all, 10) || 0,
-          noncommShort: parseInt(r.noncomm_positions_short_all, 10) || 0,
-          commLong: parseInt(r.comm_positions_long_all, 10) || 0,
-          commShort: parseInt(r.comm_positions_short_all, 10) || 0,
-          netSpeculative:
-            (parseInt(r.noncomm_positions_long_all, 10) || 0) -
-            (parseInt(r.noncomm_positions_short_all, 10) || 0),
+          noncommLong,
+          noncommShort,
+          commLong,
+          commShort,
+          netSpeculative: noncommLong - noncommShort,
         };
-      });
+      })
+      .filter(Boolean);
 
     cache.set(cacheKey, data, ONE_DAY);
     return data;
@@ -721,7 +755,7 @@ export function registerSignalRoutes(app) {
   app.get('/api/signals/cot', async (_req, res) => {
     try {
       const cotData = await fetchCOTData();
-      if (!cotData.length) return res.json({ data: [], scores: {} });
+      if (!cotData.length) return res.json({ data: [], scores: {}, latestReportDate: null });
 
       const currencies = ['EUR', 'GBP', 'JPY', 'AUD', 'CAD', 'CHF', 'NZD', 'USD'];
       const scores = {};
@@ -729,7 +763,16 @@ export function registerSignalRoutes(app) {
         scores[c] = computeCOTScore(cotData, c);
       }
 
-      res.json({ data: cotData, scores });
+      // Surface the latest report date so the UI can show "as of YYYY-MM-DD"
+      // — useful because CFTC publishes Tuesdays on the prior Friday's data,
+      // and "is the dashboard fresh" is a reasonable question.
+      const latestReportDate = cotData
+        .map((r) => r.date)
+        .sort()
+        .reverse()[0]
+        ?.slice(0, 10) || null;
+
+      res.json({ data: cotData, scores, latestReportDate });
     } catch (err) {
       console.error('[COT]', err);
       res.status(500).json({ error: 'Failed to fetch COT data' });

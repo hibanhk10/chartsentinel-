@@ -309,8 +309,9 @@ function CotPanel() {
   if (state.status === 'loading') return <SkeletonRows />;
   if (state.status === 'error') return <ErrorBanner message={state.error} />;
 
-  // Backend: { data:[...], scores:{ EUR:{score,netPosition,trend,zScore}, GBP:{...}, ... } }
+  // Backend: { data:[...], scores:{ EUR:{score,netPosition,trend,zScore}, GBP:{...}, ... }, latestReportDate }
   const scores = state.data?.scores || {};
+  const latestReportDate = state.data?.latestReportDate;
   const rows = Object.entries(scores)
     .map(([asset, s]) => ({ asset, ...s }))
     .filter((r) => r.score !== 0 || r.netPosition !== 0);
@@ -320,8 +321,14 @@ function CotPanel() {
   }
 
   return (
-    <div className="border border-white/5 rounded-xl overflow-hidden">
-      <table className="w-full text-sm">
+    <div className="space-y-3">
+      {latestReportDate && (
+        <div className="text-xs text-text-muted">
+          Latest CFTC report: <span className="text-white font-mono">{latestReportDate}</span> · published Tuesdays for the prior Friday&apos;s positioning.
+        </div>
+      )}
+      <div className="border border-white/5 rounded-xl overflow-hidden">
+        <table className="w-full text-sm">
         <thead className="bg-white/[0.03] text-text-muted text-xs uppercase tracking-wider">
           <tr>
             <th className="text-left font-semibold px-4 py-3">Currency</th>
@@ -350,7 +357,8 @@ function CotPanel() {
             </tr>
           ))}
         </tbody>
-      </table>
+        </table>
+      </div>
     </div>
   );
 }
