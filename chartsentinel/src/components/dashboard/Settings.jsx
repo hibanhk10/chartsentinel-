@@ -16,7 +16,7 @@ import { usePreferences } from '../../contexts/PreferencesContext';
 // each successful state transition.
 
 const Settings = () => {
-  const { prefs, setDensity } = usePreferences();
+  const { prefs, setDensity, setSound } = usePreferences();
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
   const [telegramLinked, setTelegramLinked] = useState(false);
   const [telegramUsername, setTelegramUsername] = useState(null);
@@ -383,6 +383,43 @@ const Settings = () => {
               </div>
             </button>
           ))}
+        </div>
+
+        {/* Sound toggle — opt-in audio cues for score changes and alert
+            fires. Default off so the dashboard never makes a sound a
+            user didn't ask for. The Web Audio API requires a user
+            gesture before it'll play; the toggle button itself counts
+            as that gesture, so a flip-on followed by an immediate test
+            "tick" is reliable.  */}
+        <div className="mt-4 pt-4 border-t border-white/5 flex items-center justify-between">
+          <div>
+            <div className="text-sm text-white">Subtle sound cues</div>
+            <div className="text-xs text-text-muted mt-0.5">
+              Soft tick when scores update, chime on alert fire. Default off.
+            </div>
+          </div>
+          <button
+            onClick={async () => {
+              const next = !prefs.sound;
+              setSound(next);
+              if (next) {
+                // Lazy-import so the audio module isn't in every bundle.
+                const { sound } = await import('../../lib/sound');
+                sound.tick();
+              }
+            }}
+            className={`w-11 h-6 rounded-full transition-colors relative ${
+              prefs.sound ? 'bg-primary' : 'bg-white/10'
+            }`}
+            aria-pressed={prefs.sound}
+            aria-label="Toggle sound cues"
+          >
+            <span
+              className={`absolute top-0.5 w-5 h-5 rounded-full bg-white transition-all ${
+                prefs.sound ? 'left-5' : 'left-0.5'
+              }`}
+            />
+          </button>
         </div>
       </section>
 

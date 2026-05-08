@@ -353,9 +353,19 @@ const DashboardPortfolio = () => {
 
             {score && (
                 <section className="bg-white/[0.03] border border-white/5 rounded-xl p-5">
-                    <h2 className="text-sm font-semibold uppercase tracking-wider text-text-muted mb-4">
-                        Aggregate score
-                    </h2>
+                    <div className="flex items-start justify-between mb-4">
+                        <h2 className="text-sm font-semibold uppercase tracking-wider text-text-muted">
+                            Aggregate score
+                        </h2>
+                        <button
+                            onClick={() => window.print()}
+                            className="print-hide text-xs text-text-muted hover:text-white inline-flex items-center gap-1"
+                            title="Print or export as PDF"
+                        >
+                            <span className="material-icons text-base">picture_as_pdf</span>
+                            Export PDF
+                        </button>
+                    </div>
                     <div className="flex items-baseline gap-4 mb-6">
                         <span className={`text-5xl font-bold font-mono ${SIGNAL_TINT(score.aggregate.score)}`}>
                             {score.aggregate.score >= 0 ? '+' : ''}{score.aggregate.score}

@@ -78,6 +78,59 @@
   min-height: var(--density-row-h);
 }
 
+/* ── Print / PDF styling ────────────────────────────────────────────── */
+/* Triggered by the user's browser print dialog (Save as PDF). The
+   dashboard's chrome is busy and dark — both bad for ink and for
+   scannability — so we strip everything down to the printable content
+   and force a light background. The .printable wrapper marks which
+   parts of a tab survive the strip; .print-hide opts something out
+   even if it's nested inside .printable. */
+@media print {
+  /* Force a light background so PDFs aren't mostly-black ink. */
+  html, body {
+    background: #ffffff !important;
+    color: #0a0a0a !important;
+  }
+
+  /* Strip the dashboard chrome entirely. */
+  nav, header, footer,
+  .print-hide,
+  [data-print="hide"] {
+    display: none !important;
+  }
+
+  /* Single-column layout so everything stacks down the page. */
+  main, .max-w-6xl, .max-w-3xl, .max-w-2xl {
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Most surfaces in the app use white-on-dark; flip to ink-on-paper. */
+  .premium-card,
+  .bg-surface-dark,
+  .bg-white\/\[0\.02\],
+  .bg-white\/\[0\.03\],
+  .bg-white\/\[0\.04\] {
+    background: #ffffff !important;
+    border-color: #e5e7eb !important;
+    backdrop-filter: none !important;
+    box-shadow: none !important;
+  }
+  .text-white,
+  .text-text-primary,
+  .text-text-secondary,
+  .text-text-muted {
+    color: #0a0a0a !important;
+  }
+
+  /* Avoid breaking individual sections / tiles across pages. */
+  section, .premium-card, table {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}
+
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
