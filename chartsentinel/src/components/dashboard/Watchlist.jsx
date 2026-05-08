@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { API_CONFIG } from '../../config/api';
 import ExplainScoreModal from './ExplainScoreModal';
+import EmptyState from '../ui/EmptyState';
 
 // Persistent watchlist with per-ticker composite-score thresholds. Writes
 // hit /api/watchlist — reads happen every time the tab mounts so the list
@@ -220,9 +221,11 @@ export default function DashboardWatchlist() {
       )}
 
       {status === 'ready' && items.length === 0 && (
-        <div className="bg-white/[0.02] border border-white/5 rounded-lg p-6 text-sm text-text-secondary text-center">
-          You haven&apos;t added any tickers yet. Use the form above to start tracking.
-        </div>
+        <EmptyState
+          icon="visibility"
+          title="Pick a ticker, we'll watch the herd"
+          sub="Add anything from FX majors to BTC. Set a composite-score threshold and we'll email + Telegram you the moment it crosses."
+        />
       )}
 
       <ExplainScoreModal data={explainTarget} onClose={() => setExplainTarget(null)} />

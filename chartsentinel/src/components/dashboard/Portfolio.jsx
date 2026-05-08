@@ -230,7 +230,7 @@ const DashboardPortfolio = () => {
                 <div className="flex flex-wrap gap-2 mb-4">
                     {portfolios.length === 0 && (
                         <p className="text-sm text-text-muted">
-                            No portfolios yet. Create one below to get started.
+                            Name a basket below — your first portfolio is one input away.
                         </p>
                     )}
                     {portfolios.map((p) => (

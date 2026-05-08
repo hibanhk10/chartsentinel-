@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { API_CONFIG } from '../../config/api';
+import TodayPanel from './TodayPanel';
 
 const DashboardHome = ({ setActiveTab }) => {
     const { user } = useAuth();
@@ -59,6 +60,8 @@ const DashboardHome = ({ setActiveTab }) => {
                     </button>
                 </div>
             </section>
+
+            <TodayPanel onJumpToTicker={() => setActiveTab?.('signals')} />
 
             <section>
                 <h3 className="text-xs font-bold uppercase tracking-wider text-text-muted mb-6">Quick Access</h3>
