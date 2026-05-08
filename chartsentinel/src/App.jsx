@@ -46,6 +46,8 @@ import HomePage from './pages/HomePage'
 import ContactPage from './pages/ContactPage'
 import DashboardPage from './pages/DashboardPage'
 import OnboardingPage from './pages/OnboardingPage'
+import PublicTickerPage from './pages/PublicTickerPage'
+import StatusPage from './pages/StatusPage'
 import SalesFunnelPage from './pages/SalesFunnelPage'
 import WaitlistPage from './pages/WaitlistPage'
 import TrustPage from './pages/TrustPage'
@@ -120,6 +122,8 @@ export default function App() {
             <Route path="/terms" element={<TermsPage />} />
             <Route path="/privacy" element={<PrivacyPage />} />
             <Route path="/risk" element={<RiskPage />} />
+            <Route path="/t/:ticker" element={<PublicTickerPage />} />
+            <Route path="/status" element={<StatusPage />} />
             {import.meta.env.DEV && (
               <Route path="/debug-sentry" element={<DebugSentry />} />
             )}
