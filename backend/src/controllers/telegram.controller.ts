@@ -70,12 +70,25 @@ interface TelegramUpdate {
 }
 
 export const telegramWebhookController = async (req: Request, res: Response) => {
+  // One log line per inbound update so we can confirm Telegram is
+  // actually reaching us. Cheap, useful when something quietly stops
+  // working (env drift, secret rotation, route renames).
+  console.log('[telegram] webhook hit');
+
   // Match the secret header so a third party can't forge updates. The
   // header is set by Telegram when we register the webhook with the
   // matching secret_token; if we forgot to register it (or the env var
   // isn't set on this deploy) we fail closed.
   const provided = req.headers['x-telegram-bot-api-secret-token'];
   if (!env.TELEGRAM_WEBHOOK_SECRET || provided !== env.TELEGRAM_WEBHOOK_SECRET) {
+    // Log a redacted-but-distinguishable version of both sides so we can
+    // tell "env not set" from "wrong value" without ever printing the
+    // real secret.
+    const fp = (s: unknown) =>
+      typeof s === 'string' && s.length >= 8 ? `${s.slice(0, 4)}…${s.slice(-4)}(${s.length})` : 'missing';
+    console.warn(
+      `[telegram] webhook 401 — secret mismatch. provided=${fp(provided)} expected=${fp(env.TELEGRAM_WEBHOOK_SECRET)}`,
+    );
     res.status(401).json({ error: 'unauthorised' });
     return;
   }
@@ -85,6 +98,7 @@ export const telegramWebhookController = async (req: Request, res: Response) => 
   if (!message || !message.text || !message.chat?.id) {
     // No-op acknowledgement — Telegram retries on non-2xx, and we don't
     // want a parsing miss to spam our logs.
+    console.log('[telegram] webhook: non-message update, ignoring');
     res.json({ ok: true });
     return;
   }
@@ -92,6 +106,7 @@ export const telegramWebhookController = async (req: Request, res: Response) => 
   const text = message.text.trim();
   const chatId = String(message.chat.id);
   const username = message.from?.username ?? null;
+  console.log(`[telegram] /${text.split(/\s/)[0]} from chat ${chatId} (@${username ?? 'unknown'})`);
 
   // Only /start <token> means anything to us. Telegram passes the token
   // as the rest of the line after /start when the user hits our deep link.
@@ -110,6 +125,7 @@ export const telegramWebhookController = async (req: Request, res: Response) => 
 
   const userId = await telegramService.consumeLinkToken(startMatch[1]);
   if (!userId) {
+    console.log('[telegram] /start with unknown / expired token');
     await telegramService.sendMessage(
       chatId,
       'That linking link has expired. Open ChartSentinel → Settings and tap "Connect" again.'
@@ -117,6 +133,7 @@ export const telegramWebhookController = async (req: Request, res: Response) => 
     res.json({ ok: true });
     return;
   }
+  console.log(`[telegram] linking chat ${chatId} → user ${userId}`);
 
   await prisma.user.update({
     where: { id: userId },
