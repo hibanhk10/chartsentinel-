@@ -22,6 +22,11 @@ const MONEY_COMPACT_FMT = new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',
     notation: 'compact',
+    // USD's default minimumFractionDigits is 2, which makes Node 20's
+    // ICU emit "$10.00K" for round values. Node 24 trims trailing zeros
+    // automatically; pinning min=0 keeps the output the same across
+    // both runtimes ($10K, $2.5M, $1.23M).
+    minimumFractionDigits: 0,
     maximumFractionDigits: 2,
 });
 
