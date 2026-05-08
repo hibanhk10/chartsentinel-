@@ -6,6 +6,10 @@ import DashboardHome from '../components/dashboard/Home';
 import SEO from '../components/ui/SEO';
 import api from '../services/api';
 import TickerMarquee from '../components/dashboard/TickerMarquee';
+import BrandedLoader from '../components/ui/BrandedLoader';
+import CommandPalette from '../components/dashboard/CommandPalette';
+import ShortcutHelp from '../components/dashboard/ShortcutHelp';
+import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 
 // Home stays eagerly imported because it's the default landing tab —
 // lazy-loading it would just cost a flash of the Suspense fallback on
@@ -70,6 +74,14 @@ const DashboardPage = () => {
     const { isAuthenticated, loading, login } = useAuth();
     const navigate = useNavigate();
 
+    // Keyboard shortcut state — palette (⌘K) and help overlay (?). The
+    // hook owns the keydown listener; we render whichever modal it
+    // signals open.
+    const { paletteOpen, setPaletteOpen, helpOpen, setHelpOpen } = useKeyboardShortcuts({
+        navigate,
+        setActiveTab,
+    });
+
     // Onboarding guard. We can't read onboardedAt off the JWT (it isn't in
     // the token payload), so we GET /auth/me on first dashboard mount.
     // null = still hydrating, false = need to send them through the wizard,
@@ -107,7 +119,7 @@ const DashboardPage = () => {
     }, [isAuthenticated, loading, navigate]);
 
     if (loading || (isAuthenticated && onboardingChecked === null)) {
-        return <div className="min-h-screen bg-background-dark flex items-center justify-center text-white">Loading...</div>;
+        return <BrandedLoader />;
     }
 
     if (!isAuthenticated) {
@@ -209,8 +221,29 @@ const DashboardPage = () => {
 
                 <footer className="mt-20 pt-8 border-t border-white/5 flex items-center justify-center gap-6 text-[10px] font-medium text-text-muted">
                     <p>© {new Date().getFullYear()} ChartSentinel</p>
+                    <button
+                        onClick={() => setPaletteOpen(true)}
+                        className="hover:text-white transition-colors flex items-center gap-1"
+                    >
+                        <kbd className="font-mono text-[10px] px-1 py-0.5 bg-white/5 rounded border border-white/10">⌘K</kbd>
+                        <span>quick jump</span>
+                    </button>
+                    <button
+                        onClick={() => setHelpOpen(true)}
+                        className="hover:text-white transition-colors flex items-center gap-1"
+                    >
+                        <kbd className="font-mono text-[10px] px-1 py-0.5 bg-white/5 rounded border border-white/10">?</kbd>
+                        <span>shortcuts</span>
+                    </button>
                 </footer>
             </main>
+
+            <CommandPalette
+                open={paletteOpen}
+                onClose={() => setPaletteOpen(false)}
+                setActiveTab={setActiveTab}
+            />
+            <ShortcutHelp open={helpOpen} onClose={() => setHelpOpen(false)} />
         </div>
     );
 };
