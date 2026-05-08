@@ -38,6 +38,7 @@ function RouteAwareCanvas() {
   )
 }
 import { AuthProvider } from './contexts/AuthContext'
+import { PreferencesProvider } from './contexts/PreferencesContext'
 import { trackPageview } from './lib/analytics'
 
 import Navbar from './components/ui/Navbar'
@@ -96,6 +97,7 @@ export default function App() {
 
   return (
     <AuthProvider>
+      <PreferencesProvider>
       <Router>
         <main className="bg-background-dark text-white selection:bg-primary selection:text-white">
           <div className="fixed inset-0 z-0">
@@ -124,6 +126,7 @@ export default function App() {
           </Routes>
         </main>
       </Router>
+      </PreferencesProvider>
     </AuthProvider>
   )
 }

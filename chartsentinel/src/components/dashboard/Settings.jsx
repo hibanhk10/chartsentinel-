@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { authService } from '../../services/authService';
 import api from '../../services/api';
+import { usePreferences } from '../../contexts/PreferencesContext';
 
 // Account settings — currently houses the 2FA setup / disable flow. The
 // component manages four UI states locally:
@@ -15,6 +16,7 @@ import api from '../../services/api';
 // each successful state transition.
 
 const Settings = () => {
+  const { prefs, setDensity } = usePreferences();
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
   const [telegramLinked, setTelegramLinked] = useState(false);
   const [telegramUsername, setTelegramUsername] = useState(null);
@@ -347,6 +349,42 @@ const Settings = () => {
       <p className="text-sm text-text-secondary mb-8">
         Security and preferences for your ChartSentinel account.
       </p>
+
+      {/* Display preferences — density toggle. Stored in localStorage
+          via PreferencesContext, applied to <html data-density> so any
+          density-aware utility class can opt in without prop-drilling. */}
+      <section className="rounded-2xl border border-white/5 bg-surface-dark p-6 mb-6">
+        <header className="mb-4">
+          <h2 className="text-lg font-semibold text-white flex items-center gap-2">
+            <span className="material-icons text-primary">view_compact</span>
+            Display
+          </h2>
+          <p className="text-sm text-text-secondary mt-1">
+            Tighten the layout when you want more on screen.
+          </p>
+        </header>
+        <div className="flex gap-2">
+          {[
+            { id: 'comfortable', label: 'Comfortable', hint: 'Default' },
+            { id: 'compact', label: 'Compact', hint: 'Power-user density' },
+          ].map((opt) => (
+            <button
+              key={opt.id}
+              onClick={() => setDensity(opt.id)}
+              className={`flex-1 px-4 py-3 rounded-lg text-left text-sm transition-colors border ${
+                prefs.density === opt.id
+                  ? 'bg-primary/15 border-primary/40 text-white'
+                  : 'bg-white/[0.03] border-white/10 text-text-secondary hover:bg-white/[0.05]'
+              }`}
+            >
+              <div className="font-medium">{opt.label}</div>
+              <div className="text-[10px] text-text-muted uppercase tracking-widest mt-1">
+                {opt.hint}
+              </div>
+            </button>
+          ))}
+        </div>
+      </section>
 
       <section className="rounded-2xl border border-white/5 bg-surface-dark p-6">
         <header className="flex items-start justify-between gap-4 mb-4">

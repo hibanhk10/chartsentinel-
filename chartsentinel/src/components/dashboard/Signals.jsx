@@ -149,7 +149,7 @@ function ScreenerPanel({ onSelectTicker }) {
             <tr
               key={row.ticker}
               onClick={() => onSelectTicker?.(row.ticker)}
-              className="border-t border-white/5 hover:bg-white/[0.02] cursor-pointer transition-colors"
+              className="density-row border-t border-white/5 hover:bg-white/[0.02] cursor-pointer transition-colors"
             >
               <td className="px-4 py-3 font-mono text-white">{row.ticker}</td>
               <td className="px-4 py-3 hidden sm:table-cell">

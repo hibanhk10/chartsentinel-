@@ -42,6 +42,40 @@
   .glow-purple {
     box-shadow: 0 0 15px rgba(168, 85, 247, 0.4);
   }
+
+  /* Refined glass surface — backdrop-filter + subtle gradient border.
+     Used by the highest-traffic dashboard cards (composite score tile,
+     top-of-fold panels) to add visual depth without going maximalist. */
+  .premium-card {
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.02) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(12px);
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.05) inset, 0 16px 40px -16px rgba(0, 0, 0, 0.4);
+  }
+}
+
+/* ── Density preferences ──────────────────────────────────────────── */
+/* `data-density="compact"` on <html> tightens vertical rhythm across
+   the dashboard for power users who want more on screen. We don't
+   override Tailwind utilities directly — instead we expose two CSS
+   custom properties that components can opt into via their own classes
+   if they need bespoke spacing. The big visible levers are the table
+   row paddings (Signals, Watchlist, Portfolio score table, Audit log,
+   Job runs) which already use px-4 py-3 — switch to py-1.5 in compact. */
+:root {
+  --density-pad-y: 0.75rem;   /* py-3 */
+  --density-row-h: 2.5rem;    /* 40px */
+}
+[data-density="compact"] {
+  --density-pad-y: 0.375rem;  /* py-1.5 */
+  --density-row-h: 2rem;      /* 32px */
+}
+
+[data-density="compact"] .density-row {
+  padding-top: var(--density-pad-y);
+  padding-bottom: var(--density-pad-y);
+  min-height: var(--density-row-h);
 }
 
 /* Custom Scrollbar */
