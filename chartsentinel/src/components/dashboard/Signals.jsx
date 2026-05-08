@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { API_CONFIG } from '../../config/api';
 import ExplainScoreModal from './ExplainScoreModal';
+import Sparkline from '../ui/Sparkline';
+import { TableSkeleton } from '../ui/Skeletons';
+import AnimatedNumber from '../ui/AnimatedNumber';
 
 // Consumes the signals engine ported from chartsentinel-preregister.
 // Scores throughout are on a -100..+100 scale (except win rate which is
@@ -130,6 +133,7 @@ function ScreenerPanel({ onSelectTicker }) {
         <thead className="bg-white/[0.03] text-text-muted text-xs uppercase tracking-wider">
           <tr>
             <th className="text-left font-semibold px-4 py-3">Ticker</th>
+            <th className="text-left font-semibold px-4 py-3 hidden sm:table-cell">30d</th>
             <th className="text-right font-semibold px-4 py-3">Price</th>
             <th className="text-right font-semibold px-4 py-3">Day %</th>
             <th className="text-right font-semibold px-4 py-3">Composite</th>
@@ -148,6 +152,9 @@ function ScreenerPanel({ onSelectTicker }) {
               className="border-t border-white/5 hover:bg-white/[0.02] cursor-pointer transition-colors"
             >
               <td className="px-4 py-3 font-mono text-white">{row.ticker}</td>
+              <td className="px-4 py-3 hidden sm:table-cell">
+                <Sparkline data={row.spark} width={84} height={20} ariaLabel={`${row.ticker} 30-day price`} />
+              </td>
               <td className="px-4 py-3 text-right text-text-secondary font-mono">
                 {fmt(row.price)}
               </td>
@@ -155,7 +162,12 @@ function ScreenerPanel({ onSelectTicker }) {
                 {row.dayChange == null ? '—' : `${row.dayChange > 0 ? '+' : ''}${row.dayChange.toFixed(2)}%`}
               </td>
               <td className={`px-4 py-3 text-right font-semibold ${scoreTint(row.score)}`}>
-                {fmt(row.score)}
+                <AnimatedNumber
+                  value={row.score}
+                  format={(v) =>
+                    v == null || Number.isNaN(v) ? '—' : `${v >= 0 ? '+' : ''}${Math.round(v)}`
+                  }
+                />
               </td>
               <td className="px-4 py-3 text-right text-text-secondary text-xs">
                 {signalLabel(row.signal)}
@@ -640,13 +652,11 @@ function StatCard({ label, value, sub, accent }) {
 }
 
 function SkeletonRows() {
-  return (
-    <div className="space-y-2 animate-pulse">
-      {Array.from({ length: 5 }).map((_, i) => (
-        <div key={i} className="h-10 bg-white/[0.03] rounded-md" />
-      ))}
-    </div>
-  );
+  // Thin wrapper around the shared TableSkeleton so the per-panel loading
+  // state mirrors the table that's about to render — six columns matches
+  // both the screener (8 visible cols truncated visually) and the COT
+  // table (5 cols), close enough for the human eye.
+  return <TableSkeleton rows={5} cols={6} />;
 }
 
 function ErrorBanner({ message }) {

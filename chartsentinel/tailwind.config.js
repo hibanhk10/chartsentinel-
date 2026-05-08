@@ -30,7 +30,19 @@ export default {
             },
             backgroundImage: {
                 'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
-            }
+            },
+            keyframes: {
+                // Translate the duplicated row sequence one full row-width
+                // left, then jump back. TickerMarquee duplicates its rows
+                // so the loop seam is invisible.
+                marquee: {
+                    '0%': { transform: 'translateX(0)' },
+                    '100%': { transform: 'translateX(-50%)' },
+                },
+            },
+            animation: {
+                marquee: 'marquee 60s linear infinite',
+            },
         },
     },
     plugins: [],

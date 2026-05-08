@@ -895,6 +895,15 @@ export function registerSignalRoutes(app) {
               const prevPrice = priceData[priceData.length - 2]?.close;
               const dayChange = prevPrice ? ((latestPrice - prevPrice) / prevPrice) * 100 : 0;
 
+              // 30-day close series for the inline sparkline. Sample
+              // every other day so the path stays readable at 100×24px
+              // while preserving the overall shape, and round to 2dp to
+              // shrink the over-the-wire payload.
+              const sparkData = priceData
+                .slice(-30)
+                .filter((_, i) => i % 2 === 0)
+                .map((d) => parseFloat(d.close.toFixed(2)));
+
               return {
                 ticker,
                 price: latestPrice,
@@ -902,6 +911,7 @@ export function registerSignalRoutes(app) {
                 score: composite.score,
                 signal: composite.signal,
                 components: composite.components,
+                spark: sparkData,
                 pattern: patternResult
                   ? {
                       direction: patternResult.direction,

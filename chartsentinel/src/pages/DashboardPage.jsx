@@ -5,6 +5,7 @@ import Sidebar from '../components/dashboard/Sidebar';
 import DashboardHome from '../components/dashboard/Home';
 import SEO from '../components/ui/SEO';
 import api from '../services/api';
+import TickerMarquee from '../components/dashboard/TickerMarquee';
 
 // Home stays eagerly imported because it's the default landing tab —
 // lazy-loading it would just cost a flash of the Suspense fallback on
@@ -189,11 +190,19 @@ const DashboardPage = () => {
     return (
         <div className="relative z-10 flex min-h-screen bg-background-dark text-text-primary pt-20">
             <SEO title="Dashboard" path="/dashboard" noindex />
+            {/* Ticker marquee anchored above the sidebar/main split. The
+                pt-20 above already reserves space for the global top bar;
+                the marquee sits inside that band on the right of the
+                sidebar — visible from every dashboard tab. */}
+            <div className="fixed top-20 left-0 right-0 lg:left-64 z-20">
+                <TickerMarquee />
+            </div>
             <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
             {/* lg:ml-64 keeps the desktop layout untouched; on mobile the
                 sidebar is a drawer so main claims the full width and pads
-                for the sticky top bar rendered by Sidebar. */}
-            <main className="flex-1 px-4 py-6 pt-16 lg:pt-0 sm:px-8 lg:ml-64 lg:p-12 max-w-6xl mx-auto w-full">
+                for the sticky top bar rendered by Sidebar. pt-9 reserves
+                room for the marquee strip. */}
+            <main className="flex-1 px-4 py-6 pt-24 lg:pt-9 sm:px-8 lg:ml-64 lg:p-12 lg:pt-16 max-w-6xl mx-auto w-full">
                 <Suspense fallback={<TabFallback />}>
                     {renderContent()}
                 </Suspense>
