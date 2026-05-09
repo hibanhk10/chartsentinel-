@@ -78,9 +78,6 @@ const Reports = () => {
                   <span className="text-sm text-secondary">
                     {report.author || 'Chartsentinel Team'}
                   </span>
-                  <button className="text-primary hover:text-primary/80 font-medium text-sm transition-colors">
-                    Read More →
-                  </button>
                 </div>
               </div>
             ))}

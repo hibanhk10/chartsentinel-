@@ -6,7 +6,7 @@ export default function Footer() {
         <footer id="contact" className="py-12 bg-background-dark border-t border-white/5 relative overflow-hidden">
             {/* Background Pattern */}
             <GridPattern className="absolute inset-0 text-slate-800 opacity-10" />
-            <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-8 relative z-10">
+            <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row md:flex-wrap justify-between items-center gap-y-6 gap-x-8 relative z-10">
                 <div className="flex items-center gap-2">
                     <div className="w-6 h-6 bg-primary rounded flex items-center justify-center">
                         <span className="material-icons text-white text-[10px]">query_stats</span>

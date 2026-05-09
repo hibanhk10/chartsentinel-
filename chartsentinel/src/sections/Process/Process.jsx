@@ -1,6 +1,17 @@
+import { useNavigate } from 'react-router-dom'
 import TradingVisualization from './TradingVisualization'
 
 export default function Process() {
+    const navigate = useNavigate()
+
+    const scrollToPricing = () => {
+        const target = document.getElementById('pricing')
+        if (!target) return
+        const offset = 80
+        const top = target.getBoundingClientRect().top + window.scrollY - offset
+        window.scrollTo({ top, behavior: 'smooth' })
+    }
+
     return (
         <section className="py-16 md:py-24 bg-background-dark">
             <div className="max-w-7xl mx-auto px-4 sm:px-6">
@@ -23,11 +34,17 @@ export default function Process() {
                                 Our process is straight to the forward. Our analysts collect the info and make them into
                                 easy to read and understand report.
                             </p>
-                            <div className="flex gap-4">
-                                <button className="px-6 py-3 bg-white/5 border border-white/10 rounded-full text-sm font-semibold hover:bg-white/10 transition-all glow-button text-white">
+                            <div className="flex flex-wrap gap-4">
+                                <button
+                                    onClick={() => navigate('/contact')}
+                                    className="px-6 py-3 bg-white/5 border border-white/10 rounded-full text-sm font-semibold hover:bg-white/10 transition-all glow-button text-white"
+                                >
                                     Book a Free Call
                                 </button>
-                                <button className="px-6 py-3 bg-white/5 border border-white/10 rounded-full text-sm font-semibold hover:bg-white/10 transition-all text-white">
+                                <button
+                                    onClick={scrollToPricing}
+                                    className="px-6 py-3 bg-white/5 border border-white/10 rounded-full text-sm font-semibold hover:bg-white/10 transition-all text-white"
+                                >
                                     View Plans
                                 </button>
                             </div>

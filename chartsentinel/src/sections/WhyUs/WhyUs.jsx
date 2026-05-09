@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { GridPattern } from '../../components/ui/Patterns'
 import LiveMarketFeed from '../../components/ui/LiveMarketFeed'
@@ -6,8 +7,18 @@ import TrendChart from '../../components/ui/TrendChart'
 
 // WhyUs Component
 export default function WhyUs() {
+    const navigate = useNavigate()
+
+    const scrollToPricing = () => {
+        const target = document.getElementById('pricing')
+        if (!target) return
+        const offset = 80
+        const top = target.getBoundingClientRect().top + window.scrollY - offset
+        window.scrollTo({ top, behavior: 'smooth' })
+    }
+
     return (
-        <section id="reviews" className="relative py-16 md:py-24 bg-gradient-to-b from-background-dark via-slate-950 to-background-dark overflow-hidden">
+        <section id="command-center" className="relative py-16 md:py-24 bg-gradient-to-b from-background-dark via-slate-950 to-background-dark overflow-hidden">
             {/* Background Effects — the blur halo needs max-w so it doesn't
                 push a horizontal scrollbar on narrow phones. */}
             <GridPattern className="absolute inset-0 text-primary opacity-5" />
@@ -120,10 +131,16 @@ export default function WhyUs() {
                             Join 1,000+ traders who trust ChartSentinel for institutional-grade market analysis and real-time signals.
                         </p>
                         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                            <button className="px-10 py-4 bg-primary text-white font-bold rounded-full hover:scale-105 transition-transform glow-button text-lg">
+                            <button
+                                onClick={() => navigate('/funnel')}
+                                className="px-10 py-4 bg-primary text-white font-bold rounded-full hover:scale-105 transition-transform glow-button text-lg"
+                            >
                                 Start Free Trial
                             </button>
-                            <button className="px-10 py-4 bg-white/5 border border-white/10 text-white font-bold rounded-full hover:bg-white/10 transition-colors text-lg">
+                            <button
+                                onClick={scrollToPricing}
+                                className="px-10 py-4 bg-white/5 border border-white/10 text-white font-bold rounded-full hover:bg-white/10 transition-colors text-lg"
+                            >
                                 View Pricing
                             </button>
                         </div>

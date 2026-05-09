@@ -86,15 +86,19 @@ export default function Hero() {
                             <div className="w-3 h-3 rounded-full bg-yellow-500/50" />
                             <div className="w-3 h-3 rounded-full bg-green-500/50" />
                         </div>
-                        <div className="ml-4 h-6 w-96 rounded-full bg-white/5 text-[10px] flex items-center px-3 text-secondary font-mono">
+                        <div className="ml-4 h-6 flex-1 max-w-96 rounded-full bg-white/5 text-[10px] flex items-center px-3 text-secondary font-mono truncate">
                             chartsentinel.io/terminal/v2
                         </div>
                     </div>
 
-                    {/* Grid Layout of Widgets */}
+                    {/* Grid Layout of Widgets — chart claims 2 of 3 columns
+                        so the row reads chart | widgets instead of leaving
+                        the third column visibly empty. */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4">
                         {/* Main Chart */}
-                        <RealtimeBinanceChart symbol="BTCUSDT" height={280} />
+                        <div className="md:col-span-2">
+                            <RealtimeBinanceChart symbol="BTCUSDT" height={280} />
+                        </div>
 
                         {/* Side Widgets */}
                         <div className="space-y-4">

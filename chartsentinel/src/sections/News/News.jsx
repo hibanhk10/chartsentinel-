@@ -88,9 +88,16 @@ const News = () => {
                   <span className="text-sm text-secondary">
                     {article.author || 'Chartsentinel Team'}
                   </span>
-                  <button className="text-primary hover:text-primary/80 font-medium text-sm transition-colors">
-                    Read More →
-                  </button>
+                  {article.url ? (
+                    <a
+                      href={article.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary hover:text-primary/80 font-medium text-sm transition-colors"
+                    >
+                      Read More →
+                    </a>
+                  ) : null}
                 </div>
               </article>
             ))}

@@ -4,6 +4,7 @@ import Hero from '../sections/Hero/Hero'
 import WhatWeDo from '../sections/WhatWeDo/WhatWeDo'
 import Reports from '../sections/Reports/Reports'
 import News from '../sections/News/News'
+import Reviews from '../sections/Reviews/Reviews'
 import Pricing from '../sections/Pricing/Pricing'
 import Process from '../sections/Process/Process'
 import WhyUs from '../sections/WhyUs/WhyUs'
@@ -47,6 +48,7 @@ export default function HomePage() {
             <WhatWeDo />
             <Reports />
             <News />
+            <Reviews />
             <Pricing />
             <Process />
             <WhyUs />
