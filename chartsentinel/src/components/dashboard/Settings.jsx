@@ -3,6 +3,7 @@ import { authService } from '../../services/authService';
 import api from '../../services/api';
 import { usePreferences } from '../../contexts/PreferencesContext';
 import PlanGate from '../ui/PlanGate';
+import CustomPinSettings from './CustomPinSettings';
 
 // Account settings — currently houses the 2FA setup / disable flow. The
 // component manages four UI states locally:
@@ -899,6 +900,28 @@ const Settings = () => {
             Reset to defaults
           </button>
         </div>
+      </section>
+      </PlanGate>
+      </div>
+
+      <div className="mt-6">
+      <PlanGate
+        feature="globe-custom-pin"
+        title="Custom globe pin is a Pro feature"
+        description="Pin a city + keyword onto the Global Intelligence Globe so your own region of interest glows the moment a live wire mentions it."
+      >
+      <section className="rounded-2xl border border-white/5 bg-surface-dark p-6">
+        <header className="mb-4">
+          <h2 className="text-lg font-semibold text-white flex items-center gap-2">
+            <span className="material-icons text-primary">push_pin</span>
+            Custom globe pin
+          </h2>
+          <p className="text-sm text-text-secondary mt-1">
+            Pin a city + keyword onto the Global Intelligence Globe. Your pin shows up alongside
+            the canned hotspots and lights up whenever a live wire mentions it.
+          </p>
+        </header>
+        <CustomPinSettings />
       </section>
       </PlanGate>
       </div>

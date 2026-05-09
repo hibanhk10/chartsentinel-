@@ -1,5 +1,7 @@
 import ThreatMatrix from '../ui/ThreatMatrix';
 import GlobeMap from '../ui/GlobeMap';
+import TimeScrubber from './TimeScrubber';
+import PlanGate from '../ui/PlanGate';
 
 const DashboardIntel = () => {
     return (
@@ -22,6 +24,16 @@ const DashboardIntel = () => {
 
             <section>
                 <GlobeMap height={520} />
+            </section>
+
+            <section>
+                <PlanGate
+                    feature="globe-time-scrubber"
+                    title="Time scrubber is an Ultimate feature"
+                    description="Drag back through 90 days of insider clusters and see which tickers caught flow on any given week."
+                >
+                    <TimeScrubber />
+                </PlanGate>
             </section>
 
             <section className="h-[640px]">

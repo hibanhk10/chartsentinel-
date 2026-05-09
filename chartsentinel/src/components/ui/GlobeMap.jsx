@@ -4,7 +4,8 @@ import { Link } from 'react-router-dom'
 import * as THREE from 'three'
 import api from '../../services/api'
 import { useAuth } from '../../contexts/AuthContext'
-import { hasFeature, requiredPlanFor, planLabel } from '../../lib/plan'
+import { usePreferences } from '../../contexts/PreferencesContext'
+import { hasFeature, requiredPlanFor, planLabel, getUserPlan } from '../../lib/plan'
 
 // Interactive 3D globe with live finance / geopolitical signal overlays.
 // Ported in spirit from the preregister build. The shape of the WebGL
@@ -209,9 +210,9 @@ function createArcGeometry(from, to, segments = 64) {
     return new THREE.BufferGeometry().setFromPoints(points)
 }
 
-function matchHotspots(headlines) {
+function matchHotspots(headlines, customPin = null) {
     const now = Date.now()
-    return HOTSPOTS_BASE.map((spot) => {
+    const base = HOTSPOTS_BASE.map((spot) => {
         const match = headlines.find((h) => spot.keywords.test(`${h.title} ${h.summary || ''}`))
         if (!match) {
             return { ...spot, headline: spot.fallback, source: 'standby', isLive: false, freshnessHours: null }
@@ -229,6 +230,57 @@ function matchHotspots(headlines) {
             isLive: true,
         }
     })
+    if (customPin) {
+        // Custom user pin participates as a 16th hotspot. It runs the
+        // same intensity tiering and live/standby flow as the canned
+        // ones, just with user-supplied lat/lon and keyword.
+        try {
+            const re = new RegExp(`\\b(${customPin.keyword})\\b`, 'i')
+            const match = headlines.find((h) => re.test(`${h.title} ${h.summary || ''}`))
+            const ageMs = match?.publishedAt ? now - new Date(match.publishedAt).getTime() : null
+            base.push({
+                name: customPin.name || 'Custom pin',
+                lat: customPin.lat,
+                lon: customPin.lon,
+                color: '#fbbf24',
+                category: 'Custom',
+                tickers: customPin.tickers || [],
+                isLive: !!match,
+                freshnessHours: ageMs !== null ? ageMs / 3_600_000 : null,
+                headline: match
+                    ? match.title
+                    : `Tracking "${customPin.keyword}". Headlines that mention it pin here.`,
+                source: match?.source || 'standby',
+                url: match?.url,
+                publishedAt: match?.publishedAt,
+                isCustomPin: true,
+            })
+        } catch {
+            /* ignore malformed pin */
+        }
+    }
+    return base
+}
+
+// Co-occurrence linkage: scan each headline for matches against ≥2
+// hotspots and stamp those arc pairs as "hot" so the renderer can
+// boost their intensity. Ordered pair so reverse arcs share a key.
+function deriveCoOccurrenceLinks(headlines) {
+    const links = new Set()
+    for (const h of headlines) {
+        const text = `${h.title} ${h.summary || ''}`
+        const matched = HOTSPOTS_BASE.flatMap((spot, i) =>
+            spot.keywords.test(text) ? [i] : [],
+        )
+        if (matched.length < 2) continue
+        for (let i = 0; i < matched.length; i++) {
+            for (let j = i + 1; j < matched.length; j++) {
+                const [a, b] = [matched[i], matched[j]].sort((x, y) => x - y)
+                links.add(`${a}-${b}`)
+            }
+        }
+    }
+    return links
 }
 
 // Pulse intensity tier from a hotspot's freshness. Used by the
@@ -251,11 +303,57 @@ function lonToYRotation(lon) {
     return -((lon + 180) * Math.PI) / 180 + Math.PI / 2
 }
 
-export default function GlobeMap({ height = 480 }) {
+// Sub-solar point for the current UTC time. Produces the lat/lon
+// directly under the sun, which we then turn into a directional-light
+// vector so the terminator (the day/night dividing line) is real
+// geography instead of a fixed cinematic angle.
+function getSunPosition(date = new Date()) {
+    const start = Date.UTC(date.getUTCFullYear(), 0, 0)
+    const dayOfYear = Math.floor((date.getTime() - start) / 86_400_000)
+    const decl = -23.45 * Math.cos((2 * Math.PI * (dayOfYear + 10)) / 365.25)
+    const utcHours = date.getUTCHours() + date.getUTCMinutes() / 60
+    const lon = -((utcHours - 12) * 15)
+    return { lat: decl, lon }
+}
+
+// Web Audio chime — opt-in soft alert when a hotspot transitions into
+// `breaking`. Synthesized inline so we don't ship an audio asset.
+let audioContext = null
+function playBreakingChime() {
+    try {
+        if (!audioContext) {
+            const Ctx = window.AudioContext || window.webkitAudioContext
+            if (!Ctx) return
+            audioContext = new Ctx()
+        }
+        const ctx = audioContext
+        const now = ctx.currentTime
+        const notes = [880, 1320] // simple two-note rise
+        notes.forEach((freq, i) => {
+            const o = ctx.createOscillator()
+            const g = ctx.createGain()
+            o.type = 'sine'
+            o.frequency.value = freq
+            g.gain.setValueAtTime(0.0001, now + i * 0.12)
+            g.gain.exponentialRampToValueAtTime(0.18, now + i * 0.12 + 0.04)
+            g.gain.exponentialRampToValueAtTime(0.0001, now + i * 0.12 + 0.55)
+            o.connect(g).connect(ctx.destination)
+            o.start(now + i * 0.12)
+            o.stop(now + i * 0.12 + 0.6)
+        })
+    } catch {
+        /* silently ignore */
+    }
+}
+
+export default function GlobeMap({ height = 480, className = '' }) {
     const mountRef = useRef(null)
     const hotspotsRef = useRef(matchHotspots([]))
     const [hotspots, setHotspots] = useState(hotspotsRef.current)
     const [hovered, setHovered] = useState(null)
+    // Mirror hovered into a ref so the WebGL loop can read it without
+    // re-binding when state changes.
+    const hoveredIdxRef = useRef(null)
     const [activeIdx, setActiveIdx] = useState(0)
     const [selected, setSelected] = useState(null)
     const [categoryFilter, setCategoryFilter] = useState('All')
@@ -265,6 +363,7 @@ export default function GlobeMap({ height = 480 }) {
     // prompt. Pro unlocks click-to-drill + category filter. Ultimate
     // adds auto-pan camera.
     const { user, isAuthenticated } = useAuth()
+    const { prefs } = usePreferences()
     const canDrillDown = hasFeature(user, 'globe-drilldown')
     const canFilter = hasFeature(user, 'globe-filter')
     const canAutoPan = hasFeature(user, 'globe-autopan')
@@ -272,6 +371,32 @@ export default function GlobeMap({ height = 480 }) {
     const filterPlan = requiredPlanFor(user, 'globe-filter')
     const autoPanRef = useRef(false)
     autoPanRef.current = canAutoPan
+
+    // Tier-based render quality. Ultimate users get more particles +
+    // a higher-density Earth texture; Pro and Free use the lighter
+    // versions so the experience stays fast on cheap devices.
+    const userPlan = getUserPlan(user)
+    const isUltimate = userPlan === 'ultimate'
+    // Track previous live-state per hotspot so we can fire the
+    // breaking-flash + opt-in sound only on transitions, not every
+    // render. Index-aligned with HOTSPOTS_BASE.
+    const prevTiersRef = useRef([])
+    const flashUntilRef = useRef([])
+    const linksRef = useRef(new Set())
+
+    // Custom user pin (Pro+). Persisted in localStorage; the Settings
+    // page can read/write the same key to give the user a UI for it.
+    // The shape is { name, lat, lon, keyword, tickers? }.
+    const canCustomPin = hasFeature(user, 'globe-custom-pin')
+    const [customPin] = useState(() => {
+        if (!canCustomPin) return null
+        try {
+            const raw = localStorage.getItem('chartsentinel.globe.pin')
+            return raw ? JSON.parse(raw) : null
+        } catch {
+            return null
+        }
+    })
 
     // Camera target Y rotation. The animation loop eases toward this
     // value when auto-pan is on. Updated whenever the active hotspot
@@ -285,7 +410,12 @@ export default function GlobeMap({ height = 480 }) {
     canFilterRef.current = canFilter
     categoryFilterRef.current = categoryFilter
 
-    // Load live news on mount and refresh every 5 minutes.
+    // Load live news on mount and refresh every 5 minutes. On each
+    // refresh we diff the previous tier per hotspot — transitions
+    // INTO `breaking` trigger a 4s color flash on the dot and an
+    // opt-in chime so the visitor's eye is yanked toward the new
+    // event without us having to render a separate animation
+    // surface. Previous-state survives across refreshes via refs.
     useEffect(() => {
         let active = true
         const refresh = async () => {
@@ -293,7 +423,27 @@ export default function GlobeMap({ height = 480 }) {
                 const news = await api.get('/news')
                 if (!active) return
                 const headlines = Array.isArray(news) ? news : []
-                const next = matchHotspots(headlines)
+                const next = matchHotspots(headlines, customPin)
+                linksRef.current = deriveCoOccurrenceLinks(headlines)
+                const now = Date.now()
+                const prevTiers = prevTiersRef.current
+                next.forEach((spot, i) => {
+                    const tier = intensityFor(spot).tier
+                    const prev = prevTiers[i]
+                    if (prev !== 'breaking' && tier === 'breaking') {
+                        flashUntilRef.current[i] = now + 4000
+                        // Mark the hotspot as a "fresh arrival" for the
+                        // NEW chip in the HUD.
+                        spot.justLanded = now
+                        if (prefs?.sound) playBreakingChime()
+                    } else if (prev !== tier && tier !== 'standby') {
+                        // Brief acknowledgement flash for any non-trivial
+                        // promotion (e.g. live → hot).
+                        flashUntilRef.current[i] = now + 2000
+                        spot.justLanded = now
+                    }
+                    prevTiers[i] = tier
+                })
                 hotspotsRef.current = next
                 setHotspots(next)
             } catch {
@@ -306,7 +456,7 @@ export default function GlobeMap({ height = 480 }) {
             active = false
             clearInterval(id)
         }
-    }, [])
+    }, [prefs?.sound, customPin])
 
     // Auto-cycle the active hotspot HUD. Prefers slots that hit a live
     // story so the headline stays interesting; falls back to plain
@@ -338,11 +488,14 @@ export default function GlobeMap({ height = 480 }) {
 
     // Build the WebGL scene once. The hotspot dots and arcs reference the
     // mutable hotspotsRef so updates to live headlines re-tint dots
-    // without a full scene rebuild.
+    // without a full scene rebuild. Tier flag is captured at mount —
+    // a mid-session plan flip won't upgrade the texture without a
+    // refresh, which is acceptable.
     const sceneRefs = useMemo(() => {
         const scene = new THREE.Scene()
         const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100)
-        camera.position.z = 2.8
+        camera.position.set(0, 0.55, 2.8)
+        camera.lookAt(0, 0, 0)
 
         const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
@@ -350,8 +503,14 @@ export default function GlobeMap({ height = 480 }) {
 
         const textureLoader = new THREE.TextureLoader()
         textureLoader.setCrossOrigin('anonymous')
+        // Ultimate users get the higher-detail earth-night texture
+        // (street-light pattern, sharper land masses); other tiers use
+        // the lighter "earth-dark" so the bundle stays cheap on entry
+        // tiers.
         const earthTex = textureLoader.load(
-            'https://unpkg.com/three-globe/example/img/earth-dark.jpg',
+            isUltimate
+                ? 'https://unpkg.com/three-globe/example/img/earth-night.jpg'
+                : 'https://unpkg.com/three-globe/example/img/earth-dark.jpg',
         )
 
         const globeGeo = new THREE.SphereGeometry(1, 64, 64)
@@ -374,15 +533,51 @@ export default function GlobeMap({ height = 480 }) {
         })
         globe.add(new THREE.Mesh(innerGeo, innerMat))
 
-        // Atmospheric glow — backside-rendered larger sphere.
-        const atmGeo = new THREE.SphereGeometry(1.06, 64, 64)
-        const atmMat = new THREE.MeshBasicMaterial({
-            color: 0xd946ef,
+        // Aurora atmosphere — replaces the flat backside-glow sphere
+        // with a shader that drifts a soft band of color around the
+        // limb of the planet. Reads as "this thing is alive" rather
+        // than a halftone halo. Uniform `uTime` is updated in the
+        // animation loop.
+        const auroraGeo = new THREE.SphereGeometry(1.06, 64, 64)
+        const auroraUniforms = {
+            uTime: { value: 0 },
+            uColorA: { value: new THREE.Color(0xd946ef) },
+            uColorB: { value: new THREE.Color(0x22d3ee) },
+        }
+        const auroraMat = new THREE.ShaderMaterial({
+            uniforms: auroraUniforms,
+            vertexShader: `
+                varying vec3 vNormal;
+                varying vec3 vPosition;
+                void main() {
+                    vNormal = normalize(normalMatrix * normal);
+                    vPosition = position;
+                    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                }
+            `,
+            fragmentShader: `
+                varying vec3 vNormal;
+                varying vec3 vPosition;
+                uniform float uTime;
+                uniform vec3 uColorA;
+                uniform vec3 uColorB;
+                void main() {
+                    float rim = pow(0.7 - dot(vNormal, vec3(0.0, 0.0, 1.0)), 2.5);
+                    float band = sin(vPosition.x * 4.0 + uTime * 0.6)
+                               * sin(vPosition.y * 4.0 - uTime * 0.4)
+                               * 0.5 + 0.5;
+                    vec3 col = mix(uColorA, uColorB, band);
+                    float alpha = rim * (0.18 + 0.18 * band);
+                    gl_FragColor = vec4(col, alpha);
+                }
+            `,
             transparent: true,
-            opacity: 0.08,
+            blending: THREE.AdditiveBlending,
             side: THREE.BackSide,
+            depthWrite: false,
         })
-        scene.add(new THREE.Mesh(atmGeo, atmMat))
+        const auroraMesh = new THREE.Mesh(auroraGeo, auroraMat)
+        scene.add(auroraMesh)
 
         // Orbital rings.
         const rings = []
@@ -404,8 +599,11 @@ export default function GlobeMap({ height = 480 }) {
 
         // Satellite-like particle field above the globe surface.
         // Trimmed from the original 500 so the scene reads as
-        // "atmospheric ambience" instead of "noisy snow."
-        const particleCount = 220
+        // "atmospheric ambience" instead of "noisy snow." Ultimate
+        // users get the denser version since their hardware is more
+        // likely to handle it gracefully and the upgrade is meant to
+        // feel premium.
+        const particleCount = isUltimate ? 380 : 220
         const particleGeo = new THREE.BufferGeometry()
         const particlePos = new Float32Array(particleCount * 3)
         for (let i = 0; i < particleCount * 3; i += 3) {
@@ -429,14 +627,40 @@ export default function GlobeMap({ height = 480 }) {
         )
         scene.add(particles)
 
-        // Lighting.
-        scene.add(new THREE.AmbientLight(0xffffff, 0.6))
-        const dLight = new THREE.DirectionalLight(0xd946ef, 2.5)
-        dLight.position.set(5, 3, 5)
-        scene.add(dLight)
-        const dLight2 = new THREE.DirectionalLight(0x22d3ee, 1.5)
-        dLight2.position.set(-5, -3, -5)
-        scene.add(dLight2)
+        // Lighting. Two layers:
+        //   • Ambient — keeps the night side from going pitch black.
+        //   • Sun light — directional, aimed at the real sub-solar
+        //     point each frame, which produces the day/night
+        //     terminator naturally on the Phong-shaded globe.
+        //   • Brand fill — a softer fill from the camera-side magenta
+        //     so the lit side keeps the brand palette.
+        scene.add(new THREE.AmbientLight(0xffffff, 0.45))
+        const sunLight = new THREE.DirectionalLight(0xfff1d4, 2.2)
+        sunLight.position.set(5, 3, 5)
+        scene.add(sunLight)
+        const fillLight = new THREE.DirectionalLight(0xd946ef, 1.0)
+        fillLight.position.set(0, 0, 5)
+        scene.add(fillLight)
+        const rimLight = new THREE.DirectionalLight(0x22d3ee, 0.7)
+        rimLight.position.set(-5, -3, -5)
+        scene.add(rimLight)
+
+        // Hover spotlight — a wide flat ring that fades in over the
+        // hovered hotspot. Stand-in for proper country-geometry
+        // highlight; cheap, looks great, and reinforces "this place
+        // is happening."
+        const hoverRing = new THREE.Mesh(
+            new THREE.RingGeometry(0.04, 0.07, 48),
+            new THREE.MeshBasicMaterial({
+                color: 0xffffff,
+                transparent: true,
+                opacity: 0,
+                side: THREE.DoubleSide,
+                blending: THREE.AdditiveBlending,
+            }),
+        )
+        hoverRing.visible = false
+        scene.add(hoverRing)
 
         // Hotspot dots + pulse rings + outer "shockwave" rings that
         // expand and fade out for breaking events. Three layers per
@@ -489,6 +713,48 @@ export default function GlobeMap({ height = 480 }) {
             shockwaveRings.push(shock)
         })
 
+        // Reserved slot for the custom user pin (Pro+ feature). Created
+        // hidden; the animation loop activates + repositions it when a
+        // pin is configured. Avoids re-allocating geometry on a tier
+        // flip or pin save.
+        {
+            const dot = new THREE.Mesh(
+                new THREE.SphereGeometry(0.014, 12, 12),
+                new THREE.MeshBasicMaterial({ color: new THREE.Color('#fbbf24') }),
+            )
+            dot.userData = { idx: HOTSPOTS_BASE.length }
+            dot.visible = false
+            scene.add(dot)
+            dots.push(dot)
+
+            const ring = new THREE.Mesh(
+                new THREE.RingGeometry(0.018, 0.022, 24),
+                new THREE.MeshBasicMaterial({
+                    color: new THREE.Color('#fbbf24'),
+                    transparent: true,
+                    opacity: 0.5,
+                    side: THREE.DoubleSide,
+                }),
+            )
+            ring.visible = false
+            scene.add(ring)
+            pulseRings.push(ring)
+
+            const shock = new THREE.Mesh(
+                new THREE.RingGeometry(0.022, 0.026, 32),
+                new THREE.MeshBasicMaterial({
+                    color: new THREE.Color('#fbbf24'),
+                    transparent: true,
+                    opacity: 0,
+                    side: THREE.DoubleSide,
+                }),
+            )
+            shock.visible = false
+            shock.userData = { phaseOffset: HOTSPOTS_BASE.length * 0.7 }
+            scene.add(shock)
+            shockwaveRings.push(shock)
+        }
+
         // Arcs + a "traveler" sphere riding along each one. The
         // traveler is what makes the globe feel like data is actually
         // flowing — opacity-pulsing static lines feel decorative, a
@@ -537,11 +803,22 @@ export default function GlobeMap({ height = 480 }) {
             arcTravelers,
             arcEndpoints,
             dots,
+            dotBaseColors: [
+                ...HOTSPOTS_BASE.map((h) => new THREE.Color(h.color)),
+                new THREE.Color('#fbbf24'), // reserved slot for custom user pin
+            ],
             pulseRings,
             shockwaveRings,
             rings,
             particles,
+            sunLight,
+            auroraUniforms,
+            hoverRing,
         }
+        // isUltimate captured at mount; a tier flip mid-session would
+        // need a refresh to upgrade the texture/particle count, which
+        // is fine for an aesthetic gate.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
 
     // Mount + resize + animation loop. Single useEffect keeps cleanup tidy.
@@ -558,10 +835,14 @@ export default function GlobeMap({ height = 480 }) {
             arcTravelers,
             arcEndpoints,
             dots,
+            dotBaseColors,
             pulseRings,
             shockwaveRings,
             rings,
             particles,
+            sunLight,
+            auroraUniforms,
+            hoverRing,
         } = sceneRefs
 
         mount.appendChild(renderer.domElement)
@@ -586,6 +867,7 @@ export default function GlobeMap({ height = 480 }) {
             if (hits.length > 0) {
                 const idx = hits[0].object.userData.idx
                 const spot = hotspotsRef.current[idx]
+                hoveredIdxRef.current = idx
                 setHovered({
                     ...spot,
                     x: e.clientX - rect.left,
@@ -593,11 +875,15 @@ export default function GlobeMap({ height = 480 }) {
                 })
                 mount.style.cursor = 'pointer'
             } else {
+                hoveredIdxRef.current = null
                 setHovered(null)
                 mount.style.cursor = 'default'
             }
         }
-        const handleLeave = () => setHovered(null)
+        const handleLeave = () => {
+            hoveredIdxRef.current = null
+            setHovered(null)
+        }
         const handleClick = (e) => {
             const rect = mount.getBoundingClientRect()
             mouseVec.x = ((e.clientX - rect.left) / rect.width) * 2 - 1
@@ -618,6 +904,7 @@ export default function GlobeMap({ height = 480 }) {
 
         let animId
         let t = 0
+        let lastSunUpdate = 0
         const animate = () => {
             animId = requestAnimationFrame(animate)
             t += 0.005
@@ -635,6 +922,27 @@ export default function GlobeMap({ height = 480 }) {
                 globe.rotation.y += diff * 0.012 + 0.0006
             } else {
                 globe.rotation.y += 0.002
+            }
+
+            // Subtle ambient camera orbit — a few degrees side-to-side
+            // every ~30s. Adds depth without making the scene feel
+            // wobbly. Tilt is constant (set at scene creation).
+            camera.position.x = Math.sin(t * 0.05) * 0.18
+            camera.lookAt(0, 0, 0)
+
+            // Aurora time advance.
+            if (auroraUniforms) auroraUniforms.uTime.value = t * 1.5
+
+            // Sun direction for the day/night terminator. Recomputed
+            // once a minute (cheap math but no need to do it 60×s).
+            // Position the sun light at the sub-solar point in the
+            // rotating globe's local frame so the terminator stays
+            // geographically correct as the globe spins.
+            if (Date.now() - lastSunUpdate > 60_000 || lastSunUpdate === 0) {
+                const sun = getSunPosition()
+                const sunVec = latLonToVec3(sun.lat, sun.lon, 8)
+                sunLight.position.copy(sunVec)
+                lastSunUpdate = Date.now()
             }
 
             // Arcs whose endpoints are both live get full opacity +
@@ -658,18 +966,31 @@ export default function GlobeMap({ height = 480 }) {
                     bSpot.category === categoryFilterRef.current
                 const matches = matchesFilterA && matchesFilterB
                 const liveBoth = aSpot?.isLive && bSpot?.isLive
+                // Co-occurrence boost: if any headline mentioned both
+                // endpoints, pump the arc speed and opacity so the
+                // visual link reflects the editorial link.
+                const linkKey = ep.a < ep.b ? `${ep.a}-${ep.b}` : `${ep.b}-${ep.a}`
+                const isLinked = linksRef.current.has(linkKey)
                 const intensity = liveBoth
                     ? Math.max(intensityFor(aSpot).speed, intensityFor(bSpot).speed)
                     : 0.6
+                const linkBoost = isLinked ? 1.6 : 1
                 arcProgress[i].speed = liveBoth
-                    ? 0.005 + intensity * 0.002
+                    ? (0.005 + intensity * 0.002) * linkBoost
                     : 0.0015
                 arcProgress[i].value += arcProgress[i].speed
                 if (arcProgress[i].value > 1) arcProgress[i].value = 0
-                const baseOpacity = liveBoth ? 0.65 : 0.18
+                const baseOpacity = isLinked ? 0.85 : liveBoth ? 0.65 : 0.18
                 arc.material.opacity = matches
                     ? baseOpacity + 0.25 * Math.sin(arcProgress[i].value * Math.PI)
                     : 0.04
+                // Linked arcs get a hotter color (white-shifted) so
+                // the eye reads the cross-region story instantly.
+                if (isLinked && bSpot) {
+                    arc.material.color.set(0xffffff)
+                } else if (bSpot) {
+                    arc.material.color.set(bSpot.color || 0xd946ef)
+                }
                 arc.rotation.y = globe.rotation.y
 
                 // Traveler position along the bezier curve (from → mid → to).
@@ -689,6 +1010,35 @@ export default function GlobeMap({ height = 480 }) {
                     tr.scale.setScalar(trScale)
                 }
             })
+
+            const nowMs = Date.now()
+
+            // Custom user pin slot (last entry). Activate + position it
+            // when hotspotsRef has a 16th entry; hide otherwise.
+            const pinIdx = HOTSPOTS_BASE.length
+            const pinSpot = hotspotsRef.current[pinIdx]
+            const pinDot = dots[pinIdx]
+            const pinRing = pulseRings[pinIdx]
+            const pinShock = shockwaveRings[pinIdx]
+            if (pinSpot && pinSpot.lat !== undefined && pinSpot.lon !== undefined && pinDot) {
+                const pos = latLonToVec3(pinSpot.lat, pinSpot.lon, 1.01)
+                pinDot.position.copy(pos)
+                pinDot.visible = true
+                if (pinRing) {
+                    pinRing.position.copy(pos)
+                    pinRing.lookAt(new THREE.Vector3(0, 0, 0))
+                    pinRing.visible = true
+                }
+                if (pinShock) {
+                    pinShock.position.copy(pos)
+                    pinShock.lookAt(new THREE.Vector3(0, 0, 0))
+                    pinShock.visible = true
+                }
+            } else {
+                if (pinDot) pinDot.visible = false
+                if (pinRing) pinRing.visible = false
+                if (pinShock) pinShock.visible = false
+            }
 
             dots.forEach((dot, i) => {
                 dot.rotation.y = globe.rotation.y
@@ -710,8 +1060,41 @@ export default function GlobeMap({ height = 480 }) {
                 if (dot.material) {
                     dot.material.opacity = dimmed ? 0.22 : 1
                     dot.material.transparent = true
+                    // Breaking-event color flash: brief white burst on
+                    // transition, eased back to the category color over
+                    // the flash window. Lerp factor goes 0 → 1 as the
+                    // flash decays.
+                    const flashUntil = flashUntilRef.current[i] || 0
+                    const baseColor = dotBaseColors[i]
+                    if (flashUntil > nowMs && baseColor) {
+                        const remaining = (flashUntil - nowMs) / 4000 // 0..1, 1 = just fired
+                        dot.material.color
+                            .copy(baseColor)
+                            .lerp(new THREE.Color(0xffffff), Math.min(1, remaining * 1.2))
+                    } else if (baseColor) {
+                        dot.material.color.copy(baseColor)
+                    }
                 }
             })
+
+            // Hover spotlight ring tracks the hovered hotspot. Fades
+            // in over a few frames and follows the globe's rotation
+            // so it sticks to its country as the planet spins.
+            const hi = hoveredIdxRef.current
+            if (hi !== null && hi !== undefined && dots[hi]) {
+                hoverRing.visible = true
+                hoverRing.position.copy(dots[hi].position).multiplyScalar(1.005)
+                hoverRing.lookAt(new THREE.Vector3(0, 0, 0))
+                hoverRing.rotation.y += globe.rotation.y * 0.0001 // negligible — keeps ring pose stable
+                hoverRing.material.opacity = Math.min(
+                    0.55,
+                    (hoverRing.material.opacity || 0) + 0.06,
+                )
+                hoverRing.scale.setScalar(1 + 0.05 * Math.sin(t * 4))
+            } else if (hoverRing.visible) {
+                hoverRing.material.opacity = Math.max(0, (hoverRing.material.opacity || 0) - 0.04)
+                if (hoverRing.material.opacity <= 0.001) hoverRing.visible = false
+            }
 
             pulseRings.forEach((ring, i) => {
                 ring.rotation.y = globe.rotation.y
@@ -791,7 +1174,7 @@ export default function GlobeMap({ height = 480 }) {
 
     return (
         <div
-            className="relative w-full bg-[#050505] rounded-2xl border border-white/5 overflow-hidden"
+            className={`relative w-full bg-[#050505] rounded-2xl border border-white/5 overflow-hidden ${className}`}
             style={{ height }}
         >
             <div ref={mountRef} className="w-full h-full" />
@@ -885,6 +1268,15 @@ export default function GlobeMap({ height = 480 }) {
                                 <span className="text-white text-[9px] font-black tracking-widest uppercase truncate">
                                     {active.name}
                                 </span>
+                                {active.justLanded && Date.now() - active.justLanded < 60_000 && (
+                                    <motion.span
+                                        initial={{ scale: 0.6, opacity: 0 }}
+                                        animate={{ scale: 1, opacity: 1 }}
+                                        className="text-[8px] font-bold uppercase tracking-widest text-white bg-[#ef4444] px-1.5 py-0.5 rounded"
+                                    >
+                                        New
+                                    </motion.span>
+                                )}
                                 <span
                                     className="ml-auto text-[8px] font-mono tracking-widest uppercase"
                                     style={{

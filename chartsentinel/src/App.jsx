@@ -70,6 +70,7 @@ import ChangelogPage from './pages/ChangelogPage'
 import CaughtPage from './pages/CaughtPage'
 import ComparePage from './pages/ComparePage'
 import EmbedBadgePage from './pages/EmbedBadgePage'
+import EmbedGlobePage from './pages/EmbedGlobePage'
 import StatusPage from './pages/StatusPage'
 import SalesFunnelPage from './pages/SalesFunnelPage'
 import WaitlistPage from './pages/WaitlistPage'
@@ -153,6 +154,9 @@ export default function App() {
             <Route path="/whats-new" element={<ChangelogPage />} />
             <Route path="/caught" element={<CaughtPage />} />
             <Route path="/compare" element={<ComparePage />} />
+            {/* Globe embed must precede the :ticker pattern so the
+                literal path wins over the dynamic one. */}
+            <Route path="/embed/globe" element={<EmbedGlobePage />} />
             <Route path="/embed/:ticker" element={<EmbedBadgePage />} />
             <Route path="/insider" element={<InsiderRadarPage />} />
             <Route path="/status" element={<StatusPage />} />

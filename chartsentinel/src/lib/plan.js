@@ -52,6 +52,7 @@ export const FEATURES = {
     'custom-alerts-webhook': 'pro',
     'globe-drilldown': 'pro',
     'globe-filter': 'pro',
+    'globe-custom-pin': 'pro',
 
     // Ultimate tier
     'smart-money': 'ultimate',
@@ -66,6 +67,7 @@ export const FEATURES = {
     'priority-support': 'ultimate',
     'early-access': 'ultimate',
     'globe-autopan': 'ultimate',
+    'globe-time-scrubber': 'ultimate',
 }
 
 // Watchlist size caps mirror the homepage matrix.
