@@ -40,7 +40,12 @@ const _ONE_WEEK = 604_800_000;
 // ── 1. DATA INGESTION ───────────────────────────────────────────────────────
 
 // Forex pairs we support (start narrow as recommended)
+// Yahoo's `=X` suffix marks FX pairs. Order: G10 majors first, then yen
+// crosses, EUR/CHF crosses, then commodity-currency crosses + emerging
+// markets. The screener fans out 4-at-a-time, so a longer list extends
+// the cold-cache run; warm cache hits stay constant.
 const FOREX_PAIRS = [
+  // Majors
   'EURUSD=X',
   'GBPUSD=X',
   'USDJPY=X',
@@ -48,12 +53,56 @@ const FOREX_PAIRS = [
   'USDCAD=X',
   'USDCHF=X',
   'NZDUSD=X',
+  // Yen crosses
+  'EURJPY=X',
+  'GBPJPY=X',
+  'AUDJPY=X',
+  'CADJPY=X',
+  'CHFJPY=X',
+  // EUR/GBP/CHF crosses
   'EURGBP=X',
+  'EURCHF=X',
+  'EURAUD=X',
+  'EURCAD=X',
+  'GBPCHF=X',
+  'GBPAUD=X',
+  'GBPCAD=X',
+  // Commodity / antipodean crosses
+  'AUDNZD=X',
+  'AUDCAD=X',
+  'NZDJPY=X',
+  // Emerging markets + Scandi
+  'USDMXN=X',
+  'USDZAR=X',
+  'USDTRY=X',
+  'USDSGD=X',
+  'USDSEK=X',
+  'USDNOK=X',
 ];
 
-const CRYPTO_PAIRS = ['BTC-USD', 'ETH-USD', 'SOL-USD', 'XRP-USD', 'ADA-USD'];
+const CRYPTO_PAIRS = [
+  'BTC-USD',
+  'ETH-USD',
+  'SOL-USD',
+  'XRP-USD',
+  'ADA-USD',
+  'BNB-USD',
+  'DOGE-USD',
+  'AVAX-USD',
+  'MATIC-USD',
+  'DOT-USD',
+  'LINK-USD',
+  'LTC-USD',
+  'ATOM-USD',
+  'NEAR-USD',
+  'ARB-USD',
+  'OP-USD',
+  'TRX-USD',
+  'UNI-USD',
+];
 
 const STOCK_TICKERS = [
+  // Mega-cap tech
   'AAPL',
   'MSFT',
   'GOOGL',
@@ -61,9 +110,47 @@ const STOCK_TICKERS = [
   'NVDA',
   'TSLA',
   'META',
+  'NFLX',
+  'AVGO',
+  'AMD',
+  'INTC',
+  'ORCL',
+  'CRM',
+  'ADBE',
+  // Financials
+  'JPM',
+  'BAC',
+  'GS',
+  'V',
+  'MA',
+  // Healthcare / consumer / energy
+  'UNH',
+  'JNJ',
+  'PFE',
+  'WMT',
+  'HD',
+  'COST',
+  'XOM',
+  'CVX',
+  // Modern / fintech
+  'PLTR',
+  'COIN',
+  'SHOP',
+  'UBER',
+  // Index / sector ETFs
   'SPY',
   'QQQ',
   'DIA',
+  'IWM',
+  'SMH',
+  'XLF',
+  'XLE',
+  'XLK',
+  'GLD',
+  'SLV',
+  'USO',
+  'TLT',
+  'ARKK',
 ];
 
 const ALL_TICKERS = [...FOREX_PAIRS, ...CRYPTO_PAIRS, ...STOCK_TICKERS];

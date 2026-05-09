@@ -1,11 +1,19 @@
 import { useEffect, useRef, useState } from 'react'
 import { createChart, CandlestickSeries } from 'lightweight-charts'
 
+// Binance kline intervals. We expose the standard scalper-through-swing
+// set: 1m, 5m, 15m, 30m, 1h, 4h, 1d, 1w. Skipping 3m / 2h / 8h / 3d:
+// they're rarely useful and clutter the toolbar. The chart loads 100
+// candles regardless of interval, so 1w shows ~2 years of context.
 const TIMEFRAMES = [
-    { label: '1M',  interval: '1m'  },
-    { label: '5M',  interval: '5m'  },
-    { label: '15M', interval: '15m' },
-    { label: '1H',  interval: '1h'  },
+    { label: '1m',  interval: '1m'  },
+    { label: '5m',  interval: '5m'  },
+    { label: '15m', interval: '15m' },
+    { label: '30m', interval: '30m' },
+    { label: '1h',  interval: '1h'  },
+    { label: '4h',  interval: '4h'  },
+    { label: '1D',  interval: '1d'  },
+    { label: '1W',  interval: '1w'  },
 ]
 
 export default function RealtimeBinanceChart({ symbol = 'BTCUSDT', height = 250 }) {

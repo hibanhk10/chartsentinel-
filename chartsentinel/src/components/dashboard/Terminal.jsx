@@ -13,10 +13,38 @@ import RealtimeBinanceChart from '../ui/RealtimeBinanceChart';
 //   - WS:   stream.binance.com/ws/<symbol>@depth (orderbook deltas)
 //   - WS:   stream.binance.com/ws/<symbol>@trade (recent trades)
 
+// Binance spot pairs. Ordered by liquidity (BTC/ETH first, then large-cap
+// alts, then mid-caps, then BTC-quoted crosses for cross-asset views).
+// Native <select> handles this list size fine; if the dropdown grows
+// past ~40 entries we'll want a typeahead.
 const SYMBOLS = [
+    // USDT majors
     { symbol: 'BTCUSDT', label: 'BTC / USDT' },
     { symbol: 'ETHUSDT', label: 'ETH / USDT' },
     { symbol: 'SOLUSDT', label: 'SOL / USDT' },
+    { symbol: 'BNBUSDT', label: 'BNB / USDT' },
+    { symbol: 'XRPUSDT', label: 'XRP / USDT' },
+    { symbol: 'ADAUSDT', label: 'ADA / USDT' },
+    { symbol: 'DOGEUSDT', label: 'DOGE / USDT' },
+    { symbol: 'AVAXUSDT', label: 'AVAX / USDT' },
+    { symbol: 'POLUSDT', label: 'POL / USDT' },
+    { symbol: 'DOTUSDT', label: 'DOT / USDT' },
+    { symbol: 'LINKUSDT', label: 'LINK / USDT' },
+    { symbol: 'LTCUSDT', label: 'LTC / USDT' },
+    { symbol: 'ATOMUSDT', label: 'ATOM / USDT' },
+    { symbol: 'NEARUSDT', label: 'NEAR / USDT' },
+    { symbol: 'ARBUSDT', label: 'ARB / USDT' },
+    { symbol: 'OPUSDT', label: 'OP / USDT' },
+    { symbol: 'APTUSDT', label: 'APT / USDT' },
+    { symbol: 'SUIUSDT', label: 'SUI / USDT' },
+    { symbol: 'INJUSDT', label: 'INJ / USDT' },
+    { symbol: 'TIAUSDT', label: 'TIA / USDT' },
+    { symbol: 'PEPEUSDT', label: 'PEPE / USDT' },
+    { symbol: 'SHIBUSDT', label: 'SHIB / USDT' },
+    // BTC-quoted crosses for relative-strength views
+    { symbol: 'ETHBTC', label: 'ETH / BTC' },
+    { symbol: 'SOLBTC', label: 'SOL / BTC' },
+    { symbol: 'BNBBTC', label: 'BNB / BTC' },
 ];
 
 function formatPrice(value) {
