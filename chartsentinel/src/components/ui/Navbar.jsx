@@ -114,6 +114,9 @@ export default function Navbar() {
                                 {n.label}
                             </a>
                         ))}
+                        <Link to="/insider" className={linkClass}>
+                            Insider Radar
+                        </Link>
                         <Link to="/contact" className={linkClass}>
                             Contact
                         </Link>
@@ -174,6 +177,14 @@ export default function Navbar() {
                                     <span className="material-icons text-text-muted">chevron_right</span>
                                 </a>
                             ))}
+                            <Link
+                                to="/insider"
+                                onClick={() => setMenuOpen(false)}
+                                className="flex items-center justify-between py-3 px-4 rounded-lg text-white hover:bg-white/5 transition-colors"
+                            >
+                                <span>Insider Radar</span>
+                                <span className="material-icons text-text-muted">chevron_right</span>
+                            </Link>
                             <Link
                                 to="/contact"
                                 className="flex items-center justify-between py-3 px-4 rounded-lg text-white hover:bg-white/5 transition-colors"

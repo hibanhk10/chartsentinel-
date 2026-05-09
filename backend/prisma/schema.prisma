@@ -287,3 +287,49 @@ model WaitlistEntry {
   @@index([createdAt(sort: Desc)])
   @@map("waitlist_entries")
 }
+
+// SEC Form 4 snapshots. We re-fetch the EDGAR feed periodically and upsert
+// each filing keyed by its index URL — the live endpoint serves a rolling
+// 5-min cache, but here we accumulate a permanent record so cluster-buy
+// detection runs over a 30-day window instead of just whatever EDGAR
+// happened to return on the most recent fetch.
+model InsiderFiling {
+  id                String   @id @default(cuid())
+  formUrl           String   @unique
+  filer             String
+  ticker            String
+  type              String   // "Buy" | "Sell"
+  shares            Float
+  price             Float
+  value             Float
+  filingDate        DateTime
+  capturedAt        DateTime @default(now())
+  officerTitle      String?
+  isOfficer         Boolean  @default(false)
+  isDirector        Boolean  @default(false)
+  isTenPercentOwner Boolean  @default(false)
+
+  @@index([ticker, filingDate(sort: Desc)])
+  @@index([filingDate(sort: Desc)])
+  @@map("insider_filings")
+}
+
+// Materialised cluster-buy events: ≥3 distinct insiders buying the same
+// ticker within a rolling window. We freeze the snapshot at detection
+// time so a later cluster on the same ticker shows up as a separate row,
+// giving us a clean event timeline for backtesting.
+model ClusterBuyEvent {
+  id           String   @id @default(cuid())
+  ticker       String
+  buyerCount   Int
+  totalValue   Float
+  buyers       String[] @default([])
+  earliestDate DateTime
+  latestDate   DateTime
+  detectedAt   DateTime @default(now())
+
+  @@unique([ticker, latestDate])
+  @@index([ticker, detectedAt(sort: Desc)])
+  @@index([detectedAt(sort: Desc)])
+  @@map("cluster_buy_events")
+}
