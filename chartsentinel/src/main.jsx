@@ -16,6 +16,17 @@ initAnalytics()
 // survives a tabbed-away visitor who eventually signs up later.
 captureReferralFromUrl()
 
+// Register the PWA service worker. Production-only — in dev the SW
+// would intercept HMR and Vite asset reloads, which makes editing
+// painful. Failure is silent: PWA is progressive enhancement.
+if ('serviceWorker' in navigator && import.meta.env.PROD) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker
+      .register('/sw.js')
+      .catch((err) => console.warn('[sw] register failed', err))
+  })
+}
+
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <HelmetProvider>

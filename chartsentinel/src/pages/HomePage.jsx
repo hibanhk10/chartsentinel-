@@ -15,6 +15,7 @@ import Intelligence from '../sections/Intelligence/Intelligence'
 import Footer from '../sections/Footer/Footer'
 import SEO from '../components/ui/SEO'
 import BreakingNewsTicker from '../components/ui/BreakingNewsTicker'
+import NewsletterCapture from '../components/ui/NewsletterCapture'
 
 // Scroll to a hash target after navigation. The Navbar's section links
 // route off-homepage users back to `/` with a hash (e.g. `/#reviews`);
@@ -62,6 +63,7 @@ export default function HomePage() {
                 Sits after WhyUs so visitors see capability framing first,
                 then a concrete artifact illustrating it. */}
             <Intelligence />
+            <NewsletterCapture />
             <Footer />
         </div>
     )

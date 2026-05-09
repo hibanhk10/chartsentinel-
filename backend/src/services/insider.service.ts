@@ -356,3 +356,97 @@ export async function loadClusterHistory(days = 30, limit = 50): Promise<Cluster
     detectedAt: r.detectedAt.toISOString(),
   }));
 }
+
+export interface ClusterPerformanceEntry extends ClusterHistoryEntry {
+  priceAtCluster: number | null;
+  priceLatest: number | null;
+  returnPct: number | null; // % return from cluster latestDate to most-recent close
+  daysHeld: number;
+}
+
+interface YahooBar {
+  date: string;
+  close: number;
+}
+
+// Picks the close on or before `dateStr`. The detection date may fall
+// on a weekend or holiday — walk back until we find a trading day. If
+// the cluster is too recent for any close yet, returns null.
+function priceOnOrBefore(bars: YahooBar[], dateStr: string): number | null {
+  for (let i = bars.length - 1; i >= 0; i--) {
+    if (bars[i].date <= dateStr) return bars[i].close;
+  }
+  return null;
+}
+
+// Public Caught-it wall: returns each historical cluster decorated with
+// the forward return since the cluster's `latestDate`. We dedupe ticker
+// fetches so a flurry of clusters on the same ticker only hits Yahoo
+// once per request; the engine's own cache further protects us across
+// requests.
+export async function loadClusterPerformance(
+  days: number,
+  limit: number,
+): Promise<ClusterPerformanceEntry[]> {
+  const since = new Date(Date.now() - days * 86_400_000);
+  const rows = await prisma.clusterBuyEvent.findMany({
+    where: { detectedAt: { gte: since } },
+    orderBy: { detectedAt: 'desc' },
+    take: limit,
+  });
+
+  // engine.js is the canonical Yahoo data path; importing it here keeps
+  // the price logic in one place rather than re-implementing the fetch.
+  // Lazy-loaded so the module stays decoupled — Vitest mocks the
+  // service without needing a Yahoo round-trip.
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const engine = await import('../signals/engine.js');
+  const fetchYahoo: (ticker: string, years?: number) => Promise<YahooBar[]> =
+    (engine as { fetchYahooHistory: typeof fetchYahoo }).fetchYahooHistory;
+
+  // Translate equity tickers to Yahoo's symbols. Plain stocks pass
+  // through unchanged; FX symbols already carry the `=X` suffix from
+  // signals/engine.js so no remap is needed.
+  const tickerToYahoo = (t: string) => t;
+
+  const uniqueTickers = [...new Set(rows.map((r) => tickerToYahoo(r.ticker)))];
+  const priceCache = new Map<string, YahooBar[]>();
+  await Promise.all(
+    uniqueTickers.map(async (t) => {
+      try {
+        const bars = await fetchYahoo(t, 1);
+        priceCache.set(t, Array.isArray(bars) ? bars : []);
+      } catch (err) {
+        console.warn(`[insider] price fetch failed for ${t}`, (err as Error).message);
+        priceCache.set(t, []);
+      }
+    }),
+  );
+
+  return rows.map((r) => {
+    const bars = priceCache.get(tickerToYahoo(r.ticker)) ?? [];
+    const latestDateStr = r.latestDate.toISOString().slice(0, 10);
+    const priceAtCluster = priceOnOrBefore(bars, latestDateStr);
+    const priceLatest = bars.length > 0 ? bars[bars.length - 1].close : null;
+    const returnPct =
+      priceAtCluster && priceLatest && priceAtCluster > 0
+        ? ((priceLatest - priceAtCluster) / priceAtCluster) * 100
+        : null;
+    const daysHeld = Math.floor((Date.now() - r.latestDate.getTime()) / 86_400_000);
+
+    return {
+      id: r.id,
+      ticker: r.ticker,
+      buyerCount: r.buyerCount,
+      totalValue: r.totalValue,
+      buyers: r.buyers,
+      earliestDate: r.earliestDate.toISOString().slice(0, 10),
+      latestDate: latestDateStr,
+      detectedAt: r.detectedAt.toISOString(),
+      priceAtCluster,
+      priceLatest,
+      returnPct,
+      daysHeld,
+    };
+  });
+}

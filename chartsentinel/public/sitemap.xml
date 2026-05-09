@@ -1,28 +1,59 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url>
-    <loc>https://www.chartsentinel.com/</loc>
-    <changefreq>weekly</changefreq>
-    <priority>1.0</priority>
-  </url>
-  <url>
-    <loc>https://www.chartsentinel.com/contact</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.5</priority>
-  </url>
-  <url>
-    <loc>https://www.chartsentinel.com/terms</loc>
-    <changefreq>yearly</changefreq>
-    <priority>0.3</priority>
-  </url>
-  <url>
-    <loc>https://www.chartsentinel.com/privacy</loc>
-    <changefreq>yearly</changefreq>
-    <priority>0.3</priority>
-  </url>
-  <url>
-    <loc>https://www.chartsentinel.com/risk</loc>
-    <changefreq>yearly</changefreq>
-    <priority>0.3</priority>
-  </url>
+  <url><loc>https://www.chartsentinel.com/</loc><changefreq>weekly</changefreq><priority>1.0</priority></url>
+  <url><loc>https://www.chartsentinel.com/services</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://www.chartsentinel.com/insider</loc><changefreq>hourly</changefreq><priority>0.9</priority></url>
+  <url><loc>https://www.chartsentinel.com/caught</loc><changefreq>daily</changefreq><priority>0.9</priority></url>
+  <url><loc>https://www.chartsentinel.com/compare</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://www.chartsentinel.com/whats-new</loc><changefreq>weekly</changefreq><priority>0.5</priority></url>
+  <url><loc>https://www.chartsentinel.com/contact</loc><changefreq>monthly</changefreq><priority>0.5</priority></url>
+  <url><loc>https://www.chartsentinel.com/funnel</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://www.chartsentinel.com/waitlist</loc><changefreq>monthly</changefreq><priority>0.5</priority></url>
+  <url><loc>https://www.chartsentinel.com/trust</loc><changefreq>monthly</changefreq><priority>0.4</priority></url>
+  <url><loc>https://www.chartsentinel.com/terms</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>
+  <url><loc>https://www.chartsentinel.com/privacy</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>
+  <url><loc>https://www.chartsentinel.com/risk</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>
+
+  <!-- Public ticker landing pages — every ticker the signals engine
+       knows about gets indexable real estate. Mirror the universe in
+       backend/src/signals/engine.js when adding tickers there. -->
+  <url><loc>https://www.chartsentinel.com/t/EURUSD%3DX</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
+  <url><loc>https://www.chartsentinel.com/t/GBPUSD%3DX</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
+  <url><loc>https://www.chartsentinel.com/t/USDJPY%3DX</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
+  <url><loc>https://www.chartsentinel.com/t/AUDUSD%3DX</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
+  <url><loc>https://www.chartsentinel.com/t/USDCAD%3DX</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
+  <url><loc>https://www.chartsentinel.com/t/USDCHF%3DX</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
+  <url><loc>https://www.chartsentinel.com/t/NZDUSD%3DX</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
+
+  <url><loc>https://www.chartsentinel.com/t/BTC-USD</loc><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://www.chartsentinel.com/t/ETH-USD</loc><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://www.chartsentinel.com/t/SOL-USD</loc><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://www.chartsentinel.com/t/XRP-USD</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
+  <url><loc>https://www.chartsentinel.com/t/ADA-USD</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
+  <url><loc>https://www.chartsentinel.com/t/BNB-USD</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
+  <url><loc>https://www.chartsentinel.com/t/DOGE-USD</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
+  <url><loc>https://www.chartsentinel.com/t/AVAX-USD</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
+  <url><loc>https://www.chartsentinel.com/t/LINK-USD</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
+  <url><loc>https://www.chartsentinel.com/t/LTC-USD</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
+
+  <url><loc>https://www.chartsentinel.com/t/AAPL</loc><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://www.chartsentinel.com/t/MSFT</loc><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://www.chartsentinel.com/t/GOOGL</loc><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://www.chartsentinel.com/t/AMZN</loc><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://www.chartsentinel.com/t/NVDA</loc><changefreq>daily</changefreq><priority>0.8</priority></url>
+  <url><loc>https://www.chartsentinel.com/t/TSLA</loc><changefreq>daily</changefreq><priority>0.8</priority></url>
+  <url><loc>https://www.chartsentinel.com/t/META</loc><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://www.chartsentinel.com/t/NFLX</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
+  <url><loc>https://www.chartsentinel.com/t/AVGO</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
+  <url><loc>https://www.chartsentinel.com/t/AMD</loc><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://www.chartsentinel.com/t/INTC</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
+  <url><loc>https://www.chartsentinel.com/t/JPM</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
+  <url><loc>https://www.chartsentinel.com/t/COIN</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
+  <url><loc>https://www.chartsentinel.com/t/PLTR</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
+
+  <url><loc>https://www.chartsentinel.com/t/SPY</loc><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://www.chartsentinel.com/t/QQQ</loc><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://www.chartsentinel.com/t/IWM</loc><changefreq>daily</changefreq><priority>0.5</priority></url>
+  <url><loc>https://www.chartsentinel.com/t/GLD</loc><changefreq>daily</changefreq><priority>0.5</priority></url>
+  <url><loc>https://www.chartsentinel.com/t/TLT</loc><changefreq>daily</changefreq><priority>0.5</priority></url>
 </urlset>

@@ -10,6 +10,7 @@ import BrandedLoader from '../components/ui/BrandedLoader';
 import CommandPalette from '../components/dashboard/CommandPalette';
 import ShortcutHelp from '../components/dashboard/ShortcutHelp';
 import PlanGate from '../components/ui/PlanGate';
+import DashboardTour from '../components/ui/DashboardTour';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 
 // Home stays eagerly imported because it's the default landing tab —
@@ -226,6 +227,8 @@ const DashboardPage = () => {
                         {renderContent()}
                     </PlanGate>
                 </Suspense>
+
+                <DashboardTour />
 
                 <footer className="mt-20 pt-8 border-t border-white/5 flex items-center justify-center gap-6 text-[10px] font-medium text-text-muted">
                     <p>© {new Date().getFullYear()} ChartSentinel</p>

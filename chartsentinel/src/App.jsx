@@ -29,16 +29,28 @@ const NO_CANVAS_ROUTES = new Set([
   '/insider',
   '/services',
   '/upgrade',
+  '/whats-new',
+  '/caught',
+  '/compare',
 ])
 
 function RouteAwareCanvas() {
   const { pathname } = useLocation()
   if (NO_CANVAS_ROUTES.has(pathname)) return null
+  if (pathname.startsWith('/embed/')) return null
   return (
     <Suspense fallback={null}>
       <CanvasWrapper />
     </Suspense>
   )
+}
+
+// Hide chrome on iframe-embed routes — they render inside a third-party
+// page and shouldn't carry our navbar / sticky CTA.
+function ChromeGate({ children }) {
+  const { pathname } = useLocation()
+  if (pathname.startsWith('/embed/')) return null
+  return children
 }
 import { AuthProvider } from './contexts/AuthContext'
 import { PreferencesProvider } from './contexts/PreferencesContext'
@@ -54,6 +66,10 @@ import PublicTickerPage from './pages/PublicTickerPage'
 import InsiderRadarPage from './pages/InsiderRadarPage'
 import ServicesPage from './pages/ServicesPage'
 import UpgradePage from './pages/UpgradePage'
+import ChangelogPage from './pages/ChangelogPage'
+import CaughtPage from './pages/CaughtPage'
+import ComparePage from './pages/ComparePage'
+import EmbedBadgePage from './pages/EmbedBadgePage'
 import StatusPage from './pages/StatusPage'
 import SalesFunnelPage from './pages/SalesFunnelPage'
 import WaitlistPage from './pages/WaitlistPage'
@@ -113,7 +129,9 @@ export default function App() {
             <RouteAwareCanvas />
           </div>
 
-          <Navbar />
+          <ChromeGate>
+            <Navbar />
+          </ChromeGate>
           <RouteChangeTracker />
 
           <Routes>
@@ -132,13 +150,19 @@ export default function App() {
             <Route path="/t/:ticker" element={<PublicTickerPage />} />
             <Route path="/services" element={<ServicesPage />} />
             <Route path="/upgrade" element={<UpgradePage />} />
+            <Route path="/whats-new" element={<ChangelogPage />} />
+            <Route path="/caught" element={<CaughtPage />} />
+            <Route path="/compare" element={<ComparePage />} />
+            <Route path="/embed/:ticker" element={<EmbedBadgePage />} />
             <Route path="/insider" element={<InsiderRadarPage />} />
             <Route path="/status" element={<StatusPage />} />
             {import.meta.env.DEV && (
               <Route path="/debug-sentry" element={<DebugSentry />} />
             )}
           </Routes>
-          <StickyCtaBar />
+          <ChromeGate>
+            <StickyCtaBar />
+          </ChromeGate>
         </main>
       </Router>
       </PreferencesProvider>

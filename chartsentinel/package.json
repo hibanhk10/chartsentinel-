@@ -4,7 +4,9 @@
   "version": "1.1.0",
   "type": "module",
   "scripts": {
+    "predev": "cp ../CHANGELOG.md public/changelog.md",
     "dev": "vite",
+    "prebuild": "cp ../CHANGELOG.md public/changelog.md",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",

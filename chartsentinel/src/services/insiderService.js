@@ -18,6 +18,13 @@ export const insiderService = {
     const qs = params.toString();
     return api.get(`/insider/clusters/history${qs ? `?${qs}` : ''}`);
   },
+  async getClusterPerformance({ days = 90, limit = 30 } = {}) {
+    const params = new URLSearchParams();
+    if (days !== 90) params.set('days', String(days));
+    if (limit !== 30) params.set('limit', String(limit));
+    const qs = params.toString();
+    return api.get(`/insider/clusters/performance${qs ? `?${qs}` : ''}`);
+  },
   async getCongressTrades() {
     return api.get('/insider/congress');
   },

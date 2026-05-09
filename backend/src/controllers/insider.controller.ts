@@ -4,6 +4,7 @@ import {
   fetchRecentForm4s,
   detectClusterBuys,
   loadClusterHistory,
+  loadClusterPerformance,
 } from '../services/insider.service';
 import { fetchCongressTrades } from '../services/congress.service';
 
@@ -73,6 +74,23 @@ export const getClusterHistoryController = async (req: Request, res: Response): 
   } catch (err) {
     console.error('[insider] clusterHistory', err);
     res.status(500).json({ error: 'Failed to load cluster history' });
+  }
+};
+
+export const getClusterPerformanceController = async (req: Request, res: Response): Promise<void> => {
+  const parsed = historySchema.safeParse(req.query);
+  if (!parsed.success) {
+    res.status(400).json({ error: 'Invalid query' });
+    return;
+  }
+  try {
+    const days = parsed.data.days ?? 90;
+    const limit = parsed.data.limit ?? 30;
+    const events = await loadClusterPerformance(days, limit);
+    res.json({ events, count: events.length, windowDays: days });
+  } catch (err) {
+    console.error('[insider] clusterPerformance', err);
+    res.status(500).json({ error: 'Failed to load cluster performance' });
   }
 };
 

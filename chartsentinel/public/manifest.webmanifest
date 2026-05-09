@@ -1,0 +1,25 @@
+{
+  "name": "ChartSentinel",
+  "short_name": "ChartSentinel",
+  "description": "Trading intelligence, without the noise.",
+  "start_url": "/dashboard",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "48x48 64x64",
+      "type": "image/x-icon"
+    },
+    {
+      "src": "/og-image.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "categories": ["finance", "productivity"]
+}
