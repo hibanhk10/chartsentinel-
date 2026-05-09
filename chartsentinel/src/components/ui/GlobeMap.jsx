@@ -1,7 +1,10 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import * as THREE from 'three'
 import api from '../../services/api'
+import { useAuth } from '../../contexts/AuthContext'
+import { hasFeature, requiredPlanFor, planLabel } from '../../lib/plan'
 
 // Interactive 3D globe with live finance / geopolitical signal overlays.
 // Ported in spirit from the preregister build. The shape of the WebGL
@@ -26,6 +29,7 @@ const HOTSPOTS_BASE = [
         category: 'Financial Hub',
         keywords: /\b(fed|federal reserve|powell|wall street|nyse|s&p|nasdaq|dow|treasury yield|sec|fdic)\b/i,
         fallback: 'Fed minutes and Wall Street flows pinned here.',
+        tickers: ['SPY', 'QQQ', 'DIA', 'JPM', 'GS'],
     },
     {
         name: 'London',
@@ -35,6 +39,7 @@ const HOTSPOTS_BASE = [
         category: 'Financial Hub',
         keywords: /\b(bank of england|boe|bailey|ftse|gilt|sterling|gbp|lse|city of london)\b/i,
         fallback: 'BoE policy and FTSE / sterling commentary pinned here.',
+        tickers: ['GBPUSD=X', 'EURGBP=X'],
     },
     {
         name: 'Tokyo',
@@ -44,6 +49,7 @@ const HOTSPOTS_BASE = [
         category: 'Asia-Pacific',
         keywords: /\b(bank of japan|boj|ueda|nikkei|topix|yen|jpy|japan)\b/i,
         fallback: 'BoJ policy, yen moves, and Nikkei prints pinned here.',
+        tickers: ['USDJPY=X', 'EURJPY=X', 'GBPJPY=X'],
     },
     {
         name: 'Frankfurt',
@@ -53,6 +59,7 @@ const HOTSPOTS_BASE = [
         category: 'Financial Hub',
         keywords: /\b(ecb|european central bank|lagarde|euro|eur|bund|dax|eurozone)\b/i,
         fallback: 'ECB rate path and DAX / euro flows pinned here.',
+        tickers: ['EURUSD=X', 'EURGBP=X', 'EURJPY=X'],
     },
     {
         name: 'Riyadh',
@@ -62,6 +69,7 @@ const HOTSPOTS_BASE = [
         category: 'OPEC Region',
         keywords: /\b(opec|saudi|crude|brent|wti|oil price|mbs|aramco)\b/i,
         fallback: 'OPEC+ supply, crude pricing, and Aramco moves pinned here.',
+        tickers: ['USO', 'XOM', 'CVX'],
     },
     {
         name: 'Shanghai',
@@ -71,6 +79,7 @@ const HOTSPOTS_BASE = [
         category: 'Asia-Pacific',
         keywords: /\b(china|pboc|yuan|cny|csi|shanghai|beijing|xi jinping|evergrande|property)\b/i,
         fallback: 'PBoC liquidity and China property / yuan signals pinned here.',
+        tickers: ['BABA', 'BIDU', 'NIO'],
     },
     {
         name: 'Hong Kong',
@@ -80,6 +89,7 @@ const HOTSPOTS_BASE = [
         category: 'Asia-Pacific',
         keywords: /\b(hong kong|hang seng|hkma|hkd)\b/i,
         fallback: 'Hang Seng flows and HKD policy pinned here.',
+        tickers: ['BABA', 'TCEHY'],
     },
     {
         name: 'Singapore',
@@ -89,6 +99,7 @@ const HOTSPOTS_BASE = [
         category: 'Asia-Pacific',
         keywords: /\b(singapore|mas|sgx|sgd|asean)\b/i,
         fallback: 'Singapore reserves, MAS policy, and ASEAN trade pinned here.',
+        tickers: ['USDSGD=X'],
     },
     {
         name: 'Dubai',
@@ -98,6 +109,7 @@ const HOTSPOTS_BASE = [
         category: 'OPEC Region',
         keywords: /\b(uae|emirates|dubai|abu dhabi|adia)\b/i,
         fallback: 'UAE sovereign wealth + energy desk activity pinned here.',
+        tickers: ['USO', 'XOM'],
     },
     {
         name: 'São Paulo',
@@ -107,6 +119,7 @@ const HOTSPOTS_BASE = [
         category: 'Emerging Markets',
         keywords: /\b(brazil|brazilian|bovespa|real|brl|petrobras|lula)\b/i,
         fallback: 'Bovespa, real, and Brazil EM commentary pinned here.',
+        tickers: ['EWZ', 'PBR', 'VALE'],
     },
     {
         name: 'Mumbai',
@@ -116,6 +129,7 @@ const HOTSPOTS_BASE = [
         category: 'Emerging Markets',
         keywords: /\b(india|rbi|rupee|inr|sensex|nifty|modi)\b/i,
         fallback: 'RBI, rupee, and Nifty / Sensex moves pinned here.',
+        tickers: ['INDA', 'INFY'],
     },
     {
         name: 'Moscow',
@@ -125,6 +139,7 @@ const HOTSPOTS_BASE = [
         category: 'Conflict Zone',
         keywords: /\b(russia|kremlin|putin|ruble|rub|gazprom|sanction|moscow)\b/i,
         fallback: 'Sanctions, ruble flows, and Russia commodity desk pinned here.',
+        tickers: ['USO', 'GLD'],
     },
     {
         name: 'Kyiv',
@@ -134,6 +149,7 @@ const HOTSPOTS_BASE = [
         category: 'Conflict Zone',
         keywords: /\b(ukraine|kyiv|kiev|zelensky|ukrainian|grain corridor)\b/i,
         fallback: 'Ukraine front-line risk and grain corridor status pinned here.',
+        tickers: ['DBA', 'WEAT'],
     },
     {
         name: 'Tel Aviv',
@@ -143,6 +159,7 @@ const HOTSPOTS_BASE = [
         category: 'Conflict Zone',
         keywords: /\b(israel|gaza|netanyahu|idf|shekel|ils|tase|tel aviv)\b/i,
         fallback: 'Middle East risk premium and Israeli equities pinned here.',
+        tickers: ['EIS', 'GLD', 'USO'],
     },
     {
         name: 'Lagos',
@@ -152,8 +169,11 @@ const HOTSPOTS_BASE = [
         category: 'Emerging Markets',
         keywords: /\b(nigeria|naira|ngn|lagos|africa)\b/i,
         fallback: 'African energy supply, naira, and frontier flows pinned here.',
+        tickers: ['EZA', 'XOM'],
     },
 ]
+
+const CATEGORIES = ['Financial Hub', 'Asia-Pacific', 'OPEC Region', 'Conflict Zone', 'Emerging Markets']
 
 // Arc connections between hotspots — purely decorative trade-route lines.
 // Indexes reference HOTSPOTS_BASE order above.
@@ -198,10 +218,19 @@ function matchHotspots(headlines) {
                   headline: match.title,
                   source: match.source,
                   url: match.url,
+                  publishedAt: match.publishedAt,
                   isLive: true,
               }
             : { ...spot, headline: spot.fallback, source: 'standby', isLive: false }
     })
+}
+
+// Convert lat/lon to the camera-target Y rotation that brings the
+// hotspot to the front of the globe. The globe spins on Y, so we
+// just need to negate the longitude (in radians) plus the running
+// rotation offset accounted for in the animation loop.
+function lonToYRotation(lon) {
+    return -((lon + 180) * Math.PI) / 180 + Math.PI / 2
 }
 
 export default function GlobeMap({ height = 480 }) {
@@ -210,6 +239,33 @@ export default function GlobeMap({ height = 480 }) {
     const [hotspots, setHotspots] = useState(hotspotsRef.current)
     const [hovered, setHovered] = useState(null)
     const [activeIdx, setActiveIdx] = useState(0)
+    const [selected, setSelected] = useState(null)
+    const [categoryFilter, setCategoryFilter] = useState('All')
+
+    // Tier gating. Unauthed visitors get the visual + hover; clicking
+    // a hotspot sends them to the funnel. Free users see an upgrade
+    // prompt. Pro unlocks click-to-drill + category filter. Ultimate
+    // adds auto-pan camera.
+    const { user, isAuthenticated } = useAuth()
+    const canDrillDown = hasFeature(user, 'globe-drilldown')
+    const canFilter = hasFeature(user, 'globe-filter')
+    const canAutoPan = hasFeature(user, 'globe-autopan')
+    const drillDownPlan = requiredPlanFor(user, 'globe-drilldown')
+    const filterPlan = requiredPlanFor(user, 'globe-filter')
+    const autoPanRef = useRef(false)
+    autoPanRef.current = canAutoPan
+
+    // Camera target Y rotation. The animation loop eases toward this
+    // value when auto-pan is on. Updated whenever the active hotspot
+    // changes — the cycling HUD doubles as the camera director.
+    const cameraTargetRef = useRef(0)
+
+    // Refs mirror the filter state so the WebGL animation loop can
+    // read the latest values without re-binding when state changes.
+    const canFilterRef = useRef(false)
+    const categoryFilterRef = useRef('All')
+    canFilterRef.current = canFilter
+    categoryFilterRef.current = categoryFilter
 
     // Load live news on mount and refresh every 5 minutes.
     useEffect(() => {
@@ -236,21 +292,31 @@ export default function GlobeMap({ height = 480 }) {
 
     // Auto-cycle the active hotspot HUD. Prefers slots that hit a live
     // story so the headline stays interesting; falls back to plain
-    // round-robin if none of the spots have live data yet.
+    // round-robin if none of the spots have live data yet. Respects the
+    // category filter so Ultimate users watching only conflict zones
+    // don't get pulled to the Fed every five seconds.
     useEffect(() => {
         const tick = () => {
-            const liveIdxs = hotspots
-                .map((h, i) => (h.isLive ? i : null))
-                .filter((i) => i !== null)
-            if (liveIdxs.length > 0) {
-                setActiveIdx(liveIdxs[Math.floor(Math.random() * liveIdxs.length)])
-            } else {
-                setActiveIdx((prev) => (prev + 1) % hotspots.length)
-            }
+            const visible = hotspots
+                .map((h, i) => ({ h, i }))
+                .filter(({ h }) => categoryFilter === 'All' || h.category === categoryFilter)
+            if (visible.length === 0) return
+            const live = visible.filter(({ h }) => h.isLive)
+            const pool = live.length > 0 ? live : visible
+            const next = pool[Math.floor(Math.random() * pool.length)]
+            setActiveIdx(next.i)
         }
         const id = setInterval(tick, 4500)
         return () => clearInterval(id)
-    }, [hotspots])
+    }, [hotspots, categoryFilter])
+
+    // When the active hotspot changes, point the camera at it. Just
+    // updates the target — the animation loop does the easing so
+    // turning auto-pan on/off doesn't need a re-render of the scene.
+    useEffect(() => {
+        const spot = hotspots[activeIdx]
+        if (spot) cameraTargetRef.current = lonToYRotation(spot.lon)
+    }, [activeIdx, hotspots])
 
     // Build the WebGL scene once. The hotspot dots and arcs reference the
     // mutable hotspotsRef so updates to live headlines re-tint dots
@@ -441,8 +507,23 @@ export default function GlobeMap({ height = 480 }) {
             }
         }
         const handleLeave = () => setHovered(null)
+        const handleClick = (e) => {
+            const rect = mount.getBoundingClientRect()
+            mouseVec.x = ((e.clientX - rect.left) / rect.width) * 2 - 1
+            mouseVec.y = -((e.clientY - rect.top) / rect.height) * 2 + 1
+            raycaster.setFromCamera(mouseVec, camera)
+            const hits = raycaster.intersectObjects(dots)
+            if (hits.length === 0) return
+            const idx = hits[0].object.userData.idx
+            const spot = hotspotsRef.current[idx]
+            // Selection always opens — the panel itself shows the
+            // upgrade prompt for non-eligible viewers. Keeps the
+            // interaction discoverable even on the gated path.
+            setSelected(spot)
+        }
         mount.addEventListener('mousemove', handleMove)
         mount.addEventListener('mouseleave', handleLeave)
+        mount.addEventListener('click', handleClick)
 
         let animId
         let t = 0
@@ -450,21 +531,62 @@ export default function GlobeMap({ height = 480 }) {
             animId = requestAnimationFrame(animate)
             t += 0.005
 
-            globe.rotation.y += 0.002
+            // Idle drift, plus a gentle ease toward the active
+            // hotspot when auto-pan is on (Ultimate). Easing factor
+            // is small enough the rotation feels intentional rather
+            // than mechanical.
+            if (autoPanRef.current) {
+                const target = cameraTargetRef.current
+                const current = globe.rotation.y % (Math.PI * 2)
+                let diff = target - current
+                while (diff > Math.PI) diff -= Math.PI * 2
+                while (diff < -Math.PI) diff += Math.PI * 2
+                globe.rotation.y += diff * 0.012 + 0.0006
+            } else {
+                globe.rotation.y += 0.002
+            }
+
             arcs.forEach((arc, i) => {
                 arcProgress[i].value += arcProgress[i].speed
                 if (arcProgress[i].value > 1) arcProgress[i].value = 0
                 arc.material.opacity = 0.3 + 0.4 * Math.sin(arcProgress[i].value * Math.PI)
                 arc.rotation.y = globe.rotation.y
             })
-            dots.forEach((dot) => {
+            dots.forEach((dot, i) => {
                 dot.rotation.y = globe.rotation.y
+                const spot = hotspotsRef.current[i]
+                const matchesFilter =
+                    !spot ||
+                    !canFilterRef.current ||
+                    categoryFilterRef.current === 'All' ||
+                    spot.category === categoryFilterRef.current
+                const dimmed = !matchesFilter
+                // Live spots pulse brighter than standby ones; filtered-out
+                // spots dim further.
+                const baseScale = spot && spot.isLive ? 1.15 : 0.9
+                const filterScale = dimmed ? 0.6 : 1
+                dot.scale.setScalar(baseScale * filterScale)
+                if (dot.material) {
+                    dot.material.opacity = dimmed ? 0.25 : 1
+                    dot.material.transparent = true
+                }
             })
             pulseRings.forEach((ring, i) => {
                 ring.rotation.y = globe.rotation.y
-                const pulse = 1 + 0.4 * Math.sin(t * 2 + i)
+                const spot = hotspotsRef.current[i]
+                const matchesFilter =
+                    !spot ||
+                    !canFilterRef.current ||
+                    categoryFilterRef.current === 'All' ||
+                    spot.category === categoryFilterRef.current
+                // Live spots pulse with twice the amplitude.
+                const amp = spot && spot.isLive ? 0.7 : 0.4
+                const pulse = 1 + amp * Math.sin(t * 2 + i)
                 ring.scale.set(pulse, pulse, pulse)
-                ring.material.opacity = 0.3 + 0.3 * Math.cos(t * 2 + i)
+                const baseOpacity = spot && spot.isLive ? 0.55 : 0.25
+                ring.material.opacity = matchesFilter
+                    ? baseOpacity + 0.25 * Math.cos(t * 2 + i)
+                    : 0.05
             })
             if (rings[0]) rings[0].rotation.z -= 0.002
             if (rings[1]) rings[1].rotation.z += 0.0015
@@ -485,6 +607,7 @@ export default function GlobeMap({ height = 480 }) {
             ro.disconnect()
             mount.removeEventListener('mousemove', handleMove)
             mount.removeEventListener('mouseleave', handleLeave)
+            mount.removeEventListener('click', handleClick)
             if (mount.contains(renderer.domElement)) mount.removeChild(renderer.domElement)
             renderer.dispose()
         }
@@ -505,6 +628,39 @@ export default function GlobeMap({ height = 480 }) {
                 <span className="text-[#d946ef] text-[9px] font-bold tracking-widest uppercase">
                     Global Situational Awareness
                 </span>
+                {canAutoPan && (
+                    <span className="ml-2 text-[8px] uppercase tracking-widest font-bold text-[#22d3ee] bg-[#22d3ee]/10 border border-[#22d3ee]/30 px-1.5 py-0.5 rounded">
+                        Auto-pan
+                    </span>
+                )}
+            </div>
+
+            {/* Filter chips — Pro+ feature. Free / anonymous viewers
+                see them disabled with an upgrade hint, so the gate is
+                visible rather than hidden. */}
+            <div className="absolute top-3 right-3 flex flex-wrap items-center gap-1.5 max-w-[60%] justify-end pointer-events-auto">
+                {['All', ...CATEGORIES].map((cat) => {
+                    const active = categoryFilter === cat
+                    return (
+                        <button
+                            key={cat}
+                            disabled={!canFilter}
+                            onClick={() => canFilter && setCategoryFilter(cat)}
+                            title={
+                                canFilter
+                                    ? `Filter to ${cat}`
+                                    : `Filter is a ${planLabel(filterPlan)} feature`
+                            }
+                            className={`text-[9px] uppercase tracking-widest font-bold px-2 py-1 rounded-full border transition-colors ${
+                                active
+                                    ? 'bg-[#d946ef] text-white border-[#d946ef]'
+                                    : 'bg-white/5 text-[#a1a1aa] border-white/10 hover:bg-white/10'
+                            } ${!canFilter ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        >
+                            {cat}
+                        </button>
+                    )
+                })}
             </div>
 
             {/* Legend */}
@@ -566,6 +722,127 @@ export default function GlobeMap({ height = 480 }) {
                     </AnimatePresence>
                 </div>
             )}
+
+            {/* Click drill-down panel. Renders for any visitor who clicks
+                a dot — Pro+ get the full payload (related tickers,
+                source link, "Track these tickers" CTA), Free / anon get
+                an upgrade prompt with the same headline so the value of
+                the gate is concrete. */}
+            <AnimatePresence>
+                {selected && (
+                    <motion.div
+                        initial={{ opacity: 0, x: 30 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: 30 }}
+                        transition={{ duration: 0.25, ease: 'easeOut' }}
+                        className="absolute top-12 right-3 w-[280px] max-h-[85%] overflow-y-auto rounded-2xl border border-white/10 bg-[rgba(8,8,16,0.92)] backdrop-blur-xl p-5 shadow-2xl z-30"
+                    >
+                        <div className="flex items-start justify-between gap-3 mb-3">
+                            <div>
+                                <div
+                                    className="text-[9px] uppercase tracking-widest font-bold mb-1"
+                                    style={{ color: selected.color }}
+                                >
+                                    {selected.category}
+                                </div>
+                                <div className="text-white text-lg font-bold">{selected.name}</div>
+                            </div>
+                            <button
+                                onClick={() => setSelected(null)}
+                                aria-label="Close"
+                                className="text-text-muted hover:text-white w-7 h-7 rounded-md flex items-center justify-center hover:bg-white/5"
+                            >
+                                <span className="material-icons text-base">close</span>
+                            </button>
+                        </div>
+
+                        <div
+                            className="border-l-2 pl-3 mb-4"
+                            style={{ borderColor: selected.color }}
+                        >
+                            <div className="flex items-center gap-2 mb-1">
+                                <span
+                                    className="text-[8px] font-mono uppercase tracking-widest font-bold"
+                                    style={{ color: selected.isLive ? '#22d3ee' : '#71717a' }}
+                                >
+                                    {selected.isLive ? 'Live wire' : 'Standby'}
+                                </span>
+                                {selected.publishedAt && selected.isLive && (
+                                    <span className="text-[8px] text-text-muted">
+                                        {new Date(selected.publishedAt).toLocaleTimeString([], {
+                                            hour: '2-digit',
+                                            minute: '2-digit',
+                                        })}
+                                    </span>
+                                )}
+                            </div>
+                            <p className="text-[#d4d4d8] text-xs leading-relaxed">
+                                {selected.headline}
+                            </p>
+                            {selected.url && selected.isLive && (
+                                <a
+                                    href={selected.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1 mt-2 text-[10px] text-primary hover:underline"
+                                >
+                                    Open source
+                                    <span className="material-icons text-xs">open_in_new</span>
+                                </a>
+                            )}
+                        </div>
+
+                        {/* Related tickers — Pro+ only. Free path swaps
+                            the grid for an upgrade prompt; the panel
+                            stays open so the visitor can compare what
+                            they'd unlock against the headline above. */}
+                        {canDrillDown ? (
+                            <>
+                                {selected.tickers && selected.tickers.length > 0 && (
+                                    <>
+                                        <div className="text-[9px] uppercase tracking-widest text-text-muted font-bold mb-2">
+                                            Tickers exposed
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-1.5 mb-3">
+                                            {selected.tickers.map((t) => (
+                                                <Link
+                                                    key={t}
+                                                    to={`/t/${t}`}
+                                                    className="text-center text-xs font-mono text-white bg-white/5 border border-white/10 rounded-md px-2 py-1.5 hover:bg-white/10 hover:border-primary/40 transition-colors"
+                                                >
+                                                    {t}
+                                                </Link>
+                                            ))}
+                                        </div>
+                                    </>
+                                )}
+                                <Link
+                                    to="/insider"
+                                    className="block text-center text-[10px] uppercase tracking-widest font-bold text-primary border border-primary/30 bg-primary/10 rounded-full px-3 py-2 hover:bg-primary/20 transition-colors"
+                                >
+                                    See live insider activity →
+                                </Link>
+                            </>
+                        ) : (
+                            <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 text-center">
+                                <div className="text-[9px] uppercase tracking-widest text-primary font-bold mb-2">
+                                    {planLabel(drillDownPlan)} feature
+                                </div>
+                                <p className="text-text-secondary text-xs leading-relaxed mb-3">
+                                    Drill into related tickers, source links, and an action path
+                                    on every hotspot.
+                                </p>
+                                <Link
+                                    to={isAuthenticated ? `/upgrade?to=${drillDownPlan}` : '/funnel'}
+                                    className="inline-block text-[10px] uppercase tracking-widest font-bold text-white bg-primary rounded-full px-4 py-2 hover:bg-primary-dark transition-colors"
+                                >
+                                    Unlock with {planLabel(drillDownPlan)}
+                                </Link>
+                            </div>
+                        )}
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
             {/* Hover tooltip */}
             <AnimatePresence>

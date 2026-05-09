@@ -16,6 +16,7 @@ const ROWS = [
     { label: 'Live breakdowns of major moves', free: false, pro: 'On publish', ultimate: 'Real-time' },
     { label: 'Q&A access with analyst', free: false, pro: 'Bi-weekly', ultimate: 'Direct' },
     { label: 'Custom signal alerts (email + Telegram)', free: false, pro: true, ultimate: true },
+    { label: 'Global Intelligence Globe', free: 'View-only', pro: 'Drill-down + filters', ultimate: 'Auto-pan + premium' },
     { label: 'Daily macro & flow explanation', free: false, pro: false, ultimate: true },
     { label: 'Custom signal weights', free: false, pro: false, ultimate: true },
     { label: 'Priority support', free: false, pro: false, ultimate: true },
