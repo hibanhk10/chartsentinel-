@@ -1,3 +1,5 @@
+import { useEffect } from 'react'
+import { useLocation } from 'react-router-dom'
 import Hero from '../sections/Hero/Hero'
 import WhatWeDo from '../sections/WhatWeDo/WhatWeDo'
 import Reports from '../sections/Reports/Reports'
@@ -10,7 +12,28 @@ import Footer from '../sections/Footer/Footer'
 import SEO from '../components/ui/SEO'
 import BreakingNewsTicker from '../components/ui/BreakingNewsTicker'
 
+// Scroll to a hash target after navigation. The Navbar's section links
+// route off-homepage users back to `/` with a hash (e.g. `/#reviews`);
+// without this effect react-router lands them at the top and the anchor
+// is silently dropped.
+function useHashScroll() {
+    const { hash } = useLocation()
+    useEffect(() => {
+        if (!hash) return
+        const target = document.getElementById(hash.replace('#', ''))
+        if (!target) return
+        // Defer one frame so post-mount layout has settled and the
+        // smooth scroll lands at the right position.
+        requestAnimationFrame(() => {
+            const offset = 80
+            const top = target.getBoundingClientRect().top + window.scrollY - offset
+            window.scrollTo({ top, behavior: 'smooth' })
+        })
+    }, [hash])
+}
+
 export default function HomePage() {
+    useHashScroll()
     return (
         <div className="relative z-10 w-full">
             <SEO

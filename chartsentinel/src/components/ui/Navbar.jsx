@@ -67,8 +67,13 @@ export default function Navbar() {
     };
 
     const handleScroll = (e, targetId) => {
+        // Off the homepage: navigate to `/<hash>` so the homepage's hash
+        // listener can scroll on mount. Returning early without preserving
+        // the anchor was the bug — it just dumped the user at the top of
+        // the homepage with no scroll.
         if (location.pathname !== '/') {
-            navigate('/');
+            e.preventDefault();
+            navigate(`/${targetId}`);
             setMenuOpen(false);
             return;
         }
@@ -88,7 +93,6 @@ export default function Navbar() {
     const linkClass =
         'text-sm font-medium text-slate-300 hover:text-primary transition-colors cursor-pointer';
     const navSections = [
-        { label: 'Services', onClick: (e) => handleScroll(e, '#pricing'), href: '#pricing' },
         { label: 'Review', onClick: (e) => handleScroll(e, '#reviews'), href: '#reviews' },
     ];
 
@@ -114,6 +118,9 @@ export default function Navbar() {
                                 {n.label}
                             </a>
                         ))}
+                        <Link to="/services" className={linkClass}>
+                            Services
+                        </Link>
                         <Link to="/insider" className={linkClass}>
                             Insider Radar
                         </Link>
@@ -177,6 +184,14 @@ export default function Navbar() {
                                     <span className="material-icons text-text-muted">chevron_right</span>
                                 </a>
                             ))}
+                            <Link
+                                to="/services"
+                                onClick={() => setMenuOpen(false)}
+                                className="flex items-center justify-between py-3 px-4 rounded-lg text-white hover:bg-white/5 transition-colors"
+                            >
+                                <span>Services</span>
+                                <span className="material-icons text-text-muted">chevron_right</span>
+                            </Link>
                             <Link
                                 to="/insider"
                                 onClick={() => setMenuOpen(false)}
