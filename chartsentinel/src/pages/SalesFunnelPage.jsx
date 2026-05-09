@@ -68,11 +68,14 @@ const SalesFunnelPage = () => {
         try {
             console.log('Completing funnel registration...', funnelData);
 
-            // 1. Register User
+            // 1. Register User. `plan` is forwarded so the local user
+            // object reflects the chosen tier; the backend ignores
+            // unknown fields until the Stripe path below is enabled.
             await register({
                 name: funnelData.name,
                 email: funnelData.email,
                 password: password,
+                plan: funnelData.plan || 'free',
             });
 
             // 2. Payment step is disabled until Stripe requirements are ready.

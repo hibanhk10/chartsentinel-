@@ -14,8 +14,17 @@ export const authService = {
     // Persist so the session survives a refresh or full-page nav.
     // Matches the behaviour of login() below.
     if (response.token) {
+      // Stripe billing is intentionally deferred (see SalesFunnelPage),
+      // so the backend has no `plan` column yet. Overlay the chosen tier
+      // onto the locally-cached user so the UI reflects the selection;
+      // once Stripe lands and the server returns a real plan, the server
+      // value will simply win on next login.
+      const enrichedUser = userData?.plan
+        ? { ...response.user, plan: userData.plan }
+        : response.user;
       localStorage.setItem('authToken', response.token);
-      localStorage.setItem('user', JSON.stringify(response.user));
+      localStorage.setItem('user', JSON.stringify(enrichedUser));
+      response.user = enrichedUser;
       // Attribution done; drop the cookie so a later signup on the same
       // browser can't re-use someone else's code.
       if (referralCode) clearStoredReferralCode();

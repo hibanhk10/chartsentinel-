@@ -1,6 +1,17 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 
+// Membership label resolves from the locally-stored plan tier first
+// (set during signup) and falls back to the legacy isPaid boolean for
+// users created before the funnel started persisting plan choice.
+function planLabel(user) {
+  const plan = user?.plan;
+  if (plan === 'pro') return 'Pro Member';
+  if (plan === 'ultimate') return 'Ultimate Member';
+  if (plan === 'free') return 'Free Member';
+  return user?.isPaid ? 'Paid Member' : 'Free Member';
+}
+
 // Responsive sidebar:
 //   lg (≥1024px): fixed 16rem column on the left.
 //   <lg:         drawer that slides in from the left behind a scrim; a
@@ -202,7 +213,7 @@ const Sidebar = ({ activeTab, setActiveTab }) => {
               <h2 className="text-sm font-bold tracking-tight uppercase text-white">
                 {user?.name || user?.email?.split('@')[0] || 'User'}
               </h2>
-              <p className="text-xs text-text-muted">{user?.isPaid ? 'Paid Member' : 'Free Member'}</p>
+              <p className="text-xs text-text-muted">{planLabel(user)}</p>
             </div>
           </div>
 
