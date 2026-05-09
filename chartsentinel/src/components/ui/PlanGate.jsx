@@ -19,6 +19,11 @@ export default function PlanGate({ feature, children, title, description }) {
     const required = requiredPlanFor(user, feature)
     const requiredLabel = planLabel(required)
 
+    // Authed users get the dedicated /upgrade flow; visitors who somehow
+    // hit a gate before signing up land in the regular funnel where
+    // pricing is part of registration.
+    const upgradeHref = user ? `/upgrade?to=${required}` : '/funnel'
+
     return (
         <div className="rounded-3xl border border-primary/20 bg-gradient-to-br from-primary/5 to-transparent p-8 md:p-12 text-center">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/30 mb-5">
@@ -35,7 +40,7 @@ export default function PlanGate({ feature, children, title, description }) {
             </p>
             <div className="flex flex-wrap justify-center gap-3">
                 <Link
-                    to="/funnel"
+                    to={upgradeHref}
                     className="px-6 py-3 rounded-full bg-primary text-white font-bold shadow-lg shadow-primary/25 hover:bg-primary-dark transition-colors"
                 >
                     Upgrade to {requiredLabel}

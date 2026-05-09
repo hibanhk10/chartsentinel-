@@ -85,6 +85,24 @@ export const authService = {
     return api.post('/auth/onboarding/complete', { tickers, threshold });
   },
 
+  // Local-only plan write. Stripe is intentionally deferred, so the
+  // backend has no `plan` field yet — `updatePlan` mutates the cached
+  // user object so the dashboard reflects the new tier immediately.
+  // Returns the updated user. When Stripe lands and the API starts
+  // returning an authoritative plan, this becomes a no-op overlay.
+  updatePlan(plan) {
+    const raw = localStorage.getItem('user');
+    if (!raw) return null;
+    try {
+      const user = JSON.parse(raw);
+      const next = { ...user, plan };
+      localStorage.setItem('user', JSON.stringify(next));
+      return next;
+    } catch {
+      return null;
+    }
+  },
+
   logout() {
     localStorage.removeItem('authToken');
     localStorage.removeItem('user');

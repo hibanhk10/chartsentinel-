@@ -148,7 +148,10 @@ export default function DashboardWatchlist() {
           <div className="text-xs uppercase tracking-widest text-text-muted">
             {items.length} / {limit === Infinity ? '∞' : limit} on {planLabel(getUserPlan(user))}
             {limit !== Infinity && (
-              <Link to="/#pricing" className="ml-3 text-primary hover:underline normal-case tracking-normal">
+              <Link
+                to={`/upgrade?to=${getUserPlan(user) === 'free' ? 'pro' : 'ultimate'}`}
+                className="ml-3 text-primary hover:underline normal-case tracking-normal"
+              >
                 Upgrade →
               </Link>
             )}

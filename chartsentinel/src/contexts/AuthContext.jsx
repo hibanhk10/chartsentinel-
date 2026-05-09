@@ -61,6 +61,11 @@ const authReducer = (state, action) => {
         error: action.payload,
         isAuthenticated: false
       };
+    case 'PLAN_UPDATED':
+      return {
+        ...state,
+        user: action.payload,
+      };
     default:
       return state;
   }
@@ -160,12 +165,23 @@ export const AuthProvider = ({ children }) => {
     dispatch({ type: 'LOGOUT' });
   };
 
+  // Local-only tier flip. Used by the upgrade page so the dashboard
+  // reflects the new plan instantly without a round-trip. When Stripe
+  // is wired this still works; the next /me response would just
+  // overwrite with the server's authoritative plan.
+  const updatePlan = (plan) => {
+    const next = authService.updatePlan(plan);
+    if (next) dispatch({ type: 'PLAN_UPDATED', payload: next });
+    return next;
+  };
+
   const value = {
     ...state,
     login,
     verifyTwoFactor,
     register,
     logout,
+    updatePlan,
   };
 
   return (

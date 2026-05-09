@@ -28,6 +28,7 @@ const NO_CANVAS_ROUTES = new Set([
   '/risk',
   '/insider',
   '/services',
+  '/upgrade',
 ])
 
 function RouteAwareCanvas() {
@@ -52,6 +53,7 @@ import OnboardingPage from './pages/OnboardingPage'
 import PublicTickerPage from './pages/PublicTickerPage'
 import InsiderRadarPage from './pages/InsiderRadarPage'
 import ServicesPage from './pages/ServicesPage'
+import UpgradePage from './pages/UpgradePage'
 import StatusPage from './pages/StatusPage'
 import SalesFunnelPage from './pages/SalesFunnelPage'
 import WaitlistPage from './pages/WaitlistPage'
@@ -129,6 +131,7 @@ export default function App() {
             <Route path="/risk" element={<RiskPage />} />
             <Route path="/t/:ticker" element={<PublicTickerPage />} />
             <Route path="/services" element={<ServicesPage />} />
+            <Route path="/upgrade" element={<UpgradePage />} />
             <Route path="/insider" element={<InsiderRadarPage />} />
             <Route path="/status" element={<StatusPage />} />
             {import.meta.env.DEV && (

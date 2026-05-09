@@ -90,8 +90,12 @@ export default function Navbar() {
         setMenuOpen(false);
     };
 
+    // Pill-shaped link chips. The outline + soft background gives them
+    // an obvious "this is interactive" affordance without competing
+    // with the primary login/launch buttons; primary action stays the
+    // brand-colored gradient pill on the right.
     const linkClass =
-        'text-sm font-medium text-slate-300 hover:text-primary transition-colors cursor-pointer';
+        'text-sm font-medium text-slate-300 hover:text-white px-4 py-2 rounded-full border border-white/10 bg-white/[0.03] hover:bg-white/10 hover:border-primary/40 transition-all cursor-pointer whitespace-nowrap';
     const navSections = [
         { label: 'Review', onClick: (e) => handleScroll(e, '#reviews'), href: '#reviews' },
     ];
@@ -112,7 +116,7 @@ export default function Navbar() {
                     </motion.div>
 
                     {/* Desktop nav — unchanged from the original layout. */}
-                    <div className="hidden md:flex items-center gap-8">
+                    <div className="hidden md:flex items-center gap-2 lg:gap-3">
                         {navSections.map((n) => (
                             <a key={n.label} className={linkClass} href={n.href} onClick={n.onClick}>
                                 {n.label}
