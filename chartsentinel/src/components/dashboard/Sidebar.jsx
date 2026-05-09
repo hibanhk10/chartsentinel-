@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
+import { hasFeature, requiredPlanFor, planLabel as tierLabel } from '../../lib/plan';
 
 // Membership label resolves from the locally-stored plan tier first
 // (set during signup) and falls back to the legacy isPaid boolean for
 // users created before the funnel started persisting plan choice.
-function planLabel(user) {
+function membershipLabel(user) {
   const plan = user?.plan;
   if (plan === 'pro') return 'Pro Member';
   if (plan === 'ultimate') return 'Ultimate Member';
@@ -213,7 +214,7 @@ const Sidebar = ({ activeTab, setActiveTab }) => {
               <h2 className="text-sm font-bold tracking-tight uppercase text-white">
                 {user?.name || user?.email?.split('@')[0] || 'User'}
               </h2>
-              <p className="text-xs text-text-muted">{planLabel(user)}</p>
+              <p className="text-xs text-text-muted">{membershipLabel(user)}</p>
             </div>
           </div>
 
@@ -254,20 +255,36 @@ const Sidebar = ({ activeTab, setActiveTab }) => {
                   >
                     <div className="overflow-hidden">
                       <div className="pl-3 pt-1 pb-2 space-y-1 border-l border-white/5 ml-4">
-                        {group.items.map((item) => (
-                          <button
-                            key={item.id}
-                            onClick={() => handleTabClick(item.id)}
-                            className={`w-full flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-                              activeTab === item.id
-                                ? 'bg-primary/10 text-primary border border-primary/20'
-                                : 'text-text-secondary hover:bg-white/5'
-                            }`}
-                          >
-                            <span className="material-icons text-lg">{item.icon}</span>
-                            {item.label}
-                          </button>
-                        ))}
+                        {group.items.map((item) => {
+                          // Locked items still render as buttons — clicking
+                          // routes to the tab so the panel can show its
+                          // own PlanGate upgrade card. The badge tells the
+                          // user the price of admission up front.
+                          const locked = !hasFeature(user, item.id);
+                          const required = requiredPlanFor(user, item.id);
+                          return (
+                            <button
+                              key={item.id}
+                              onClick={() => handleTabClick(item.id)}
+                              className={`w-full flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                                activeTab === item.id
+                                  ? 'bg-primary/10 text-primary border border-primary/20'
+                                  : 'text-text-secondary hover:bg-white/5'
+                              } ${locked ? 'opacity-60' : ''}`}
+                            >
+                              <span className="material-icons text-lg">{item.icon}</span>
+                              <span className="flex-1 text-left">{item.label}</span>
+                              {locked && (
+                                <span
+                                  className="text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20"
+                                  title={`${tierLabel(required)} feature`}
+                                >
+                                  {tierLabel(required)}
+                                </span>
+                              )}
+                            </button>
+                          );
+                        })}
                       </div>
                     </div>
                   </div>

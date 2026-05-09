@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { authService } from '../../services/authService';
 import api from '../../services/api';
 import { usePreferences } from '../../contexts/PreferencesContext';
+import PlanGate from '../ui/PlanGate';
 
 // Account settings — currently houses the 2FA setup / disable flow. The
 // component manages four UI states locally:
@@ -616,7 +617,9 @@ const Settings = () => {
         )}
       </section>
 
-      <section className="rounded-2xl border border-white/5 bg-surface-dark p-6 mt-6">
+      <div className="mt-6">
+      <PlanGate feature="custom-alerts-telegram" title="Telegram alerts are a Pro feature" description="Upgrade to Pro to receive watchlist alerts as Telegram messages on top of email.">
+      <section className="rounded-2xl border border-white/5 bg-surface-dark p-6">
         <header className="flex items-start justify-between gap-4 mb-4">
           <div>
             <h2 className="text-lg font-semibold text-white flex items-center gap-2">
@@ -711,8 +714,12 @@ const Settings = () => {
           </div>
         )}
       </section>
+      </PlanGate>
+      </div>
 
-      <section className="rounded-2xl border border-white/5 bg-surface-dark p-6 mt-6">
+      <div className="mt-6">
+      <PlanGate feature="custom-alerts-webhook" title="Webhook delivery is a Pro feature" description="Upgrade to Pro to POST signed alert payloads to your own webhook for downstream automation.">
+      <section className="rounded-2xl border border-white/5 bg-surface-dark p-6">
         <header className="flex items-start justify-between gap-4 mb-4">
           <div>
             <h2 className="text-lg font-semibold text-white flex items-center gap-2">
@@ -817,8 +824,12 @@ const Settings = () => {
           </div>
         )}
       </section>
+      </PlanGate>
+      </div>
 
-      <section className="rounded-2xl border border-white/5 bg-surface-dark p-6 mt-6">
+      <div className="mt-6">
+      <PlanGate feature="custom-signal-weights" title="Custom signal weights are an Ultimate feature" description="Upgrade to Ultimate to tune how much each component contributes to your composite score.">
+      <section className="rounded-2xl border border-white/5 bg-surface-dark p-6">
         <header className="flex items-start justify-between gap-4 mb-4">
           <div>
             <h2 className="text-lg font-semibold text-white flex items-center gap-2">
@@ -889,6 +900,8 @@ const Settings = () => {
           </button>
         </div>
       </section>
+      </PlanGate>
+      </div>
     </div>
   );
 };

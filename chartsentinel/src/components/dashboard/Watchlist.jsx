@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { API_CONFIG } from '../../config/api';
 import ExplainScoreModal from './ExplainScoreModal';
 import EmptyState from '../ui/EmptyState';
+import { useAuth } from '../../contexts/AuthContext';
+import { watchlistLimit, getUserPlan, planLabel } from '../../lib/plan';
 
 // Persistent watchlist with per-ticker composite-score thresholds. Writes
 // hit /api/watchlist — reads happen every time the tab mounts so the list
@@ -28,6 +31,8 @@ async function fetchJson(path, options = {}) {
 }
 
 export default function DashboardWatchlist() {
+  const { user } = useAuth();
+  const limit = watchlistLimit(user);
   const [items, setItems] = useState([]);
   const [tickers, setTickers] = useState([]);
   const [status, setStatus] = useState('loading');
@@ -87,6 +92,14 @@ export default function DashboardWatchlist() {
 
   async function handleSubmit(e) {
     e.preventDefault();
+    // Tier-based size cap. Server has no plan field yet (Stripe deferred),
+    // so this is a UX guardrail; the backend doesn't reject the create.
+    if (items.length >= limit) {
+      setFormError(
+        `Your ${planLabel(getUserPlan(user))} plan caps the watchlist at ${limit}. Upgrade to add more tickers.`,
+      );
+      return;
+    }
     if (!form.ticker) {
       setFormError('Pick a ticker first.');
       return;
@@ -130,7 +143,17 @@ export default function DashboardWatchlist() {
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       <header>
-        <h1 className="text-4xl font-bold tracking-tight text-white">Watchlist</h1>
+        <div className="flex items-baseline justify-between gap-4 flex-wrap">
+          <h1 className="text-4xl font-bold tracking-tight text-white">Watchlist</h1>
+          <div className="text-xs uppercase tracking-widest text-text-muted">
+            {items.length} / {limit === Infinity ? '∞' : limit} on {planLabel(getUserPlan(user))}
+            {limit !== Infinity && (
+              <Link to="/#pricing" className="ml-3 text-primary hover:underline normal-case tracking-normal">
+                Upgrade →
+              </Link>
+            )}
+          </div>
+        </div>
         <p className="mt-2 text-text-secondary max-w-2xl">
           Add tickers you want to track. Set a composite-score threshold and
           we&apos;ll email you the moment it crosses — usually within 30

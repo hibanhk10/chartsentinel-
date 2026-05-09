@@ -9,6 +9,7 @@ import TickerMarquee from '../components/dashboard/TickerMarquee';
 import BrandedLoader from '../components/ui/BrandedLoader';
 import CommandPalette from '../components/dashboard/CommandPalette';
 import ShortcutHelp from '../components/dashboard/ShortcutHelp';
+import PlanGate from '../components/ui/PlanGate';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 
 // Home stays eagerly imported because it's the default landing tab —
@@ -216,7 +217,14 @@ const DashboardPage = () => {
                 room for the marquee strip. */}
             <main className="flex-1 px-4 py-6 pt-24 lg:pt-9 sm:px-8 lg:ml-64 lg:p-12 lg:pt-16 max-w-6xl mx-auto w-full">
                 <Suspense fallback={<TabFallback />}>
-                    {renderContent()}
+                    {/* PlanGate intercepts before the lazy panel mounts —
+                        if the user's plan can't access this tab the
+                        upgrade card renders and the panel chunk never
+                        loads. Tabs not present in FEATURES (e.g. admin)
+                        pass through unchanged. */}
+                    <PlanGate feature={activeTab}>
+                        {renderContent()}
+                    </PlanGate>
                 </Suspense>
 
                 <footer className="mt-20 pt-8 border-t border-white/5 flex items-center justify-center gap-6 text-[10px] font-medium text-text-muted">
