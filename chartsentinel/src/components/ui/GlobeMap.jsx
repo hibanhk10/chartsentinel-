@@ -210,19 +210,37 @@ function createArcGeometry(from, to, segments = 64) {
 }
 
 function matchHotspots(headlines) {
+    const now = Date.now()
     return HOTSPOTS_BASE.map((spot) => {
         const match = headlines.find((h) => spot.keywords.test(`${h.title} ${h.summary || ''}`))
-        return match
-            ? {
-                  ...spot,
-                  headline: match.title,
-                  source: match.source,
-                  url: match.url,
-                  publishedAt: match.publishedAt,
-                  isLive: true,
-              }
-            : { ...spot, headline: spot.fallback, source: 'standby', isLive: false }
+        if (!match) {
+            return { ...spot, headline: spot.fallback, source: 'standby', isLive: false, freshnessHours: null }
+        }
+        const publishedAt = match.publishedAt
+        const ageMs = publishedAt ? now - new Date(publishedAt).getTime() : Number.POSITIVE_INFINITY
+        const freshnessHours = Number.isFinite(ageMs) ? ageMs / 3_600_000 : null
+        return {
+            ...spot,
+            headline: match.title,
+            source: match.source,
+            url: match.url,
+            publishedAt,
+            freshnessHours,
+            isLive: true,
+        }
     })
+}
+
+// Pulse intensity tier from a hotspot's freshness. Used by the
+// animation loop to scale dot size, ring amplitude, and arc-traveler
+// speed so the globe visibly "burns hotter" near recent events.
+function intensityFor(spot) {
+    if (!spot || !spot.isLive) return { tier: 'standby', amp: 0.35, speed: 1.3, scale: 0.85 }
+    const h = spot.freshnessHours ?? 24
+    if (h < 1) return { tier: 'breaking', amp: 1.1, speed: 3.4, scale: 1.4 }
+    if (h < 6) return { tier: 'hot', amp: 0.85, speed: 2.4, scale: 1.25 }
+    if (h < 24) return { tier: 'live', amp: 0.6, speed: 1.8, scale: 1.1 }
+    return { tier: 'recent', amp: 0.45, speed: 1.4, scale: 1.0 }
 }
 
 // Convert lat/lon to the camera-target Y rotation that brings the
@@ -385,7 +403,9 @@ export default function GlobeMap({ height = 480 }) {
         rings.push(r2)
 
         // Satellite-like particle field above the globe surface.
-        const particleCount = 500
+        // Trimmed from the original 500 so the scene reads as
+        // "atmospheric ambience" instead of "noisy snow."
+        const particleCount = 220
         const particleGeo = new THREE.BufferGeometry()
         const particlePos = new Float32Array(particleCount * 3)
         for (let i = 0; i < particleCount * 3; i += 3) {
@@ -418,13 +438,17 @@ export default function GlobeMap({ height = 480 }) {
         dLight2.position.set(-5, -3, -5)
         scene.add(dLight2)
 
-        // Hotspot dots + pulse rings.
+        // Hotspot dots + pulse rings + outer "shockwave" rings that
+        // expand and fade out for breaking events. Three layers per
+        // hotspot give us a fast-pulse / steady-pulse / shockwave
+        // hierarchy that scales naturally with freshness.
         const dots = []
         const pulseRings = []
+        const shockwaveRings = []
         HOTSPOTS_BASE.forEach((hotspot, idx) => {
             const pos = latLonToVec3(hotspot.lat, hotspot.lon, 1.01)
             const dot = new THREE.Mesh(
-                new THREE.SphereGeometry(0.014, 8, 8),
+                new THREE.SphereGeometry(0.014, 12, 12),
                 new THREE.MeshBasicMaterial({ color: new THREE.Color(hotspot.color) }),
             )
             dot.position.copy(pos)
@@ -433,7 +457,7 @@ export default function GlobeMap({ height = 480 }) {
             dots.push(dot)
 
             const pulseRing = new THREE.Mesh(
-                new THREE.RingGeometry(0.018, 0.022, 16),
+                new THREE.RingGeometry(0.018, 0.022, 24),
                 new THREE.MeshBasicMaterial({
                     color: new THREE.Color(hotspot.color),
                     transparent: true,
@@ -445,33 +469,100 @@ export default function GlobeMap({ height = 480 }) {
             pulseRing.lookAt(new THREE.Vector3(0, 0, 0))
             scene.add(pulseRing)
             pulseRings.push(pulseRing)
+
+            // Outer shockwave: invisible most of the time, expands and
+            // fades for live hotspots. The animation loop offsets each
+            // ring's wave by index so they don't all detonate in unison.
+            const shock = new THREE.Mesh(
+                new THREE.RingGeometry(0.022, 0.026, 32),
+                new THREE.MeshBasicMaterial({
+                    color: new THREE.Color(hotspot.color),
+                    transparent: true,
+                    opacity: 0,
+                    side: THREE.DoubleSide,
+                }),
+            )
+            shock.position.copy(pos)
+            shock.lookAt(new THREE.Vector3(0, 0, 0))
+            shock.userData = { phaseOffset: idx * 0.7 }
+            scene.add(shock)
+            shockwaveRings.push(shock)
         })
 
-        // Arcs.
+        // Arcs + a "traveler" sphere riding along each one. The
+        // traveler is what makes the globe feel like data is actually
+        // flowing — opacity-pulsing static lines feel decorative, a
+        // moving glowing dot feels like a packet.
         const arcs = []
         const arcProgress = []
+        const arcTravelers = []
+        const arcEndpoints = []
         ARCS.forEach(([a, b]) => {
             if (!HOTSPOTS_BASE[a] || !HOTSPOTS_BASE[b]) return
             const from = latLonToVec3(HOTSPOTS_BASE[a].lat, HOTSPOTS_BASE[a].lon, 1.01)
             const to = latLonToVec3(HOTSPOTS_BASE[b].lat, HOTSPOTS_BASE[b].lon, 1.01)
+            const mid = from.clone().add(to).multiplyScalar(0.5)
+            const dist = from.distanceTo(to)
+            mid.normalize().multiplyScalar(1 + dist * 0.2)
+
             const line = new THREE.Line(
                 createArcGeometry(from, to),
-                new THREE.LineBasicMaterial({ color: 0xd946ef, transparent: true, opacity: 0.5 }),
+                new THREE.LineBasicMaterial({ color: 0xd946ef, transparent: true, opacity: 0.4 }),
             )
             scene.add(line)
             arcs.push(line)
             arcProgress.push({ value: Math.random(), speed: 0.003 + Math.random() * 0.004 })
+            arcEndpoints.push({ a, b, from, to, mid })
+
+            const traveler = new THREE.Mesh(
+                new THREE.SphereGeometry(0.012, 12, 12),
+                new THREE.MeshBasicMaterial({
+                    color: 0xd946ef,
+                    transparent: true,
+                    opacity: 0.95,
+                    blending: THREE.AdditiveBlending,
+                }),
+            )
+            scene.add(traveler)
+            arcTravelers.push(traveler)
         })
 
-        return { scene, camera, renderer, globe, arcs, arcProgress, dots, pulseRings, rings, particles }
+        return {
+            scene,
+            camera,
+            renderer,
+            globe,
+            arcs,
+            arcProgress,
+            arcTravelers,
+            arcEndpoints,
+            dots,
+            pulseRings,
+            shockwaveRings,
+            rings,
+            particles,
+        }
     }, [])
 
     // Mount + resize + animation loop. Single useEffect keeps cleanup tidy.
     useEffect(() => {
         const mount = mountRef.current
         if (!mount) return
-        const { scene, camera, renderer, globe, arcs, arcProgress, dots, pulseRings, rings, particles } =
-            sceneRefs
+        const {
+            scene,
+            camera,
+            renderer,
+            globe,
+            arcs,
+            arcProgress,
+            arcTravelers,
+            arcEndpoints,
+            dots,
+            pulseRings,
+            shockwaveRings,
+            rings,
+            particles,
+        } = sceneRefs
 
         mount.appendChild(renderer.domElement)
         const setSize = () => {
@@ -546,12 +637,59 @@ export default function GlobeMap({ height = 480 }) {
                 globe.rotation.y += 0.002
             }
 
+            // Arcs whose endpoints are both live get full opacity +
+            // their traveler sphere. Dead arcs dim almost out of sight
+            // so the visible web reads as "where data is moving right
+            // now" rather than a static decoration.
             arcs.forEach((arc, i) => {
+                const ep = arcEndpoints[i]
+                if (!ep) return
+                const aSpot = hotspotsRef.current[ep.a]
+                const bSpot = hotspotsRef.current[ep.b]
+                const matchesFilterA =
+                    !aSpot ||
+                    !canFilterRef.current ||
+                    categoryFilterRef.current === 'All' ||
+                    aSpot.category === categoryFilterRef.current
+                const matchesFilterB =
+                    !bSpot ||
+                    !canFilterRef.current ||
+                    categoryFilterRef.current === 'All' ||
+                    bSpot.category === categoryFilterRef.current
+                const matches = matchesFilterA && matchesFilterB
+                const liveBoth = aSpot?.isLive && bSpot?.isLive
+                const intensity = liveBoth
+                    ? Math.max(intensityFor(aSpot).speed, intensityFor(bSpot).speed)
+                    : 0.6
+                arcProgress[i].speed = liveBoth
+                    ? 0.005 + intensity * 0.002
+                    : 0.0015
                 arcProgress[i].value += arcProgress[i].speed
                 if (arcProgress[i].value > 1) arcProgress[i].value = 0
-                arc.material.opacity = 0.3 + 0.4 * Math.sin(arcProgress[i].value * Math.PI)
+                const baseOpacity = liveBoth ? 0.65 : 0.18
+                arc.material.opacity = matches
+                    ? baseOpacity + 0.25 * Math.sin(arcProgress[i].value * Math.PI)
+                    : 0.04
                 arc.rotation.y = globe.rotation.y
+
+                // Traveler position along the bezier curve (from → mid → to).
+                const tr = arcTravelers[i]
+                if (tr) {
+                    const u = arcProgress[i].value
+                    const ux = (1 - u) * (1 - u) * ep.from.x + 2 * (1 - u) * u * ep.mid.x + u * u * ep.to.x
+                    const uy = (1 - u) * (1 - u) * ep.from.y + 2 * (1 - u) * u * ep.mid.y + u * u * ep.to.y
+                    const uz = (1 - u) * (1 - u) * ep.from.z + 2 * (1 - u) * u * ep.mid.z + u * u * ep.to.z
+                    tr.position.set(ux, uy, uz)
+                    tr.rotation.y = globe.rotation.y
+                    tr.material.opacity = liveBoth && matches ? 0.95 : 0
+                    // Tint the traveler the destination color so the
+                    // direction of flow reads at a glance.
+                    if (bSpot) tr.material.color.set(bSpot.color)
+                    const trScale = liveBoth ? 1 + 0.35 * Math.sin(t * 4 + i) : 0.5
+                    tr.scale.setScalar(trScale)
+                }
             })
+
             dots.forEach((dot, i) => {
                 dot.rotation.y = globe.rotation.y
                 const spot = hotspotsRef.current[i]
@@ -561,16 +699,20 @@ export default function GlobeMap({ height = 480 }) {
                     categoryFilterRef.current === 'All' ||
                     spot.category === categoryFilterRef.current
                 const dimmed = !matchesFilter
-                // Live spots pulse brighter than standby ones; filtered-out
-                // spots dim further.
-                const baseScale = spot && spot.isLive ? 1.15 : 0.9
-                const filterScale = dimmed ? 0.6 : 1
-                dot.scale.setScalar(baseScale * filterScale)
+                const intensity = intensityFor(spot)
+                // Breaking events pulse the dot itself, not just the ring.
+                const dotPulse =
+                    spot && spot.isLive
+                        ? 1 + 0.18 * Math.sin(t * intensity.speed * 2)
+                        : 1
+                const filterScale = dimmed ? 0.55 : 1
+                dot.scale.setScalar(intensity.scale * dotPulse * filterScale)
                 if (dot.material) {
-                    dot.material.opacity = dimmed ? 0.25 : 1
+                    dot.material.opacity = dimmed ? 0.22 : 1
                     dot.material.transparent = true
                 }
             })
+
             pulseRings.forEach((ring, i) => {
                 ring.rotation.y = globe.rotation.y
                 const spot = hotspotsRef.current[i]
@@ -579,14 +721,44 @@ export default function GlobeMap({ height = 480 }) {
                     !canFilterRef.current ||
                     categoryFilterRef.current === 'All' ||
                     spot.category === categoryFilterRef.current
-                // Live spots pulse with twice the amplitude.
-                const amp = spot && spot.isLive ? 0.7 : 0.4
-                const pulse = 1 + amp * Math.sin(t * 2 + i)
+                const intensity = intensityFor(spot)
+                const pulse = 1 + intensity.amp * Math.sin(t * intensity.speed + i)
                 ring.scale.set(pulse, pulse, pulse)
-                const baseOpacity = spot && spot.isLive ? 0.55 : 0.25
+                const baseOpacity = spot && spot.isLive ? 0.6 : 0.22
                 ring.material.opacity = matchesFilter
-                    ? baseOpacity + 0.25 * Math.cos(t * 2 + i)
-                    : 0.05
+                    ? baseOpacity + 0.25 * Math.cos(t * intensity.speed + i)
+                    : 0.04
+            })
+
+            // Shockwaves — only render meaningfully for live hotspots,
+            // and only the breaking-tier ones get the wide expanding
+            // wave. Each ring is offset by its phase so the detonations
+            // are staggered around the globe instead of all firing at
+            // the same beat.
+            shockwaveRings.forEach((ring, i) => {
+                ring.rotation.y = globe.rotation.y
+                const spot = hotspotsRef.current[i]
+                if (!spot || !spot.isLive) {
+                    ring.material.opacity = 0
+                    return
+                }
+                const matchesFilter =
+                    !canFilterRef.current ||
+                    categoryFilterRef.current === 'All' ||
+                    spot.category === categoryFilterRef.current
+                const intensity = intensityFor(spot)
+                if (intensity.tier === 'breaking' || intensity.tier === 'hot') {
+                    const phase = (t * 1.4 + (ring.userData.phaseOffset || 0)) % 2.5
+                    if (phase < 1.5) {
+                        const expand = 1 + phase * 4
+                        ring.scale.set(expand, expand, expand)
+                        ring.material.opacity = matchesFilter ? Math.max(0, 0.5 - phase * 0.35) : 0
+                    } else {
+                        ring.material.opacity = 0
+                    }
+                } else {
+                    ring.material.opacity = 0
+                }
             })
             if (rings[0]) rings[0].rotation.z -= 0.002
             if (rings[1]) rings[1].rotation.z += 0.0015
@@ -614,6 +786,8 @@ export default function GlobeMap({ height = 480 }) {
     }, [sceneRefs])
 
     const active = hotspots[activeIdx] || hotspots[0]
+    const liveCount = hotspots.filter((h) => h.isLive).length
+    const breakingCount = hotspots.filter((h) => intensityFor(h).tier === 'breaking').length
 
     return (
         <div
@@ -622,14 +796,22 @@ export default function GlobeMap({ height = 480 }) {
         >
             <div ref={mountRef} className="w-full h-full" />
 
-            {/* Header label */}
-            <div className="absolute top-3 left-3 flex items-center gap-2">
+            {/* Header label + live ticker counters */}
+            <div className="absolute top-3 left-3 flex flex-wrap items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-[#d946ef] animate-pulse shadow-[0_0_8px_#d946ef]" />
                 <span className="text-[#d946ef] text-[9px] font-bold tracking-widest uppercase">
                     Global Situational Awareness
                 </span>
+                <span className="text-[8px] uppercase tracking-widest font-bold text-[#22d3ee] bg-[#22d3ee]/10 border border-[#22d3ee]/30 px-1.5 py-0.5 rounded tabular-nums">
+                    {liveCount} live
+                </span>
+                {breakingCount > 0 && (
+                    <span className="text-[8px] uppercase tracking-widest font-bold text-[#ef4444] bg-[#ef4444]/10 border border-[#ef4444]/30 px-1.5 py-0.5 rounded animate-pulse">
+                        {breakingCount} breaking
+                    </span>
+                )}
                 {canAutoPan && (
-                    <span className="ml-2 text-[8px] uppercase tracking-widest font-bold text-[#22d3ee] bg-[#22d3ee]/10 border border-[#22d3ee]/30 px-1.5 py-0.5 rounded">
+                    <span className="text-[8px] uppercase tracking-widest font-bold text-[#22d3ee] bg-[#22d3ee]/10 border border-[#22d3ee]/30 px-1.5 py-0.5 rounded">
                         Auto-pan
                     </span>
                 )}
@@ -705,9 +887,15 @@ export default function GlobeMap({ height = 480 }) {
                                 </span>
                                 <span
                                     className="ml-auto text-[8px] font-mono tracking-widest uppercase"
-                                    style={{ color: active.isLive ? '#22d3ee' : '#71717a' }}
+                                    style={{
+                                        color: active.isLive
+                                            ? intensityFor(active).tier === 'breaking'
+                                                ? '#ef4444'
+                                                : '#22d3ee'
+                                            : '#71717a',
+                                    }}
                                 >
-                                    {active.isLive ? 'LIVE' : 'STANDBY'}
+                                    {active.isLive ? intensityFor(active).tier : 'standby'}
                                 </span>
                             </div>
                             <p className="text-[#d4d4d8] text-[10px] leading-relaxed font-medium line-clamp-3">
