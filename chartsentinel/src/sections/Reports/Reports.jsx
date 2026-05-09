@@ -44,25 +44,28 @@ const Reports = () => {
   return (
     <section id="reports" className="py-16 md:py-24 bg-background-dark relative">
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
-        <h2 className="text-4xl sm:text-5xl font-display font-bold text-center mb-12 md:mb-20 tracking-tight text-white">
-          Sample Reports
+        <h2 className="text-4xl sm:text-5xl font-display font-bold text-center mb-4 tracking-tight text-white">
+          Latest Analysis
         </h2>
+        <p className="text-center text-text-secondary max-w-xl mx-auto mb-12 md:mb-16">
+          Aggregated longform from Investing.com, MarketWatch, Reuters, Yahoo Finance, and CoinDesk — refreshed every 30 minutes.
+        </p>
 
         {reports.length === 0 ? (
           <div className="text-center text-white">
-            <p className="text-xl">No reports available at the moment.</p>
-            <p className="text-secondary mt-2">Check back later for the latest market analysis.</p>
+            <p className="text-xl">No analysis available right now.</p>
+            <p className="text-secondary mt-2">Sources are quiet — check back shortly.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {reports.map((report) => (
-              <div key={report.id} className="bg-white/10 backdrop-blur-sm p-6 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-2">
+              <article key={report.id} className="bg-white/10 backdrop-blur-sm p-6 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 flex flex-col">
                 <div className="flex items-center justify-between mb-4">
                   <span className="text-xs font-semibold text-primary bg-primary/10 px-3 py-1 rounded-full">
                     {report.category || 'Analysis'}
                   </span>
                   <span className="text-xs text-secondary">
-                    {new Date(report.createdAt).toLocaleDateString()}
+                    {report.publishedAt ? new Date(report.publishedAt).toLocaleDateString() : ''}
                   </span>
                 </div>
 
@@ -70,16 +73,26 @@ const Reports = () => {
                   {report.title}
                 </h3>
 
-                <p className="text-slate-300 mb-4 line-clamp-3">
-                  {report.summary || report.description}
+                <p className="text-slate-300 mb-4 line-clamp-3 flex-grow">
+                  {report.summary}
                 </p>
 
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-secondary">
-                    {report.author || 'Chartsentinel Team'}
+                    {report.source || report.author}
                   </span>
+                  {report.url && (
+                    <a
+                      href={report.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary hover:text-primary/80 font-medium text-sm transition-colors"
+                    >
+                      Read →
+                    </a>
+                  )}
                 </div>
-              </div>
+              </article>
             ))}
           </div>
         )}

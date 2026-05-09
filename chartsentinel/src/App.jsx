@@ -44,6 +44,7 @@ import { PreferencesProvider } from './contexts/PreferencesContext'
 import { trackPageview } from './lib/analytics'
 
 import Navbar from './components/ui/Navbar'
+import StickyCtaBar from './components/ui/StickyCtaBar'
 import HomePage from './pages/HomePage'
 import ContactPage from './pages/ContactPage'
 import DashboardPage from './pages/DashboardPage'
@@ -134,6 +135,7 @@ export default function App() {
               <Route path="/debug-sentry" element={<DebugSentry />} />
             )}
           </Routes>
+          <StickyCtaBar />
         </main>
       </Router>
       </PreferencesProvider>

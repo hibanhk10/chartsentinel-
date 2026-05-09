@@ -1,11 +1,14 @@
 import { useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
 import Hero from '../sections/Hero/Hero'
+import DataSources from '../sections/DataSources/DataSources'
 import WhatWeDo from '../sections/WhatWeDo/WhatWeDo'
 import Reports from '../sections/Reports/Reports'
 import News from '../sections/News/News'
 import Reviews from '../sections/Reviews/Reviews'
 import Pricing from '../sections/Pricing/Pricing'
+import PlanComparison from '../sections/PlanComparison/PlanComparison'
+import FAQ from '../sections/FAQ/FAQ'
 import Process from '../sections/Process/Process'
 import WhyUs from '../sections/WhyUs/WhyUs'
 import Intelligence from '../sections/Intelligence/Intelligence'
@@ -45,11 +48,14 @@ export default function HomePage() {
             {/* Breaking-news strip just below the Hero — picks up scroll
                 readers immediately with live market-relevant headlines. */}
             <BreakingNewsTicker />
+            <DataSources />
             <WhatWeDo />
             <Reports />
             <News />
             <Reviews />
             <Pricing />
+            <PlanComparison />
+            <FAQ />
             <Process />
             <WhyUs />
             {/* Marketing teaser of the threat-matrix intelligence layer.
