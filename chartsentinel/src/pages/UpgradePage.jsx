@@ -141,18 +141,21 @@ export default function UpgradePage() {
         }
         setPhase('activating')
         setError(null)
-        // Theatrical pause so the activation feels weighty rather than
-        // a surprise localStorage flip.
-        await new Promise((r) => setTimeout(r, 900))
-        const next = updatePlan(target)
-        if (!next) {
+        try {
+            // Theatrical pause overlapping the network call so the
+            // activation feels weighty without adding latency.
+            const [next] = await Promise.all([
+                updatePlan(target),
+                new Promise((r) => setTimeout(r, 900)),
+            ])
+            if (!next) throw new Error('No response from the server.')
+            setPhase('done')
+            // Auto-return to dashboard after the celebration finishes.
+            setTimeout(() => navigate('/dashboard'), 2400)
+        } catch (err) {
             setPhase('preview')
-            setError('Something went wrong updating your plan. Try again or refresh.')
-            return
+            setError(err.message || 'Something went wrong updating your plan. Try again.')
         }
-        setPhase('done')
-        // Auto-return to dashboard after the celebration finishes.
-        setTimeout(() => navigate('/dashboard'), 2400)
     }
 
     if (!isAuthenticated) return null

@@ -17,7 +17,12 @@ function sha256(value: string): string {
 }
 
 export class AuthService {
-  async register(email: string, password: string, referralCode?: string | null) {
+  async register(
+    email: string,
+    password: string,
+    referralCode?: string | null,
+    plan?: string | null,
+  ) {
     const existingUser = await prisma.user.findUnique({
       where: { email },
     });
@@ -28,10 +33,16 @@ export class AuthService {
 
     const passwordHash = await bcrypt.hash(password, 10);
 
+    // Plan tier picked in the funnel travels in here. Anything outside
+    // the known set falls back to 'free' rather than hitting the DB
+    // with arbitrary input.
+    const initialPlan = plan && ['free', 'pro', 'ultimate'].includes(plan) ? plan : 'free';
+
     const user = await prisma.user.create({
       data: {
         email,
         passwordHash,
+        plan: initialPlan,
       },
     });
 
@@ -58,6 +69,7 @@ export class AuthService {
         email: user.email,
         role: user.role,
         isPaid: user.isPaid,
+        plan: user.plan,
       },
       token,
     };
@@ -99,6 +111,7 @@ export class AuthService {
         email: user.email,
         role: user.role,
         isPaid: user.isPaid,
+        plan: user.plan,
       },
       token,
     };
@@ -145,6 +158,7 @@ export class AuthService {
         email: user.email,
         role: user.role,
         isPaid: user.isPaid,
+        plan: user.plan,
       },
       token,
     };
@@ -214,12 +228,35 @@ export class AuthService {
       email: user.email,
       role: user.role,
       isPaid: user.isPaid,
+      plan: user.plan,
       totpEnabled: user.totpEnabled,
       onboardedAt: user.onboardedAt,
       telegramLinked: Boolean(user.telegramChatId),
       telegramUsername: user.telegramUsername,
       webhookConfigured: Boolean(user.webhookUrl),
       webhookDisabled: Boolean(user.webhookDisabledAt),
+    };
+  }
+
+  // Persist a tier choice on the user record. Stripe is still deferred;
+  // this lets the upgrade flow work across devices in the meantime. When
+  // Stripe lands, billing webhooks call this same method (or replace
+  // the body) so the source of truth doesn't change.
+  async setPlan(userId: string, plan: string) {
+    const allowed = ['free', 'pro', 'ultimate'];
+    if (!allowed.includes(plan)) {
+      throw new Error('Unknown plan tier.');
+    }
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: { plan },
+    });
+    return {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      isPaid: user.isPaid,
+      plan: user.plan,
     };
   }
 

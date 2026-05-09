@@ -12,19 +12,13 @@ export const authService = {
     const response = await api.post('/auth/register', payload);
 
     // Persist so the session survives a refresh or full-page nav.
-    // Matches the behaviour of login() below.
+    // Matches the behaviour of login() below. The server now persists
+    // the chosen plan on the User row (see /api/auth/register), so
+    // response.user.plan is authoritative — no client-side overlay
+    // needed.
     if (response.token) {
-      // Stripe billing is intentionally deferred (see SalesFunnelPage),
-      // so the backend has no `plan` column yet. Overlay the chosen tier
-      // onto the locally-cached user so the UI reflects the selection;
-      // once Stripe lands and the server returns a real plan, the server
-      // value will simply win on next login.
-      const enrichedUser = userData?.plan
-        ? { ...response.user, plan: userData.plan }
-        : response.user;
       localStorage.setItem('authToken', response.token);
-      localStorage.setItem('user', JSON.stringify(enrichedUser));
-      response.user = enrichedUser;
+      localStorage.setItem('user', JSON.stringify(response.user));
       // Attribution done; drop the cookie so a later signup on the same
       // browser can't re-use someone else's code.
       if (referralCode) clearStoredReferralCode();
@@ -85,22 +79,19 @@ export const authService = {
     return api.post('/auth/onboarding/complete', { tickers, threshold });
   },
 
-  // Local-only plan write. Stripe is intentionally deferred, so the
-  // backend has no `plan` field yet — `updatePlan` mutates the cached
-  // user object so the dashboard reflects the new tier immediately.
-  // Returns the updated user. When Stripe lands and the API starts
-  // returning an authoritative plan, this becomes a no-op overlay.
-  updatePlan(plan) {
-    const raw = localStorage.getItem('user');
-    if (!raw) return null;
-    try {
-      const user = JSON.parse(raw);
-      const next = { ...user, plan };
+  // Persists the chosen tier on the User record via /api/auth/plan,
+  // then mirrors the result into the locally-cached user object so
+  // the dashboard reflects the new tier immediately. Persisting
+  // server-side is what makes the upgrade survive a login on a
+  // different device. When Stripe is wired this endpoint moves to a
+  // billing webhook path; the frontend signature stays the same.
+  async updatePlan(plan) {
+    const response = await api.post('/auth/plan', { plan });
+    const next = response?.user;
+    if (next) {
       localStorage.setItem('user', JSON.stringify(next));
-      return next;
-    } catch {
-      return null;
     }
+    return next;
   },
 
   logout() {

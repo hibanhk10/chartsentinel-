@@ -22,6 +22,13 @@ const registerSchema = z.object({
   // successful registration. Loose validation; bad codes are silently
   // ignored rather than rejecting the signup.
   referralCode: z.string().max(32).optional().nullable(),
+  // Optional plan tier from the funnel. AuthService clamps unknown
+  // values back to 'free'.
+  plan: z.enum(['free', 'pro', 'ultimate']).optional(),
+});
+
+const planSchema = z.object({
+  plan: z.enum(['free', 'pro', 'ultimate']),
 });
 
 const loginSchema = z.object({
@@ -42,8 +49,8 @@ const resetPasswordSchema = z.object({
 
 export const registerController = async (req: Request, res: Response) => {
   try {
-    const { email, password, referralCode } = registerSchema.parse(req.body);
-    const result = await authService.register(email, password, referralCode);
+    const { email, password, referralCode, plan } = registerSchema.parse(req.body);
+    const result = await authService.register(email, password, referralCode, plan);
     const { ip, userAgent } = fingerprintFromRequest(req);
     auditService.record({
       event: AUDIT_EVENTS.REGISTER,
@@ -163,6 +170,28 @@ export const meController = async (req: AuthedRequest, res: Response) => {
     res.json(me);
   } catch (error) {
     res.status(400).json({ error: error instanceof Error ? error.message : 'Lookup failed.' });
+  }
+};
+
+// Persists the chosen tier on the User record so it follows the
+// account across devices. Stripe is intentionally deferred — when
+// billing is wired this will move into a webhook path; the public
+// shape of the endpoint stays the same.
+export const setPlanController = async (req: AuthedRequest, res: Response) => {
+  try {
+    if (!req.user) {
+      res.status(401).json({ error: 'Sign in first.' });
+      return;
+    }
+    const parsed = planSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: 'Invalid plan tier.' });
+      return;
+    }
+    const updated = await authService.setPlan(req.user.id, parsed.data.plan);
+    res.json({ user: updated });
+  } catch (error) {
+    res.status(400).json({ error: error instanceof Error ? error.message : 'Update failed.' });
   }
 };
 

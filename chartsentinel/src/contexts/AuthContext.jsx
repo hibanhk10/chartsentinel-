@@ -165,12 +165,11 @@ export const AuthProvider = ({ children }) => {
     dispatch({ type: 'LOGOUT' });
   };
 
-  // Local-only tier flip. Used by the upgrade page so the dashboard
-  // reflects the new plan instantly without a round-trip. When Stripe
-  // is wired this still works; the next /me response would just
-  // overwrite with the server's authoritative plan.
-  const updatePlan = (plan) => {
-    const next = authService.updatePlan(plan);
+  // Persists the tier on the user record via /api/auth/plan. Mirrors
+  // the response into the local cache so the dashboard reflects the
+  // change instantly without a refetch. Errors propagate to the caller.
+  const updatePlan = async (plan) => {
+    const next = await authService.updatePlan(plan);
     if (next) dispatch({ type: 'PLAN_UPDATED', payload: next });
     return next;
   };
