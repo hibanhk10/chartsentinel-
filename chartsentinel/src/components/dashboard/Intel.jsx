@@ -1,4 +1,5 @@
 import ThreatMatrix from '../ui/ThreatMatrix';
+import GlobeMap from '../ui/GlobeMap';
 
 const DashboardIntel = () => {
     return (
@@ -18,6 +19,10 @@ const DashboardIntel = () => {
                     and trade policy. Updated continuously so you stop importing surprises into your book.
                 </p>
             </header>
+
+            <section>
+                <GlobeMap height={520} />
+            </section>
 
             <section className="h-[640px]">
                 <ThreatMatrix />

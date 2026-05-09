@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import ThreatMatrix from '../../components/ui/ThreatMatrix';
+import GlobeMap from '../../components/ui/GlobeMap';
 
 // Marketing-side teaser of the geopolitical-risk layer the platform
 // surfaces inside the dashboard. Visitor sees a curated, animated
@@ -58,9 +59,22 @@ export default function Intelligence() {
                         </div>
                     </div>
 
-                    <div className="h-[500px] md:h-[560px] lg:h-[600px] rounded-3xl overflow-hidden shadow-2xl shadow-red-500/10">
-                        <ThreatMatrix />
+                    <div className="rounded-3xl overflow-hidden shadow-2xl shadow-primary/10">
+                        <GlobeMap height={520} />
                     </div>
+                </motion.div>
+
+                {/* The threat matrix sits below the globe so the
+                    visitor first sees the live world map (recognisable,
+                    cinematic) and then the deeper risk surface beneath. */}
+                <motion.div
+                    initial={{ opacity: 0, y: 30 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true, margin: '-100px' }}
+                    transition={{ duration: 0.8, delay: 0.1 }}
+                    className="mt-16 h-[500px] md:h-[560px] lg:h-[600px] rounded-3xl overflow-hidden shadow-2xl shadow-red-500/10"
+                >
+                    <ThreatMatrix />
                 </motion.div>
             </div>
         </section>
