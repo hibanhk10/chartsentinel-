@@ -9,8 +9,10 @@ import {
 
 const router = Router();
 
-router.get('/', authenticateToken, getAllNewsController);
-router.get('/:id', authenticateToken, getNewsByIdController);
+// GET endpoints are public — the homepage News section renders for
+// anonymous visitors and the source is live RSS, not gated content.
+router.get('/', getAllNewsController);
+router.get('/:id', getNewsByIdController);
 router.post('/', authenticateToken, requireAdmin, createNewsController);
 
 export default router;
