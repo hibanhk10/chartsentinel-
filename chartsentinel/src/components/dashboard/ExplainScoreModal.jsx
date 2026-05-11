@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import api from '../../services/api';
+import { useAuth } from '../../contexts/AuthContext';
 
 // Plain-English breakdown of a composite score, powered by Gemini via the
 // /api/ai/explain-score endpoint. The caller passes the same components it
@@ -14,21 +16,20 @@ import api from '../../services/api';
 //   onClose — fired on backdrop click, ESC, or the close button.
 
 const ExplainScoreModal = ({ data, onClose }) => {
-    const [state, setState] = useState({ status: 'idle', text: null, error: null });
+    const [state, setState] = useState({ status: 'idle', text: null, error: null, usage: null, capExceeded: false });
+    const { isAuthenticated } = useAuth();
 
     useEffect(() => {
         if (!data) {
             // Reset to idle when the modal closes so the next open starts
-            // clean. The lint rule about set-state-in-effect doesn't apply
-            // when the value derives directly from props transitioning to
-            // null — there is no cascade because nothing else re-derives.
+            // clean.
             // eslint-disable-next-line react-hooks/set-state-in-effect
-            setState({ status: 'idle', text: null, error: null });
+            setState({ status: 'idle', text: null, error: null, usage: null, capExceeded: false });
             return;
         }
 
         let active = true;
-        setState({ status: 'loading', text: null, error: null });
+        setState({ status: 'loading', text: null, error: null, usage: null, capExceeded: false });
 
         api
             .post('/ai/explain-score', {
@@ -41,8 +42,32 @@ const ExplainScoreModal = ({ data, onClose }) => {
                     pattern: data.components?.pattern ?? 0,
                 },
             })
-            .then((resp) => active && setState({ status: 'ready', text: resp.text, error: null }))
-            .catch((err) => active && setState({ status: 'error', text: null, error: err.message }));
+            .then(
+                (resp) =>
+                    active &&
+                    setState({
+                        status: 'ready',
+                        text: resp.text,
+                        error: null,
+                        usage: resp.usage ?? null,
+                        capExceeded: false,
+                    }),
+            )
+            .catch((err) => {
+                if (!active) return;
+                // The backend returns 429 with a structured body when the
+                // daily cap is hit. api.js surfaces the error message; we
+                // detect by content for now since the body itself is
+                // dropped by the throw helper.
+                const exhausted = /cap reached/i.test(err.message || '');
+                setState({
+                    status: 'error',
+                    text: null,
+                    error: err.message,
+                    usage: null,
+                    capExceeded: exhausted,
+                });
+            });
 
         return () => {
             active = false;
@@ -114,10 +139,25 @@ const ExplainScoreModal = ({ data, onClose }) => {
                         </div>
                     )}
 
-                    {state.status === 'error' && (
+                    {state.status === 'error' && !state.capExceeded && (
                         <p className="text-sm text-red-300">
                             Could not generate breakdown: {state.error}
                         </p>
+                    )}
+
+                    {state.status === 'error' && state.capExceeded && (
+                        <div className="text-sm text-text-secondary">
+                            <p className="mb-3">
+                                You've used today's free AI prompts. Upgrade to keep asking, or wait
+                                until tomorrow when your daily budget resets.
+                            </p>
+                            <Link
+                                to={isAuthenticated ? '/upgrade?to=pro' : '/funnel'}
+                                className="inline-block text-[10px] uppercase tracking-widest font-bold text-white bg-primary rounded-full px-3 py-1.5 hover:bg-primary-dark transition-colors"
+                            >
+                                Upgrade for more prompts
+                            </Link>
+                        </div>
                     )}
 
                     {state.status === 'ready' && (
@@ -127,10 +167,17 @@ const ExplainScoreModal = ({ data, onClose }) => {
                     )}
                 </div>
 
-                <p className="text-[10px] text-text-muted mt-3">
-                    Informational only — not investment advice. Generated from the
-                    component contributions shown above.
-                </p>
+                <div className="flex items-center justify-between mt-3 gap-3">
+                    <p className="text-[10px] text-text-muted">
+                        Informational only — not investment advice.
+                    </p>
+                    {state.usage && (
+                        <p className="text-[10px] text-text-muted tabular-nums">
+                            <span className="text-primary font-bold">{state.usage.remaining}</span>
+                            <span> / {state.usage.cap} prompts left today</span>
+                        </p>
+                    )}
+                </div>
             </div>
         </div>
     );

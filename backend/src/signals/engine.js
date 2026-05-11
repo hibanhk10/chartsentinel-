@@ -781,6 +781,25 @@ export function registerSignalRoutes(app) {
     });
   });
 
+  // ── Daily price history for a ticker ──
+  // Public; feeds the candle chart on /t/:ticker. Returns the same
+  // bar shape the in-engine cache uses so it can also be consumed by
+  // the screener/backtester later if needed.
+  app.get('/api/signals/history/:ticker', async (req, res) => {
+    try {
+      const ticker = req.params.ticker;
+      const years = Math.min(Math.max(parseInt(req.query.years, 10) || 1, 1), 5);
+      const bars = await fetchYahooHistory(ticker, years);
+      if (!bars || bars.length === 0) {
+        return res.status(404).json({ error: 'No price data for this ticker' });
+      }
+      res.json({ ticker, years, bars });
+    } catch (err) {
+      console.error('[signals] history error', err);
+      res.status(500).json({ error: 'Failed to fetch price history' });
+    }
+  });
+
   // ── Seasonality for a ticker ──
   app.get('/api/signals/seasonality/:ticker', async (req, res) => {
     try {

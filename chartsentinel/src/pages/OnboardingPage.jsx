@@ -150,6 +150,39 @@ const OnboardingPage = () => {
 
         {step === 1 && (
           <div className="space-y-6">
+            {/* Preset bundles — one-click bulk-select for the most
+                common trader archetypes. Replaces whatever was picked
+                so the wizard always ends in a sensible state. */}
+            <section>
+              <h2 className="text-[10px] uppercase tracking-widest text-text-muted font-bold mb-3">
+                Quick start
+              </h2>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { label: 'FX trader', tickers: ['EURUSD=X', 'GBPUSD=X', 'USDJPY=X', 'AUDUSD=X', 'USDCAD=X', 'USDCHF=X'] },
+                  { label: 'Crypto trader', tickers: ['BTC-USD', 'ETH-USD', 'SOL-USD', 'BNB-USD', 'XRP-USD', 'AVAX-USD'] },
+                  { label: 'US equities', tickers: ['AAPL', 'MSFT', 'GOOGL', 'NVDA', 'TSLA', 'AMZN', 'META', 'SPY'] },
+                  { label: 'Mixed multi-asset', tickers: ['SPY', 'QQQ', 'BTC-USD', 'EURUSD=X', 'GLD', 'TLT', 'XLE', 'XLF'] },
+                  { label: 'Defensive / income', tickers: ['SPY', 'TLT', 'GLD', 'XLU', 'JNJ', 'PFE', 'WMT', 'KO'] },
+                ].map((preset) => (
+                  <button
+                    key={preset.label}
+                    type="button"
+                    onClick={() => {
+                      const next = new Set(preset.tickers.slice(0, MAX_PICKS));
+                      setPicks(next);
+                    }}
+                    className="text-xs uppercase tracking-widest font-bold px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-text-secondary hover:bg-primary/10 hover:border-primary/40 hover:text-white transition-colors"
+                  >
+                    {preset.label}
+                  </button>
+                ))}
+              </div>
+              <p className="text-[10px] text-text-muted mt-2">
+                Pick a preset or compose your own below. You can edit anytime from the watchlist.
+              </p>
+            </section>
+
             {grouped.map(([category, options]) => (
               <section key={category}>
                 <h2 className="text-[10px] uppercase tracking-widest text-text-muted font-bold mb-3">

@@ -73,6 +73,54 @@ const DashboardJournal = () => {
     const [critiquing, setCritiquing] = useState(false);
     const [critiqueError, setCritiqueError] = useState(null);
 
+    // Export the full journal as CSV. Includes every field plus the
+    // computed PnL columns so the file works as a standalone record
+    // (compliance / accounting / personal review). Quotes everything
+    // so commas inside the thesis text don't break the format.
+    const exportCsv = () => {
+        if (entries.length === 0) return;
+        const headers = [
+            'date',
+            'ticker',
+            'side',
+            'status',
+            'entry',
+            'exit',
+            'size',
+            'pnl_pct',
+            'pnl_dollars',
+            'closed_at',
+            'thesis',
+        ];
+        const q = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+        const rows = entries.map((e) => {
+            const pnl = computePnL(e);
+            return [
+                e.createdAt?.slice(0, 10) || '',
+                e.ticker,
+                e.side,
+                e.status,
+                e.entry,
+                e.exit,
+                e.size,
+                pnl ? pnl.pct.toFixed(2) : '',
+                pnl ? pnl.dollars.toFixed(2) : '',
+                e.closedAt?.slice(0, 10) || '',
+                e.thesis,
+            ].map(q).join(',');
+        });
+        const csv = [headers.map(q).join(','), ...rows].join('\r\n') + '\r\n';
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `chartsentinel-journal-${new Date().toISOString().slice(0, 10)}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    };
+
     const addEntry = () => {
         if (!draft.ticker.trim() || !draft.entry) return;
         const next = [{ ...draft, ticker: draft.ticker.trim().toUpperCase() }, ...entries];
@@ -175,6 +223,16 @@ const DashboardJournal = () => {
                     Record every entry, exit, and thesis. The AI scans the log and surfaces
                     behavior patterns — then suggests one specific habit to try this week.
                 </p>
+                {entries.length > 0 && (
+                    <button
+                        type="button"
+                        onClick={exportCsv}
+                        className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-text-secondary text-xs font-bold uppercase tracking-widest hover:bg-white/10 transition-colors"
+                    >
+                        <span className="material-icons text-sm">download</span>
+                        Export CSV
+                    </button>
+                )}
             </header>
 
             {stats && (

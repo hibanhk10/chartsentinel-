@@ -1,5 +1,29 @@
 import { Request, Response } from 'express';
 import { z } from 'zod';
+import prisma from '../config/db';
+import {
+    callLlm,
+    incrementUsage,
+    readUsage,
+    identityForUser,
+    capForPlan,
+} from '../services/ai.service';
+
+interface AuthedAiRequest extends Request {
+    user?: { id: string; email: string; role: string };
+}
+
+// Resolve the caller's plan tier for AI rate limiting. Authed users
+// read their `plan` column; anonymous callers and pre-plan-column
+// users get the free cap.
+async function resolveCallerPlan(req: AuthedAiRequest): Promise<string> {
+    if (!req.user?.id) return 'free';
+    const row = await prisma.user.findUnique({
+        where: { id: req.user.id },
+        select: { plan: true },
+    });
+    return row?.plan ?? 'free';
+}
 
 // Genesis AI / interrogation — single endpoint that powers the
 // dashboard's chat tab. Mirrors the contract from the preregister
@@ -318,24 +342,59 @@ function explainCacheKey(input: z.infer<typeof explainScoreSchema>): ExplainCach
     return `${input.ticker.toUpperCase()}|${r(input.score)}|${r(input.components.seasonal)}|${r(input.components.cot)}|${r(input.components.pattern)}`;
 }
 
-export const explainScore = async (req: Request, res: Response) => {
+// Read-only usage status, used by the frontend to render "X of Y
+// prompts remaining today" before the user fires a call.
+export const usage = async (req: AuthedAiRequest, res: Response) => {
+    try {
+        const ip = req.ip || req.headers['x-forwarded-for']?.toString() || '';
+        const identity = identityForUser(req.user?.id, ip);
+        const plan = await resolveCallerPlan(req);
+        const state = await readUsage(identity, plan);
+        res.json({ usage: state, plan });
+    } catch (error) {
+        res.status(500).json({ error: 'usage lookup failed', detail: (error as Error).message });
+    }
+};
+
+export const explainScore = async (req: AuthedAiRequest, res: Response) => {
     try {
         const input = explainScoreSchema.parse(req.body);
         const cacheKey = explainCacheKey(input);
         const cached = explainCache.get(cacheKey);
+        const ip = req.ip || req.headers['x-forwarded-for']?.toString() || '';
+        const identity = identityForUser(req.user?.id, ip);
+        const plan = await resolveCallerPlan(req);
+
+        // Cache hits skip the rate counter — repeated reads of the same
+        // score+ticker are free for the user.
         if (cached && Date.now() < cached.expiresAt) {
-            res.json({ text: cached.text, cached: true });
+            const usage = await readUsage(identity, plan);
+            res.json({ text: cached.text, cached: true, usage });
             return;
         }
 
-        const geminiKey = process.env.GEMINI_API_KEY;
-        if (!geminiKey) {
-            res.json({ text: pickRandom(EXPLAIN_FALLBACKS) });
-            return;
+        // Increment the daily counter first. If the user has burned
+        // their cap we send a structured 429 the frontend can render
+        // as an upgrade prompt instead of a silent failure.
+        let usage;
+        try {
+            usage = await incrementUsage(identity, plan);
+        } catch (err) {
+            if ((err as { code?: string }).code === 'AI_CAP_EXCEEDED') {
+                const cap = capForPlan(plan);
+                res.status(429).json({
+                    error: 'Daily AI prompt cap reached.',
+                    code: 'AI_CAP_EXCEEDED',
+                    usage: { used: cap, cap, remaining: 0, exhausted: true },
+                });
+                return;
+            }
+            throw err;
         }
 
-        // Compose a structured user message — Gemini does well with key-value
-        // bullet inputs and we want it grounded strictly in these numbers.
+        // Compose a structured user message — the model does well with
+        // key-value bullet inputs and we want it grounded strictly in
+        // these numbers, not free-form analysis.
         const userMessage
             = `Ticker: ${input.ticker}\n`
             + `Composite score: ${input.score} (${input.signal})\n`
@@ -345,20 +404,21 @@ export const explainScore = async (req: Request, res: Response) => {
             + `  • Historical pattern match: ${input.components.pattern}\n`
             + `Explain in 3 sentences which component dominates and why.`;
 
-        const reply = await callGemini(userMessage, geminiKey, EXPLAIN_PROMPT);
+        const reply = await callLlm({
+            systemPrompt: EXPLAIN_PROMPT,
+            userMessage,
+            maxTokens: 220,
+        });
         const text = reply || pickRandom(EXPLAIN_FALLBACKS);
 
         if (reply) {
-            // Only cache real Gemini replies — caching a fallback would pin a
-            // generic string in front of users for 15 min after the key
-            // briefly fails.
             explainCache.set(cacheKey, {
                 text,
                 expiresAt: Date.now() + EXPLAIN_TTL_MS,
             });
         }
 
-        res.json({ text, cached: false });
+        res.json({ text, cached: false, usage });
     } catch (error) {
         if (error instanceof z.ZodError) {
             res.status(400).json({

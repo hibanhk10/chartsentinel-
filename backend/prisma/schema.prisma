@@ -320,6 +320,23 @@ model InsiderFiling {
   @@map("insider_filings")
 }
 
+// Daily AI prompt usage per identity (userId for authed callers,
+// ipHash for anonymous). One row per identity per day; on each call
+// we upsert and increment the counter, then compare against the
+// tier-specific cap. Lets us throttle the cheap free-model surface
+// without buying a third-party rate limit dep.
+model AiUsage {
+  id        String   @id @default(cuid())
+  identity  String // "u:<userId>" or "ip:<sha256(ip)>"
+  day       String // ISO date (YYYY-MM-DD) in UTC
+  count     Int      @default(0)
+  updatedAt DateTime @updatedAt
+
+  @@unique([identity, day])
+  @@index([day])
+  @@map("ai_usage")
+}
+
 // Materialised cluster-buy events: ≥3 distinct insiders buying the same
 // ticker within a rolling window. We freeze the snapshot at detection
 // time so a later cluster on the same ticker shows up as a separate row,

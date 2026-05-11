@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import GlobalSearch from './GlobalSearch';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '../../contexts/AuthContext';
@@ -14,6 +15,7 @@ export default function Navbar() {
     const [showLoginModal, setShowLoginModal] = useState(false);
     const [showRegisterModal, setShowRegisterModal] = useState(false);
     const [menuOpen, setMenuOpen] = useState(false);
+    const [searchOpen, setSearchOpen] = useState(false);
 
     const { user, isAuthenticated, logout } = useAuth();
     const navigate = useNavigate();
@@ -47,6 +49,25 @@ export default function Navbar() {
             document.body.style.overflow = '';
         };
     }, [menuOpen]);
+
+    // Cmd-K / Ctrl-K opens search globally. `/` works too, but only
+    // when the user isn't already typing in an input — otherwise we'd
+    // hijack every "/" character.
+    useEffect(() => {
+        const onKey = (e) => {
+            const isModK = (e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k';
+            const isSlash =
+                e.key === '/' &&
+                !['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName) &&
+                !document.activeElement?.isContentEditable;
+            if (isModK || isSlash) {
+                e.preventDefault();
+                setSearchOpen(true);
+            }
+        };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, []);
 
     const handleLogin = () => {
         setShowLoginModal(true);
@@ -122,6 +143,17 @@ export default function Navbar() {
                                 {n.label}
                             </a>
                         ))}
+                        <button
+                            type="button"
+                            onClick={() => setSearchOpen(true)}
+                            aria-label="Search"
+                            className="inline-flex items-center gap-2 text-sm font-medium text-slate-300 hover:text-white px-3 py-2 rounded-full border border-white/10 bg-white/[0.03] hover:bg-white/10 hover:border-primary/40 transition-all cursor-pointer"
+                        >
+                            <span className="material-icons text-base">search</span>
+                            <kbd className="hidden lg:inline text-[10px] text-text-muted bg-white/5 border border-white/10 rounded px-1 py-0.5 font-mono">
+                                ⌘K
+                            </kbd>
+                        </button>
                         <Link to="/services" className={linkClass}>
                             Services
                         </Link>
@@ -271,6 +303,8 @@ export default function Navbar() {
                 onClose={() => setShowRegisterModal(false)}
                 onSwitchToLogin={handleLogin}
             />
+
+            <GlobalSearch open={searchOpen} onClose={() => setSearchOpen(false)} />
         </>
     );
 }

@@ -5,6 +5,7 @@ import { fmtPercentPoints } from '../lib/format';
 import { scoreTint, signalForScore, SIGNAL_LABEL } from '../lib/score-format';
 import Sparkline from '../components/ui/Sparkline';
 import SEO from '../components/ui/SEO';
+import TickerChart from '../components/ui/TickerChart';
 import { insiderService } from '../services/insiderService';
 
 // Public ticker page at /t/:ticker. Shows the live composite score,
@@ -134,6 +135,10 @@ const PublicTickerPage = () => {
 
                 {scoreState.status === 'ready' && (
                     <>
+                        <section className="mb-6">
+                            <TickerChart ticker={ticker} height={300} />
+                        </section>
+
                         <section className="premium-card rounded-2xl p-8 mb-6">
                             <div className="flex items-end justify-between mb-4">
                                 <div>

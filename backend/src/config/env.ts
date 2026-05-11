@@ -26,8 +26,13 @@ const envSchema = z.object({
 
   // Optional — when unset, /api/ai/interrogate returns rotating mock
   // responses so the chat UI still works in dev. Set in staging/prod
-  // to enable real Gemini-backed answers.
+  // to enable real LLM-backed answers. We prefer OpenRouter over the
+  // legacy Gemini key when both are present because OpenRouter offers
+  // free-tier models (Llama 3.3 70B, Hermes, etc.) and lets us swap
+  // providers without code changes.
   GEMINI_API_KEY: z.string().optional(),
+  OPENROUTER_API_KEY: z.string().optional(),
+  OPENROUTER_MODEL: z.string().optional(),
 
   // Stripe billing. Behaviour matrix:
   //   PAYMENTS_ENABLED unset / false → /api/payments/* returns 503 with a

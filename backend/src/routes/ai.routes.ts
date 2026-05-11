@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
-import { alert, explainScore, interrogate, sweep } from '../controllers/ai.controller';
+import { alert, explainScore, interrogate, sweep, usage } from '../controllers/ai.controller';
+import { optionalAuth } from '../middlewares/auth.middleware';
 
 const router = Router();
 
@@ -28,7 +29,10 @@ const sweepLimiter = rateLimit({
 
 router.get('/sweep', sweepLimiter, sweep);
 router.post('/alert', aiLimiter, alert);
-router.post('/interrogate', aiLimiter, interrogate);
-router.post('/explain-score', aiLimiter, explainScore);
+// `optionalAuth` lets the controller distinguish authed users (per-tier
+// daily caps) from anonymous (per-IP cap) without forcing a login.
+router.post('/interrogate', aiLimiter, optionalAuth, interrogate);
+router.post('/explain-score', aiLimiter, optionalAuth, explainScore);
+router.get('/usage', optionalAuth, usage);
 
 export default router;

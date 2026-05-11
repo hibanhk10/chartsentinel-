@@ -58,6 +58,7 @@ import { trackPageview } from './lib/analytics'
 
 import Navbar from './components/ui/Navbar'
 import StickyCtaBar from './components/ui/StickyCtaBar'
+import CookieBanner from './components/ui/CookieBanner'
 import HomePage from './pages/HomePage'
 import ContactPage from './pages/ContactPage'
 import DashboardPage from './pages/DashboardPage'
@@ -166,6 +167,9 @@ export default function App() {
           </Routes>
           <ChromeGate>
             <StickyCtaBar />
+          </ChromeGate>
+          <ChromeGate>
+            <CookieBanner />
           </ChromeGate>
         </main>
       </Router>
