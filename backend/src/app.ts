@@ -21,6 +21,7 @@ import webhookRoutes from './routes/webhook.routes';
 import signalsPersonalRoutes from './routes/signals-personal.routes';
 import portfolioRoutes from './routes/portfolio.routes';
 import insiderRoutes from './routes/insider.routes';
+import v1Routes from './routes/v1.routes';
 import { registerSignalRoutes } from './routes/signals.routes';
 
 const app = express();
@@ -57,6 +58,8 @@ app.use('/api/webhook', webhookRoutes);
 app.use('/api/signals/me', signalsPersonalRoutes);
 app.use('/api/portfolios', portfolioRoutes);
 app.use('/api/insider', insiderRoutes);
+// Public programmatic API surface for Ultimate-tier users.
+app.use('/api/v1', v1Routes);
 
 // Signal engine — registers /api/signals/* endpoints directly on the app
 // since the ported JS module uses absolute paths rather than a Router.

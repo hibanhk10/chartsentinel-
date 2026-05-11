@@ -71,8 +71,28 @@ model User {
   referralCode        ReferralCode?
   referralsMade       ReferralRedemption[] @relation("ReferralsMade")
   referralReceived    ReferralRedemption?  @relation("ReferralReceived")
+  apiKeys             ApiKey[]
 
   @@map("users")
+}
+
+// Programmatic API access keys. Ultimate-tier users mint these from
+// Settings; each key authenticates requests to /api/v1/* via the
+// X-Api-Key header. We only store the sha256 hash — the plaintext
+// is surfaced exactly once at creation time.
+model ApiKey {
+  id         String    @id @default(cuid())
+  userId     String
+  hashedKey  String    @unique
+  prefix     String
+  label      String
+  createdAt  DateTime  @default(now())
+  lastUsedAt DateTime?
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([lastUsedAt(sort: Desc)])
+  @@map("api_keys")
 }
 
 // Named basket of holdings — lets a user define an actual portfolio and

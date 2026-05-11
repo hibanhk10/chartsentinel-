@@ -11,6 +11,7 @@ import { API_CONFIG } from '../../config/api'
 const STORAGE_KEY = 'chartsentinel.recentTickers'
 const MAX_RECENTS = 5
 const QUICK_LINKS = [
+    { label: 'Public screener', to: '/screener' },
     { label: 'Insider Radar', to: '/insider' },
     { label: 'Compare tickers', to: '/compare' },
     { label: 'What we caught', to: '/caught' },

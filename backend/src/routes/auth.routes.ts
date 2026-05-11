@@ -13,6 +13,11 @@ import {
   disableTwoFactorController,
   verifyTwoFactorController,
 } from '../controllers/auth.controller';
+import {
+  createApiKeyController,
+  listApiKeysController,
+  revokeApiKeyController,
+} from '../controllers/api-key.controller';
 import { authenticateToken } from '../middlewares/auth.middleware';
 
 const router = Router();
@@ -47,6 +52,12 @@ router.post('/forgot-password', resetLimiter, forgotPasswordController);
 router.post('/reset-password', resetLimiter, resetPasswordController);
 router.get('/me', authenticateToken, meController);
 router.post('/plan', authenticateToken, setPlanController);
+
+// API key management — Ultimate tier only; the controllers gate
+// on plan internally so the JWT-only middleware is enough here.
+router.get('/api-keys', authenticateToken, listApiKeysController);
+router.post('/api-keys', authenticateToken, createApiKeyController);
+router.delete('/api-keys/:id', authenticateToken, revokeApiKeyController);
 router.post('/onboarding/complete', authenticateToken, completeOnboardingController);
 
 // 2FA endpoints. Setup/enable/disable require a session JWT so an

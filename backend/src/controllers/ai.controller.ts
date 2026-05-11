@@ -81,53 +81,10 @@ function pickRandom<T>(arr: T[]): T {
     return arr[Math.floor(Math.random() * arr.length)];
 }
 
-async function callGemini(
-    userMessage: string,
-    apiKey: string,
-    systemPrompt: string = SYSTEM_PROMPT,
-): Promise<string | null> {
-    // Promise.race keeps the request bounded — Gemini occasionally
-    // takes 20+ seconds to first byte and we'd rather show a fallback
-    // than hang the chat UI.
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 10000);
+// Legacy direct-to-Gemini helper retired. All callers now route
+// through services/ai.service.ts → callLlm which picks the best
+// available provider (OpenRouter preferred, Gemini fallback).
 
-    try {
-        const url
-            = 'https://generativelanguage.googleapis.com/v1beta/models/'
-            + `gemini-2.0-flash:generateContent?key=${encodeURIComponent(apiKey)}`;
-
-        const resp = await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            signal: controller.signal,
-            body: JSON.stringify({
-                contents: [
-                    {
-                        role: 'user',
-                        parts: [
-                            { text: `${systemPrompt}\n\nUser query: "${userMessage}"` },
-                        ],
-                    },
-                ],
-            }),
-        });
-
-        if (!resp.ok) {
-            return null;
-        }
-        const json = await resp.json() as any;
-        const text = json?.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (typeof text === 'string' && text.trim().length > 0) {
-            return text.trim();
-        }
-        return null;
-    } catch {
-        return null;
-    } finally {
-        clearTimeout(timer);
-    }
-}
 
 // ---------------------------------------------------------------------------
 // /ai/sweep — macro market summary. Cached server-side for 5 min so a
@@ -179,15 +136,16 @@ export const sweep = async (_req: Request, res: Response) => {
         return;
     }
 
-    const geminiKey = process.env.GEMINI_API_KEY;
-    let summary: string;
-
-    if (geminiKey) {
-        const reply = await callGemini(SWEEP_PROMPT, geminiKey);
-        summary = reply || (await rssFallbackSummary());
-    } else {
-        summary = await rssFallbackSummary();
-    }
+    // callLlm prefers OpenRouter, falls back to Gemini, returns null
+    // when neither key is set — in that last case we fall through to
+    // the RSS-headline summary so the homepage widget always has
+    // something to render.
+    const reply = await callLlm({
+        systemPrompt: SWEEP_PROMPT,
+        userMessage: 'Provide the 2-sentence market sweep now.',
+        maxTokens: 180,
+    });
+    const summary = reply || (await rssFallbackSummary());
 
     const data = { summary, timestamp: Date.now() };
     sweepCache = { value: data, expiresAt: Date.now() + 5 * 60 * 1000 };
@@ -217,19 +175,16 @@ export const alert = async (req: Request, res: Response) => {
             return;
         }
 
-        const geminiKey = process.env.GEMINI_API_KEY;
-        let analysis: string;
-
-        if (!geminiKey) {
-            analysis = 'Market impact probability: Moderate.';
-        } else {
-            const prompt
-                = 'You are ChartSentinel AI, a market analyst. Never provide '
-                + 'investment advice. Analyze this headline for market context '
-                + `in 1 short sentence. Be descriptive, not directive: ${headline}`;
-            const reply = await callGemini(prompt, geminiKey);
-            analysis = reply || 'Market impact probability: Moderate.';
-        }
+        const reply = await callLlm({
+            systemPrompt:
+                'You are ChartSentinel AI, a market analyst. Never provide '
+                + 'investment advice. Be descriptive, not directive.',
+            userMessage:
+                'Analyze this headline for market context in 1 short sentence: '
+                + headline,
+            maxTokens: 120,
+        });
+        const analysis = reply || 'Market impact probability: Moderate.';
 
         // Hour-long TTL — headlines rarely change meaning within the same
         // breaking-news cycle, and caching means the same lead headline
@@ -255,7 +210,7 @@ export const alert = async (req: Request, res: Response) => {
     }
 };
 
-export const interrogate = async (req: Request, res: Response) => {
+export const interrogate = async (req: AuthedAiRequest, res: Response) => {
     try {
         const { message } = interrogateSchema.parse(req.body);
         const lower = message.toLowerCase();
@@ -265,18 +220,48 @@ export const interrogate = async (req: Request, res: Response) => {
             return;
         }
 
-        const geminiKey = process.env.GEMINI_API_KEY;
-        if (!geminiKey) {
-            res.json({ text: pickRandom(MOCK_RESPONSES) });
-            return;
+        // Per-identity daily cap before we hit the LLM. Same plumbing
+        // as /explain-score so users see one budget across all AI
+        // surfaces. Cap exhaustion responds 429 with a structured
+        // payload the frontend renders as an upgrade prompt.
+        const ip = req.ip || req.headers['x-forwarded-for']?.toString() || '';
+        const identity = identityForUser(req.user?.id, ip);
+        const plan = await resolveCallerPlan(req);
+        let usage;
+        try {
+            usage = await incrementUsage(identity, plan);
+        } catch (err) {
+            if ((err as { code?: string }).code === 'AI_CAP_EXCEEDED') {
+                const cap = capForPlan(plan);
+                res.status(429).json({
+                    text: "You've used today's free AI prompts. Upgrade to keep asking.",
+                    error: 'Daily AI prompt cap reached.',
+                    code: 'AI_CAP_EXCEEDED',
+                    usage: { used: cap, cap, remaining: 0, exhausted: true },
+                });
+                return;
+            }
+            throw err;
         }
 
-        const reply = await callGemini(message, geminiKey);
+        // callLlm prefers OpenRouter when its key is set, else falls
+        // back to Gemini, else returns null (no provider configured).
+        const reply = await callLlm({
+            systemPrompt: SYSTEM_PROMPT,
+            userMessage: message,
+            maxTokens: 220,
+        });
         if (reply) {
-            res.json({ text: reply });
+            res.json({ text: reply, usage });
             return;
         }
-        res.json({ text: pickRandom(FAILURE_FALLBACKS) });
+        // Real failure (or no provider key) — rotate through the canned
+        // sci-fi-flavoured copy rather than 500ing the chat UI.
+        const noProvider = !process.env.OPENROUTER_API_KEY && !process.env.GEMINI_API_KEY;
+        res.json({
+            text: pickRandom(noProvider ? MOCK_RESPONSES : FAILURE_FALLBACKS),
+            usage,
+        });
     } catch (error) {
         if (error instanceof z.ZodError) {
             res.status(400).json({
