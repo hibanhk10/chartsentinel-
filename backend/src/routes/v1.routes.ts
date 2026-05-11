@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import rateLimit from 'express-rate-limit';
+import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import { authenticateApiKey, ApiKeyRequest } from '../middlewares/api-key.middleware';
 import {
   fetchRecentForm4s,
@@ -25,7 +25,16 @@ const v1Limiter = rateLimit({
   limit: 600,
   standardHeaders: 'draft-7',
   legacyHeaders: false,
-  keyGenerator: (req) => (req.headers['x-api-key'] as string) || req.ip || 'anon',
+  // API-key callers get pinned to their key so a shared-IP setup
+  // (CI, NAT) doesn't accidentally pool quota across teams. Anonymous
+  // requests fall through to ipKeyGenerator which folds IPv6 /64s
+  // into a single bucket — the express-rate-limit recommended fix
+  // for ERR_ERL_KEY_GEN_IPV6.
+  keyGenerator: (req) => {
+    const key = req.headers['x-api-key'];
+    if (typeof key === 'string' && key.length > 0) return `k:${key}`;
+    return `ip:${ipKeyGenerator(req.ip ?? '')}`;
+  },
   message: { error: 'API rate limit hit. Slow down.' },
 });
 

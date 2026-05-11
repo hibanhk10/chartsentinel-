@@ -72,6 +72,7 @@ model User {
   referralsMade       ReferralRedemption[] @relation("ReferralsMade")
   referralReceived    ReferralRedemption?  @relation("ReferralReceived")
   apiKeys             ApiKey[]
+  alertEvents         AlertEvent[]
 
   @@map("users")
 }
@@ -338,6 +339,27 @@ model InsiderFiling {
   @@index([ticker, filingDate(sort: Desc)])
   @@index([filingDate(sort: Desc)])
   @@map("insider_filings")
+}
+
+// Historical record of watchlist alerts that fired. The alert script
+// inserts one row per (user, ticker) crossing so the dashboard's
+// notifications bell can replay the recent past. We keep this
+// separate from `WatchlistItem.lastNotifiedAt` because the column
+// stores only the most recent firing, and the bell needs a feed.
+model AlertEvent {
+  id          String    @id @default(cuid())
+  userId      String
+  ticker      String
+  direction   String // "above" | "below"
+  threshold   Float
+  score       Float
+  triggeredAt DateTime  @default(now())
+  readAt      DateTime?
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, triggeredAt(sort: Desc)])
+  @@index([userId, readAt])
+  @@map("alert_events")
 }
 
 // Daily AI prompt usage per identity (userId for authed callers,

@@ -17,11 +17,14 @@ import env from '../config/env';
 // for authed callers and `ip:<sha256(ip)>` for anonymous. The cap is
 // derived from the user's plan tier; anonymous gets the same floor
 // as Free.
-// Smaller free model than llama-3.3-70b — that one's daily quota on
-// OpenRouter free tier is brutal and often returns empty content. The
-// 8B sibling is reliably available and good enough for our 1-3
-// sentence prompts. Override via OPENROUTER_MODEL.
-const DEFAULT_MODEL = 'meta-llama/llama-3.1-8b-instruct:free';
+// OpenRouter's free model lineup churns and slugs get retired without
+// notice. `meta-llama/llama-3.1-8b-instruct:free` started returning
+// 404 "No endpoints found" so we swap to Gemini 2.0 Flash on the
+// experimental free tier, which is currently routed and good enough
+// for our short prompts. Override via OPENROUTER_MODEL env var if the
+// default ever goes dark — the logs surface the full error body so a
+// new model swap is one env change away.
+const DEFAULT_MODEL = 'google/gemini-2.0-flash-exp:free';
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
 
 export const DAILY_PROMPT_CAPS: Record<string, number> = {

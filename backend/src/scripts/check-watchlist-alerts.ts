@@ -174,6 +174,23 @@ async function runWatchlistCheck() {
   let webhookFailed = 0;
 
   for (const { userId, email, telegramChatId, triggers } of triggersByUser.values()) {
+    // Persist the in-app feed alongside the outbound deliveries. We do
+    // this BEFORE the email send so a bell badge is up the moment the
+    // user refreshes the dashboard, even if email is slow / fails.
+    try {
+      await prisma.alertEvent.createMany({
+        data: triggers.map((t) => ({
+          userId,
+          ticker: t.ticker,
+          direction: t.direction,
+          threshold: t.threshold,
+          score: t.score,
+        })),
+      });
+    } catch (err) {
+      console.error(`[watchlist] failed to record alert events for ${userId}:`, err);
+    }
+
     // Email is the durable channel — we attempt it for every user, even
     // if Telegram is also linked. A user who removes the bot from their
     // chat shouldn't silently miss alerts.

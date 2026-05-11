@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { z } from 'zod';
 import { watchlistService } from '../services/watchlist.service';
+import { listRecentAlerts, countUnread, markAllRead } from '../services/alert-event.service';
 
 interface AuthRequest extends Request {
   user?: { id: string; email: string; role: string };
@@ -58,4 +59,38 @@ export const deleteWatchlistController = async (req: AuthRequest, res: Response)
     return;
   }
   res.json({ ok: true });
+};
+
+// In-app alert feed for the dashboard notifications bell. The list
+// endpoint returns recent events sorted newest-first; markRead bulk-
+// dismisses the unread badge when the user opens the dropdown.
+export const listAlertEventsController = async (req: AuthRequest, res: Response) => {
+  if (!req.user) {
+    res.status(401).json({ error: 'Unauthorised' });
+    return;
+  }
+  try {
+    const [events, unread] = await Promise.all([
+      listRecentAlerts(req.user.id, 40),
+      countUnread(req.user.id),
+    ]);
+    res.json({ events, unread });
+  } catch (err) {
+    console.error('[watchlist] list alerts', err);
+    res.status(500).json({ error: 'Failed to load alerts.' });
+  }
+};
+
+export const markAlertsReadController = async (req: AuthRequest, res: Response) => {
+  if (!req.user) {
+    res.status(401).json({ error: 'Unauthorised' });
+    return;
+  }
+  try {
+    await markAllRead(req.user.id);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[watchlist] mark read', err);
+    res.status(500).json({ error: 'Failed to mark read.' });
+  }
 };

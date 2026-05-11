@@ -26,6 +26,12 @@ import { registerSignalRoutes } from './routes/signals.routes';
 
 const app = express();
 
+// Railway puts a single reverse proxy in front of the container so the
+// real client IP travels in `X-Forwarded-For`. Trust exactly one hop —
+// any higher and a malicious client could spoof its own IP by setting
+// the header themselves, defeating the rate limiter.
+app.set('trust proxy', 1);
+
 // Security: Restrict CORS in production
 const corsOptions = {
     origin: env.NODE_ENV === 'production' && env.FRONTEND_URL

@@ -6,6 +6,7 @@ import DashboardHome from '../components/dashboard/Home';
 import SEO from '../components/ui/SEO';
 import api from '../services/api';
 import TickerMarquee from '../components/dashboard/TickerMarquee';
+import NotificationsBell from '../components/dashboard/NotificationsBell';
 import BrandedLoader from '../components/ui/BrandedLoader';
 import CommandPalette from '../components/dashboard/CommandPalette';
 import ShortcutHelp from '../components/dashboard/ShortcutHelp';
@@ -210,6 +211,12 @@ const DashboardPage = () => {
                 sidebar — visible from every dashboard tab. */}
             <div className="fixed top-20 left-0 right-0 lg:left-64 z-20">
                 <TickerMarquee />
+            </div>
+            {/* Notifications bell: fixed to the top-right of the
+                dashboard frame so it's visible from every tab. Sits
+                above the marquee so the badge is never occluded. */}
+            <div className="fixed top-[5.5rem] right-4 z-30">
+                <NotificationsBell />
             </div>
             <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
             {/* lg:ml-64 keeps the desktop layout untouched; on mobile the
