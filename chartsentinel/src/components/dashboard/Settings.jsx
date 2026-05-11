@@ -4,6 +4,7 @@ import api from '../../services/api';
 import { usePreferences } from '../../contexts/PreferencesContext';
 import PlanGate from '../ui/PlanGate';
 import CustomPinSettings from './CustomPinSettings';
+import ApiKeysSettings from './ApiKeysSettings';
 
 // Account settings — currently houses the 2FA setup / disable flow. The
 // component manages four UI states locally:
@@ -900,6 +901,28 @@ const Settings = () => {
             Reset to defaults
           </button>
         </div>
+      </section>
+      </PlanGate>
+      </div>
+
+      <div className="mt-6">
+      <PlanGate
+        feature="api-access"
+        title="Programmatic API access is an Ultimate feature"
+        description="Mint API keys and hit /api/v1 endpoints directly from your own bots, CI, or dashboards. Rate-limited at 600 req / 5 min per key."
+      >
+      <section className="rounded-2xl border border-white/5 bg-surface-dark p-6">
+        <header className="mb-4">
+          <h2 className="text-lg font-semibold text-white flex items-center gap-2">
+            <span className="material-icons text-primary">vpn_key</span>
+            API access
+          </h2>
+          <p className="text-sm text-text-secondary mt-1">
+            Mint programmatic keys for /api/v1 access. Each key is shown exactly once at
+            creation — copy it before navigating away.
+          </p>
+        </header>
+        <ApiKeysSettings />
       </section>
       </PlanGate>
       </div>

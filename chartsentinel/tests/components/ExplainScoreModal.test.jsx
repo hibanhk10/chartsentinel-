@@ -1,5 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
+import { AuthProvider } from '../../src/contexts/AuthContext';
 import ExplainScoreModal from '../../src/components/dashboard/ExplainScoreModal';
 
 // Mock the api service module — we don't want real network calls here.
@@ -11,6 +13,18 @@ vi.mock('../../src/services/api', () => ({
 }));
 
 import api from '../../src/services/api';
+
+// The modal now consumes useAuth() to decide where the "Upgrade for
+// more prompts" CTA points, so every render in this suite goes
+// through both AuthProvider and a memory router. Wrapping once here
+// keeps each test case clean.
+function renderModal(ui) {
+    return render(
+        <MemoryRouter>
+            <AuthProvider>{ui}</AuthProvider>
+        </MemoryRouter>,
+    );
+}
 
 const SAMPLE = {
     ticker: 'BTC-USD',
@@ -25,14 +39,14 @@ describe('<ExplainScoreModal>', () => {
     });
 
     it('renders nothing when data is null', () => {
-        const { container } = render(<ExplainScoreModal data={null} onClose={() => {}} />);
+        const { container } = renderModal(<ExplainScoreModal data={null} onClose={() => {}} />);
         expect(container.firstChild).toBeNull();
     });
 
     it('renders ticker + components and calls /ai/explain-score with the right payload', async () => {
         api.post.mockResolvedValueOnce({ text: 'Seasonal is the dominant driver.' });
 
-        render(<ExplainScoreModal data={SAMPLE} onClose={() => {}} />);
+        renderModal(<ExplainScoreModal data={SAMPLE} onClose={() => {}} />);
 
         // Header shows the ticker and signed score with signal label.
         expect(screen.getByText('BTC-USD')).toBeInTheDocument();
@@ -66,7 +80,7 @@ describe('<ExplainScoreModal>', () => {
     it('shows an error message when the API call fails', async () => {
         api.post.mockRejectedValueOnce(new Error('upstream timeout'));
 
-        render(<ExplainScoreModal data={SAMPLE} onClose={() => {}} />);
+        renderModal(<ExplainScoreModal data={SAMPLE} onClose={() => {}} />);
 
         await waitFor(() => {
             expect(screen.getByText(/Could not generate breakdown/)).toBeInTheDocument();

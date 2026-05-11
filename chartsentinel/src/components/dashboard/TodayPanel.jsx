@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { API_CONFIG } from '../../config/api';
 import { fmtPercentPoints } from '../../lib/format';
 import { scoreTint, signalForScore, SIGNAL_LABEL } from '../../lib/score-format';
 import AnimatedNumber from '../ui/AnimatedNumber';
 import Sparkline from '../ui/Sparkline';
 import { StatGridSkeleton } from '../ui/Skeletons';
+import api from '../../services/api';
 
 // "Today" snapshot — what just changed and what to look at first.
 // Lifts the burden of "where do I start?" off new dashboard visitors.
@@ -68,6 +70,10 @@ const TickerTile = ({ row, onClick, kind }) => {
 
 const TodayPanel = ({ onJumpToTicker }) => {
     const [state, setState] = useState({ status: 'loading', data: null });
+    // Personalised slice: user's watchlist tickers + insider clusters
+    // landing on those tickers. Loaded separately so a 401 on watchlist
+    // (anonymous viewer, dev mode) doesn't tank the public screener panel.
+    const [personal, setPersonal] = useState({ watch: [], clusters: [] });
 
     useEffect(() => {
         let active = true;
@@ -94,14 +100,42 @@ const TodayPanel = ({ onJumpToTicker }) => {
         };
     }, []);
 
-    const { topConviction, topMovers } = useMemo(() => {
-        const rows = Array.isArray(state.data?.assets) ? state.data.assets : [];
-        if (rows.length === 0) return { topConviction: [], topMovers: [] };
-        return {
-            topConviction: pickTopBy(rows, (r) => r.score ?? 0, 3),
-            topMovers: pickTopBy(rows, (r) => r.dayChange ?? 0, 3),
+    // Pull watchlist + insider clusters once. We don't need to poll —
+    // the screener poll covers the live data and watchlist contents
+    // change on user action, not on a timer.
+    useEffect(() => {
+        let active = true;
+        Promise.allSettled([api.get('/watchlist'), api.get('/insider/clusters')])
+            .then(([wl, cl]) => {
+                if (!active) return;
+                setPersonal({
+                    watch: wl.status === 'fulfilled' ? wl.value?.items ?? [] : [],
+                    clusters: cl.status === 'fulfilled' ? cl.value?.clusters ?? [] : [],
+                });
+            })
+            .catch(() => {});
+        return () => {
+            active = false;
         };
-    }, [state.data]);
+    }, []);
+
+    const { topConviction, topMovers, watchRows, watchClusters } = useMemo(() => {
+        const rows = Array.isArray(state.data?.assets) ? state.data.assets : [];
+        const watchTickers = new Set(personal.watch.map((w) => w.ticker));
+        return {
+            topConviction:
+                rows.length === 0 ? [] : pickTopBy(rows, (r) => r.score ?? 0, 3),
+            topMovers:
+                rows.length === 0 ? [] : pickTopBy(rows, (r) => r.dayChange ?? 0, 3),
+            watchRows: rows
+                .filter((r) => watchTickers.has(r.ticker) && r.score != null)
+                .sort((a, b) => Math.abs(b.score) - Math.abs(a.score))
+                .slice(0, 3),
+            watchClusters: personal.clusters
+                .filter((c) => watchTickers.has(c.ticker))
+                .slice(0, 3),
+        };
+    }, [state.data, personal]);
 
     if (state.status === 'loading') {
         return (
@@ -129,6 +163,46 @@ const TodayPanel = ({ onJumpToTicker }) => {
                 </div>
                 <h2 className="text-xl font-semibold text-white">What's moving</h2>
             </header>
+
+            {/* Personalised slice — shown when the user has tickers
+                on their watchlist. Pulls from the same screener cache
+                so values stay consistent with the rest of the panel. */}
+            {watchRows.length > 0 && (
+                <div>
+                    <h3 className="text-xs uppercase tracking-widest text-text-muted font-bold mb-3">
+                        On your watchlist
+                    </h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        {watchRows.map((row) => (
+                            <TickerTile key={row.ticker} row={row} kind="conviction" onClick={onJumpToTicker} />
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {watchClusters.length > 0 && (
+                <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/[0.04] p-4">
+                    <h3 className="text-xs uppercase tracking-widest text-emerald-300 font-bold mb-3">
+                        Insider clusters on your watchlist
+                    </h3>
+                    <ul className="space-y-1.5">
+                        {watchClusters.map((c) => (
+                            <li key={c.ticker} className="flex items-center justify-between text-sm">
+                                <Link to={`/t/${c.ticker}`} className="text-white font-bold hover:text-primary">
+                                    {c.ticker}
+                                </Link>
+                                <span className="text-emerald-300 text-xs">
+                                    {c.buyerCount} buyers · ${
+                                        c.totalValue >= 1e6
+                                            ? `${(c.totalValue / 1e6).toFixed(1)}M`
+                                            : `${(c.totalValue / 1e3).toFixed(0)}K`
+                                    }
+                                </span>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            )}
 
             <div>
                 <h3 className="text-xs uppercase tracking-widest text-text-muted font-bold mb-3">

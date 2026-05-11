@@ -17,7 +17,11 @@ import env from '../config/env';
 // for authed callers and `ip:<sha256(ip)>` for anonymous. The cap is
 // derived from the user's plan tier; anonymous gets the same floor
 // as Free.
-const DEFAULT_MODEL = 'meta-llama/llama-3.3-70b-instruct:free';
+// Smaller free model than llama-3.3-70b — that one's daily quota on
+// OpenRouter free tier is brutal and often returns empty content. The
+// 8B sibling is reliably available and good enough for our 1-3
+// sentence prompts. Override via OPENROUTER_MODEL.
+const DEFAULT_MODEL = 'meta-llama/llama-3.1-8b-instruct:free';
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
 
 export const DAILY_PROMPT_CAPS: Record<string, number> = {
@@ -127,13 +131,33 @@ async function callOpenRouter(opts: LlmCallOptions): Promise<string | null> {
       signal: ctrl.signal,
     });
     if (!res.ok) {
-      console.warn(`[ai] openrouter ${res.status}`);
+      // Capture the body — OpenRouter sends a JSON error with the
+      // actual reason (invalid model, missing credits, rate limit,
+      // unauthorised) and "[ai] openrouter 401" alone hides that.
+      const body = await res.text().catch(() => '<no body>');
+      console.warn(
+        `[ai] openrouter ${res.status} model=${env.OPENROUTER_MODEL || DEFAULT_MODEL}: ${body.slice(0, 240)}`,
+      );
       return null;
     }
     const body = (await res.json()) as {
       choices?: { message?: { content?: string } }[];
+      error?: { message?: string; code?: number };
     };
+    if (body?.error) {
+      console.warn(
+        `[ai] openrouter error model=${env.OPENROUTER_MODEL || DEFAULT_MODEL}:`,
+        body.error,
+      );
+      return null;
+    }
     const text = body?.choices?.[0]?.message?.content?.trim();
+    if (!text) {
+      console.warn(
+        `[ai] openrouter returned empty content (model=${env.OPENROUTER_MODEL || DEFAULT_MODEL})`,
+        JSON.stringify(body).slice(0, 240),
+      );
+    }
     return text && text.length > 0 ? text : null;
   } catch (err) {
     console.warn('[ai] openrouter call failed', (err as Error).message);

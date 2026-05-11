@@ -29,4 +29,19 @@ jobs:
 
       - run: npm ci
 
+      # Belt-and-braces: postinstall already runs prisma generate, but
+      # cached node_modules can skip it. Forcing it here keeps the
+      # generated client in sync with the latest schema (new models
+      # like AiUsage / ApiKey) so the engine doesn't panic on import.
+      - run: npx prisma generate
+
       - run: npm test
+        env:
+          # Vitest setup writes these defaults if unset, but failing
+          # Prisma engine init parses them at import — provide explicit
+          # placeholders so the engine constructor has something
+          # parseable.
+          DATABASE_URL: postgresql://test:test@localhost:5432/test
+          DIRECT_URL: postgresql://test:test@localhost:5432/test
+          JWT_SECRET: test-secret-which-is-at-least-32-characters!
+          NODE_ENV: test

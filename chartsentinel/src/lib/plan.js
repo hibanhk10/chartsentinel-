@@ -68,6 +68,7 @@ export const FEATURES = {
     'early-access': 'ultimate',
     'globe-autopan': 'ultimate',
     'globe-time-scrubber': 'ultimate',
+    'api-access': 'ultimate',
 }
 
 // Watchlist size caps mirror the homepage matrix.

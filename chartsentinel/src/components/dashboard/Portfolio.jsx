@@ -23,6 +23,84 @@ const SIGNAL_LABEL = {
     strong_sell: 'Strong sell',
 };
 
+// Brokerage CSV exports vary by provider; we sniff a handful of common
+// column names and pull whichever pair looks like (ticker, size). Done
+// in plain JS rather than papaparse — the file is small, the format is
+// nearly always quoted-on-comma, and we'd rather control the matching
+// than learn a library's edge cases.
+const TICKER_HEADERS = [
+    'symbol', 'ticker', 'instrument', 'security', 'asset', 'cusip', 'description',
+];
+const SIZE_HEADERS = [
+    'quantity', 'qty', 'shares', 'position', 'units', 'amount', 'size',
+];
+
+function splitCsvLine(line) {
+    const out = [];
+    let cur = '';
+    let inQ = false;
+    for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (ch === '"') {
+            if (inQ && line[i + 1] === '"') {
+                cur += '"';
+                i++;
+            } else {
+                inQ = !inQ;
+            }
+        } else if (ch === ',' && !inQ) {
+            out.push(cur);
+            cur = '';
+        } else {
+            cur += ch;
+        }
+    }
+    out.push(cur);
+    return out.map((s) => s.trim());
+}
+
+function parseBrokerCsv(text) {
+    const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);
+    if (lines.length < 2) return [];
+
+    // Scan for a header row — some brokers prepend an account-summary
+    // block before the actual positions header. We look at the first
+    // 10 lines and take whichever row has both a ticker-like and a
+    // size-like column.
+    let headerIdx = -1;
+    let headers = [];
+    for (let i = 0; i < Math.min(10, lines.length); i++) {
+        const cols = splitCsvLine(lines[i]).map((c) => c.toLowerCase());
+        const hasTicker = cols.some((c) => TICKER_HEADERS.some((h) => c === h || c.includes(h)));
+        const hasSize = cols.some((c) => SIZE_HEADERS.some((h) => c === h || c.includes(h)));
+        if (hasTicker && hasSize) {
+            headerIdx = i;
+            headers = cols;
+            break;
+        }
+    }
+    if (headerIdx === -1) return [];
+
+    const tickerCol = headers.findIndex((c) => TICKER_HEADERS.some((h) => c === h));
+    const tickerColFuzzy =
+        tickerCol >= 0 ? tickerCol : headers.findIndex((c) => TICKER_HEADERS.some((h) => c.includes(h)));
+    const sizeCol = headers.findIndex((c) => SIZE_HEADERS.some((h) => c === h));
+    const sizeColFuzzy =
+        sizeCol >= 0 ? sizeCol : headers.findIndex((c) => SIZE_HEADERS.some((h) => c.includes(h)));
+    if (tickerColFuzzy < 0 || sizeColFuzzy < 0) return [];
+
+    const rows = [];
+    for (let i = headerIdx + 1; i < lines.length; i++) {
+        const cols = splitCsvLine(lines[i]);
+        const ticker = (cols[tickerColFuzzy] || '').replace(/[^A-Z0-9.=_\-^]/gi, '').toUpperCase();
+        const sizeRaw = (cols[sizeColFuzzy] || '').replace(/[,_$]/g, '');
+        const weight = Number(sizeRaw);
+        if (!ticker || !Number.isFinite(weight) || weight <= 0) continue;
+        rows.push({ ticker, weight });
+    }
+    return rows;
+}
+
 const DashboardPortfolio = () => {
     const [portfolios, setPortfolios] = useState([]);
     const [tickers, setTickers] = useState([]);
@@ -130,6 +208,43 @@ const DashboardPortfolio = () => {
 
     const addRow = () => {
         setEditorRows((rows) => [...rows, { ticker: '', weight: 1 }]);
+    };
+
+    // Brokerage CSV import. Most retail brokers (IBKR, Robinhood,
+    // Fidelity, Schwab, ETrade) let you export positions as CSV.
+    // Column names vary wildly so we sniff a handful of headers
+    // and pull whatever pair best resembles (ticker, position-size).
+    // Anything we can't parse just gets logged and ignored — partial
+    // success is better than rejecting a 30-line file because the
+    // last row had a stray comma.
+    const importCsv = (file) => {
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onerror = () => setError('Could not read that file.');
+        reader.onload = () => {
+            try {
+                const text = String(reader.result || '');
+                const rows = parseBrokerCsv(text);
+                if (rows.length === 0) {
+                    setError('No recognizable positions in that file.');
+                    return;
+                }
+                // Merge with any existing rows; later imports of the
+                // same ticker overwrite the earlier weight.
+                setEditorRows((existing) => {
+                    const map = new Map(existing.map((r) => [r.ticker.trim().toUpperCase(), r]));
+                    for (const row of rows) {
+                        map.set(row.ticker.toUpperCase(), row);
+                    }
+                    return Array.from(map.values()).filter((r) => r.ticker);
+                });
+                setNotice(`Imported ${rows.length} position${rows.length === 1 ? '' : 's'} — review and save.`);
+                setError(null);
+            } catch (err) {
+                setError(`CSV parse failed: ${err.message}`);
+            }
+        };
+        reader.readAsText(file);
     };
 
     const removeRow = (idx) => {
@@ -327,6 +442,19 @@ const DashboardPortfolio = () => {
                         >
                             + Add holding
                         </button>
+                        <label className="px-3 py-1.5 bg-white/5 hover:bg-white/10 text-white text-xs font-medium rounded-md transition-colors cursor-pointer inline-flex items-center gap-1.5">
+                            <span className="material-icons text-sm">upload_file</span>
+                            Import CSV
+                            <input
+                                type="file"
+                                accept=".csv,text/csv"
+                                onChange={(e) => {
+                                    importCsv(e.target.files?.[0]);
+                                    e.target.value = '';
+                                }}
+                                className="hidden"
+                            />
+                        </label>
                         <button
                             onClick={saveItems}
                             disabled={busy}
