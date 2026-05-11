@@ -17,29 +17,48 @@ import env from '../config/env';
 // for authed callers and `ip:<sha256(ip)>` for anonymous. The cap is
 // derived from the user's plan tier; anonymous gets the same floor
 // as Free.
-// OpenRouter's free-model catalog rotates aggressively — slugs that
-// worked last week return 404 "No endpoints found" this week. Rather
-// than play whack-a-mole on every catalog churn, we keep a ranked
-// fallback list and try them in order, caching the first one that
-// returns 200 so the rest of the process stays cheap. OPENROUTER_MODEL
-// env var pins one model when an operator knows what they want.
-const FALLBACK_MODELS: ReadonlyArray<string> = [
+// OpenRouter fallback chain. Two tiers:
+//
+//   1. `:free` slugs — zero per-token cost, but the free pool is
+//      shared globally and is almost always rate-limited (429)
+//      unless the OpenRouter account has $10+ in deposit
+//      ("accumulate your rate limits"). 404 entries get delisted
+//      periodically; we drop them from the session and keep walking.
+//
+//   2. Paid micro-models — sub-cent prompts. We fall through to
+//      these so the chat keeps working even when the free pool is
+//      saturated. Typical call ~$0.00002, so 1000/day ≈ 2¢. Set
+//      OPENROUTER_FREE_ONLY=true to skip this tier entirely.
+//
+// OPENROUTER_MODEL env pins one model and skips all fallbacks; use
+// it when an operator knows exactly what they want.
+const FREE_MODELS: ReadonlyArray<string> = [
   'meta-llama/llama-3.3-70b-instruct:free',
   'meta-llama/llama-3.2-3b-instruct:free',
+  'nousresearch/hermes-3-llama-3.1-405b:free',
   'google/gemma-2-9b-it:free',
   'mistralai/mistral-7b-instruct:free',
   'mistralai/mistral-nemo:free',
   'qwen/qwen-2.5-7b-instruct:free',
-  'nousresearch/hermes-3-llama-3.1-405b:free',
-  'microsoft/phi-3-medium-128k-instruct:free',
-  'liquid/lfm-40b:free',
 ];
-const DEFAULT_MODEL = FALLBACK_MODELS[0];
+const PAID_MICRO_MODELS: ReadonlyArray<string> = [
+  'google/gemini-flash-1.5-8b', // ~$0.04/M tokens — cheapest mainstream
+  'meta-llama/llama-3.2-3b-instruct', // ~$0.06/M
+  'mistralai/mistral-nemo', // ~$0.1/M
+];
+const DEFAULT_MODEL = FREE_MODELS[0];
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
+
 // Sticky cache for the working model. Once a slug returns 200 we
-// keep using it for the lifetime of the process; on 404 we burn the
-// cache and rotate to the next candidate. Reset on container restart.
+// keep using it for the lifetime of the process; on 404/429 we burn
+// the cache and rotate to the next candidate. Reset on container
+// restart.
 let workingModel: string | null = null;
+
+// Per-process record of slugs that returned 404 ("no endpoints
+// found") so we don't keep paying the round-trip on permanently
+// delisted models. 429s are NOT skipped — they're transient.
+const deadModels = new Set<string>();
 
 export const DAILY_PROMPT_CAPS: Record<string, number> = {
   free: 5,
@@ -212,17 +231,30 @@ async function tryOpenRouter(
 }
 
 async function callOpenRouter(opts: LlmCallOptions): Promise<string | null> {
-  // Build a candidate list: env-pinned model first (if set), then the
-  // currently-cached working model, then the rest of the fallback
-  // chain. Skips duplicates so a successful sticky model isn't tried
-  // twice on the same request.
+  // Build the candidate list. Order:
+  //   1. operator-pinned model (env)         — exclusive when set
+  //   2. last known-good "sticky" model      — fast path for warm process
+  //   3. free models                          — preferred when they work
+  //   4. paid micro models                    — fallback when free is dead
+  // Permanently-404'd slugs are dropped via the session-level
+  // deadModels set so a 9-deep retry chain shrinks to 1-2 hops
+  // after the first request of the process.
   const envPinned = env.OPENROUTER_MODEL || null;
+  const freeOnly = process.env.OPENROUTER_FREE_ONLY === 'true';
   const candidates: string[] = [];
   const seen = new Set<string>();
-  for (const m of [envPinned, workingModel, ...FALLBACK_MODELS]) {
-    if (m && !seen.has(m)) {
-      candidates.push(m);
-      seen.add(m);
+  const push = (m: string | null) => {
+    if (!m || seen.has(m) || deadModels.has(m)) return;
+    candidates.push(m);
+    seen.add(m);
+  };
+  if (envPinned) {
+    push(envPinned);
+  } else {
+    push(workingModel);
+    for (const m of FREE_MODELS) push(m);
+    if (!freeOnly) {
+      for (const m of PAID_MICRO_MODELS) push(m);
     }
   }
 
@@ -237,14 +269,17 @@ async function callOpenRouter(opts: LlmCallOptions): Promise<string | null> {
     }
     if ('code' in result) {
       console.warn(`[ai] openrouter ${result.code} model=${model}: ${result.body.slice(0, 240)}`);
-      // 404 / 400 means the model is dead — keep walking. 401 / 403
-      // is the API key itself; no point trying other models.
+      // 401 / 403 means the API key itself — abort, no point trying
+      // other models.
       if (result.code === 401 || result.code === 403) return null;
-      // If env-pinned model failed, respect the operator's choice
-      // and don't auto-fall-back to defaults — they pinned for a
-      // reason, surface the error.
+      // 404 = model permanently delisted; remember so we skip it
+      // for the rest of this process.
+      if (result.code === 404) deadModels.add(model);
+      // Pinned model failures stop here — operator chose this slug
+      // for a reason and we shouldn't silently auto-fall-back.
       if (envPinned && model === envPinned) return null;
-      // Burn the cache so the next attempt re-discovers a working slug.
+      // Burn the sticky cache so the next attempt re-discovers a
+      // working slug instead of pinning the dead one.
       if (workingModel === model) workingModel = null;
     } else {
       console.warn(`[ai] openrouter call failed model=${model}: ${result.err}`);
