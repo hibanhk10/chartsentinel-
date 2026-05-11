@@ -17,15 +17,29 @@ import env from '../config/env';
 // for authed callers and `ip:<sha256(ip)>` for anonymous. The cap is
 // derived from the user's plan tier; anonymous gets the same floor
 // as Free.
-// OpenRouter's free model lineup churns and slugs get retired without
-// notice. `meta-llama/llama-3.1-8b-instruct:free` started returning
-// 404 "No endpoints found" so we swap to Gemini 2.0 Flash on the
-// experimental free tier, which is currently routed and good enough
-// for our short prompts. Override via OPENROUTER_MODEL env var if the
-// default ever goes dark — the logs surface the full error body so a
-// new model swap is one env change away.
-const DEFAULT_MODEL = 'google/gemini-2.0-flash-exp:free';
+// OpenRouter's free-model catalog rotates aggressively — slugs that
+// worked last week return 404 "No endpoints found" this week. Rather
+// than play whack-a-mole on every catalog churn, we keep a ranked
+// fallback list and try them in order, caching the first one that
+// returns 200 so the rest of the process stays cheap. OPENROUTER_MODEL
+// env var pins one model when an operator knows what they want.
+const FALLBACK_MODELS: ReadonlyArray<string> = [
+  'meta-llama/llama-3.3-70b-instruct:free',
+  'meta-llama/llama-3.2-3b-instruct:free',
+  'google/gemma-2-9b-it:free',
+  'mistralai/mistral-7b-instruct:free',
+  'mistralai/mistral-nemo:free',
+  'qwen/qwen-2.5-7b-instruct:free',
+  'nousresearch/hermes-3-llama-3.1-405b:free',
+  'microsoft/phi-3-medium-128k-instruct:free',
+  'liquid/lfm-40b:free',
+];
+const DEFAULT_MODEL = FALLBACK_MODELS[0];
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
+// Sticky cache for the working model. Once a slug returns 200 we
+// keep using it for the lifetime of the process; on 404 we burn the
+// cache and rotate to the next candidate. Reset on container restart.
+let workingModel: string | null = null;
 
 export const DAILY_PROMPT_CAPS: Record<string, number> = {
   free: 5,
@@ -71,15 +85,27 @@ export async function readUsage(identity: string, plan: string | null | undefine
   return { used, cap, remaining: Math.max(0, cap - used), exhausted: used >= cap };
 }
 
-// Atomically increments daily usage. Returns the post-increment state.
-// Throws if the increment would exceed the cap (caller can branch on
-// the error.code 'AI_CAP_EXCEEDED').
-export async function incrementUsage(identity: string, plan: string | null | undefined): Promise<UsageState> {
+// Throws AI_CAP_EXCEEDED if the user is already at their cap. Use
+// BEFORE calling the LLM so a refusal-to-charge happens up front
+// rather than mid-stream. Pair with `recordUsage` after a successful
+// LLM response so failed / mock fallbacks don't burn the user's
+// daily budget.
+export async function assertUnderCap(identity: string, plan: string | null | undefined): Promise<UsageState> {
+  const state = await readUsage(identity, plan);
+  if (state.exhausted) {
+    const err = new Error('Daily AI prompt cap reached.') as Error & { code?: string };
+    err.code = 'AI_CAP_EXCEEDED';
+    throw err;
+  }
+  return state;
+}
+
+// Records a successful LLM call against the user's daily quota. Idempotent
+// in the sense that two parallel calls won't slip past the cap — the
+// upsert+increment runs in a transaction with a fresh cap check inside.
+export async function recordUsage(identity: string, plan: string | null | undefined): Promise<UsageState> {
   const day = todayUtc();
   const cap = capForPlan(plan);
-  // Upsert + increment in a transaction so two concurrent requests
-  // can't slip past the cap by both seeing `used < cap` before either
-  // writes.
   const row = await prisma.$transaction(async (tx) => {
     const existing = await tx.aiUsage.findUnique({ where: { identity_day: { identity, day } } });
     if (existing && existing.count >= cap) {
@@ -96,6 +122,11 @@ export async function incrementUsage(identity: string, plan: string | null | und
   return { used: row.count, cap, remaining: Math.max(0, cap - row.count), exhausted: row.count >= cap };
 }
 
+// Backwards-compat alias for the previous "increment first, then call"
+// flow. Internally identical to `recordUsage`. New code should use the
+// `assertUnderCap` → `callLlm` → `recordUsage` pattern.
+export const incrementUsage = recordUsage;
+
 // Calls the configured LLM provider. Returns the text or null on failure.
 // Caller decides what to do with null (typically a friendly fallback).
 export async function callLlm(opts: LlmCallOptions): Promise<string | null> {
@@ -105,10 +136,36 @@ export async function callLlm(opts: LlmCallOptions): Promise<string | null> {
   if (env.GEMINI_API_KEY) {
     return callGemini(opts);
   }
+  // The single-most-confusing failure mode is "neither key is set,
+  // user wonders why the chat returns mocks." This warn fires once
+  // per request that needs the LLM so the cause is obvious in
+  // production logs.
+  console.warn(
+    '[ai] no LLM provider configured. Set OPENROUTER_API_KEY (preferred) or GEMINI_API_KEY on the backend service env.',
+  );
   return null;
 }
 
-async function callOpenRouter(opts: LlmCallOptions): Promise<string | null> {
+// Surface provider config at boot so the operator knows what to
+// expect. Called from server.ts after env validation succeeds.
+export function logAiProviderStatus(): void {
+  const providers: string[] = [];
+  if (env.OPENROUTER_API_KEY) providers.push(`OpenRouter (model=${env.OPENROUTER_MODEL || DEFAULT_MODEL})`);
+  if (env.GEMINI_API_KEY) providers.push('Gemini');
+  if (providers.length === 0) {
+    console.warn('[ai] no LLM providers configured — /api/ai/* will return mock responses');
+  } else {
+    console.log('[ai] providers ready:', providers.join(', '));
+  }
+}
+
+// Tries one specific model. Used by callOpenRouter to walk the
+// fallback chain. Returns { ok: text } on success, { code, body } on a
+// non-2xx so the caller can decide whether to retry the next model.
+async function tryOpenRouter(
+  model: string,
+  opts: LlmCallOptions,
+): Promise<{ ok: string } | { code: number; body: string } | { err: string }> {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 12_000);
   try {
@@ -117,13 +174,11 @@ async function callOpenRouter(opts: LlmCallOptions): Promise<string | null> {
       headers: {
         Authorization: `Bearer ${env.OPENROUTER_API_KEY}`,
         'Content-Type': 'application/json',
-        // OpenRouter recommends these for attribution + rate-limit
-        // pooling. HTTP-Referer doubles as the calling app's URL.
         'HTTP-Referer': env.APP_URL || 'https://www.chartsentinel.com',
         'X-Title': 'ChartSentinel',
       },
       body: JSON.stringify({
-        model: env.OPENROUTER_MODEL || DEFAULT_MODEL,
+        model,
         messages: [
           ...(opts.systemPrompt ? [{ role: 'system', content: opts.systemPrompt }] : []),
           { role: 'user', content: opts.userMessage },
@@ -134,40 +189,68 @@ async function callOpenRouter(opts: LlmCallOptions): Promise<string | null> {
       signal: ctrl.signal,
     });
     if (!res.ok) {
-      // Capture the body — OpenRouter sends a JSON error with the
-      // actual reason (invalid model, missing credits, rate limit,
-      // unauthorised) and "[ai] openrouter 401" alone hides that.
       const body = await res.text().catch(() => '<no body>');
-      console.warn(
-        `[ai] openrouter ${res.status} model=${env.OPENROUTER_MODEL || DEFAULT_MODEL}: ${body.slice(0, 240)}`,
-      );
-      return null;
+      return { code: res.status, body };
     }
     const body = (await res.json()) as {
       choices?: { message?: { content?: string } }[];
       error?: { message?: string; code?: number };
     };
     if (body?.error) {
-      console.warn(
-        `[ai] openrouter error model=${env.OPENROUTER_MODEL || DEFAULT_MODEL}:`,
-        body.error,
-      );
-      return null;
+      return { code: 200, body: JSON.stringify(body.error) };
     }
     const text = body?.choices?.[0]?.message?.content?.trim();
     if (!text) {
-      console.warn(
-        `[ai] openrouter returned empty content (model=${env.OPENROUTER_MODEL || DEFAULT_MODEL})`,
-        JSON.stringify(body).slice(0, 240),
-      );
+      return { code: 200, body: 'empty content' };
     }
-    return text && text.length > 0 ? text : null;
+    return { ok: text };
   } catch (err) {
-    console.warn('[ai] openrouter call failed', (err as Error).message);
-    return null;
+    return { err: (err as Error).message };
   } finally {
     clearTimeout(timer);
   }
+}
+
+async function callOpenRouter(opts: LlmCallOptions): Promise<string | null> {
+  // Build a candidate list: env-pinned model first (if set), then the
+  // currently-cached working model, then the rest of the fallback
+  // chain. Skips duplicates so a successful sticky model isn't tried
+  // twice on the same request.
+  const envPinned = env.OPENROUTER_MODEL || null;
+  const candidates: string[] = [];
+  const seen = new Set<string>();
+  for (const m of [envPinned, workingModel, ...FALLBACK_MODELS]) {
+    if (m && !seen.has(m)) {
+      candidates.push(m);
+      seen.add(m);
+    }
+  }
+
+  for (const model of candidates) {
+    const result = await tryOpenRouter(model, opts);
+    if ('ok' in result) {
+      if (workingModel !== model) {
+        console.log(`[ai] openrouter using model=${model}`);
+        workingModel = model;
+      }
+      return result.ok;
+    }
+    if ('code' in result) {
+      console.warn(`[ai] openrouter ${result.code} model=${model}: ${result.body.slice(0, 240)}`);
+      // 404 / 400 means the model is dead — keep walking. 401 / 403
+      // is the API key itself; no point trying other models.
+      if (result.code === 401 || result.code === 403) return null;
+      // If env-pinned model failed, respect the operator's choice
+      // and don't auto-fall-back to defaults — they pinned for a
+      // reason, surface the error.
+      if (envPinned && model === envPinned) return null;
+      // Burn the cache so the next attempt re-discovers a working slug.
+      if (workingModel === model) workingModel = null;
+    } else {
+      console.warn(`[ai] openrouter call failed model=${model}: ${result.err}`);
+    }
+  }
+  return null;
 }
 
 async function callGemini(opts: LlmCallOptions): Promise<string | null> {

@@ -4,6 +4,7 @@ import './instrument';
 import env from './config/env';
 import app from './app';
 import prisma from './config/db';
+import { logAiProviderStatus } from './services/ai.service';
 
 const PORT = env.PORT;
 
@@ -11,6 +12,8 @@ async function startServer() {
   try {
     await prisma.$connect();
     console.log('Connected to database');
+
+    logAiProviderStatus();
 
     app.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);

@@ -3,7 +3,8 @@ import { z } from 'zod';
 import prisma from '../config/db';
 import {
     callLlm,
-    incrementUsage,
+    assertUnderCap,
+    recordUsage,
     readUsage,
     identityForUser,
     capForPlan,
@@ -220,16 +221,14 @@ export const interrogate = async (req: AuthedAiRequest, res: Response) => {
             return;
         }
 
-        // Per-identity daily cap before we hit the LLM. Same plumbing
-        // as /explain-score so users see one budget across all AI
-        // surfaces. Cap exhaustion responds 429 with a structured
-        // payload the frontend renders as an upgrade prompt.
+        // Check the daily cap up front. Quota is only debited AFTER a
+        // successful LLM reply lands, so failed / mock fallbacks
+        // don't burn the user's budget.
         const ip = req.ip || req.headers['x-forwarded-for']?.toString() || '';
         const identity = identityForUser(req.user?.id, ip);
         const plan = await resolveCallerPlan(req);
-        let usage;
         try {
-            usage = await incrementUsage(identity, plan);
+            await assertUnderCap(identity, plan);
         } catch (err) {
             if ((err as { code?: string }).code === 'AI_CAP_EXCEEDED') {
                 const cap = capForPlan(plan);
@@ -244,19 +243,19 @@ export const interrogate = async (req: AuthedAiRequest, res: Response) => {
             throw err;
         }
 
-        // callLlm prefers OpenRouter when its key is set, else falls
-        // back to Gemini, else returns null (no provider configured).
         const reply = await callLlm({
             systemPrompt: SYSTEM_PROMPT,
             userMessage: message,
             maxTokens: 220,
         });
         if (reply) {
+            const usage = await recordUsage(identity, plan);
             res.json({ text: reply, usage });
             return;
         }
-        // Real failure (or no provider key) — rotate through the canned
-        // sci-fi-flavoured copy rather than 500ing the chat UI.
+        // Real failure — return the canned copy AND give the user back
+        // a read of their current usage (no charge for the fallback).
+        const usage = await readUsage(identity, plan);
         const noProvider = !process.env.OPENROUTER_API_KEY && !process.env.GEMINI_API_KEY;
         res.json({
             text: pickRandom(noProvider ? MOCK_RESPONSES : FAILURE_FALLBACKS),
@@ -358,12 +357,12 @@ export const explainScore = async (req: AuthedAiRequest, res: Response) => {
             return;
         }
 
-        // Increment the daily counter first. If the user has burned
-        // their cap we send a structured 429 the frontend can render
-        // as an upgrade prompt instead of a silent failure.
-        let usage;
+        // Verify the user has budget BEFORE we hit the LLM. Quota is
+        // only debited if we successfully return real model text — a
+        // network failure or "no provider configured" branch leaves
+        // today's budget untouched.
         try {
-            usage = await incrementUsage(identity, plan);
+            await assertUnderCap(identity, plan);
         } catch (err) {
             if ((err as { code?: string }).code === 'AI_CAP_EXCEEDED') {
                 const cap = capForPlan(plan);
@@ -394,14 +393,18 @@ export const explainScore = async (req: AuthedAiRequest, res: Response) => {
             userMessage,
             maxTokens: 220,
         });
-        const text = reply || pickRandom(EXPLAIN_FALLBACKS);
 
+        let usage;
         if (reply) {
+            usage = await recordUsage(identity, plan);
             explainCache.set(cacheKey, {
-                text,
+                text: reply,
                 expiresAt: Date.now() + EXPLAIN_TTL_MS,
             });
+        } else {
+            usage = await readUsage(identity, plan);
         }
+        const text = reply || pickRandom(EXPLAIN_FALLBACKS);
 
         res.json({ text, cached: false, usage });
     } catch (error) {
