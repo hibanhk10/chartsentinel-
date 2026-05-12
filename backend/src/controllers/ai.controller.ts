@@ -58,18 +58,21 @@ const COMPLIANCE_RESPONSE
     + 'information about market dynamics, trends, and historical behaviors. '
     + 'I cannot give personalized investment advice or recommend specific assets.';
 
+// Returned when no LLM provider is configured at all (e.g. dev env
+// without any API key, or production env where the key didn't reach
+// the running container). Honest framing beats pretending to be a
+// working AI — a sci-fi mock string reads like a broken bot, an
+// "offline" message reads like infrastructure status.
 const MOCK_RESPONSES = [
-    'Our models utilize multi-modal data streams, including sentiment analysis of unstructured financial text.',
-    'Latency is optimized to sub-millisecond levels via direct market access (DMA).',
-    'Risk parameters are dynamically adjusted based on real-time volatility clustering models.',
-    'The intelligence matrix detects anomalous volume clustering in decentralized dark pools.',
+    "AI chat is offline right now — the model provider isn't reachable from this deploy. The rest of ChartSentinel (signals, watchlist, insider radar, alerts) still works.",
 ];
 
+// Returned when the LLM provider is configured but every model in
+// the fallback chain failed (rate-limited, delisted, or upstream
+// outage). The user sees this when the chat *should* work but the
+// provider's currently saturated.
 const FAILURE_FALLBACKS = [
-    'The intelligence matrix is experiencing high synaptic load. Analyzing via secondary nodes.',
-    'Quantum decoherence detected in primary processing unit. Standby for recalibration.',
-    'Neural pathways are currently saturated with high-priority market data. Insight speed may be reduced.',
-    'Anomalous signal noise detected in the interrogation layer. Attempting secure bypass.',
+    "AI chat is temporarily unavailable — every model in our provider's free tier returned a rate-limit or outage just now. Try again in a few minutes, or check status.openrouter.ai if it persists.",
 ];
 
 const SYSTEM_PROMPT
