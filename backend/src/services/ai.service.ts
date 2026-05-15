@@ -176,6 +176,15 @@ export function logAiProviderStatus(): void {
   } else {
     console.log('[ai] providers ready:', providers.join(', '));
   }
+  // Make the agentic toggle impossible to miss. Without this line,
+  // operators can't tell whether they're getting tool-grounded
+  // answers or single-shot training-data answers from log scanning
+  // alone.
+  if (env.AI_AGENTIC) {
+    console.log('[ai] agentic mode: ON (chat will call live-data tools before answering)');
+  } else {
+    console.log('[ai] agentic mode: OFF (set AI_AGENTIC=true to enable live-data tools)');
+  }
 }
 
 // Tries one specific model. Used by callOpenRouter to walk the
