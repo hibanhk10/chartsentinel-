@@ -34,6 +34,16 @@ const envSchema = z.object({
   OPENROUTER_API_KEY: z.string().optional(),
   OPENROUTER_MODEL: z.string().optional(),
 
+  // Toggle the agentic chat loop. When true, /api/ai/interrogate
+  // passes the tool catalog to the model and walks a tool-call
+  // loop so the chat can pull real composite scores, insider
+  // feeds, news, etc. before answering. Off by default to keep
+  // costs predictable when no operator has reviewed the surface.
+  AI_AGENTIC: z
+    .string()
+    .optional()
+    .transform((v) => v === 'true' || v === '1'),
+
   // Stripe billing. Behaviour matrix:
   //   PAYMENTS_ENABLED unset / false → /api/payments/* returns 503 with a
   //                                    "payments are disabled" message,

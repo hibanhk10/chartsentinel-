@@ -320,3 +320,216 @@ async function callGemini(opts: LlmCallOptions): Promise<string | null> {
     clearTimeout(timer);
   }
 }
+
+// ─── Agentic tool-call loop ────────────────────────────────────────────────
+//
+// `callLlm` is one-shot — model gets a prompt, model returns text. The
+// agentic path below is multi-shot: we pass a tool catalog with the
+// message, the model can emit `tool_calls`, we execute them server-side
+// and feed results back, repeat until the model returns plain text
+// instead of another tool call.
+//
+// Hop limit prevents runaway loops — a misbehaving model could otherwise
+// chain dozens of tool calls and burn the user's quota.
+
+import { runTool, TOOL_SCHEMAS, type ToolContext } from './tools/catalog';
+
+const MAX_TOOL_HOPS = 4;
+
+interface ChatMessage {
+  role: 'system' | 'user' | 'assistant' | 'tool';
+  content: string | null;
+  tool_calls?: {
+    id: string;
+    type: 'function';
+    function: { name: string; arguments: string };
+  }[];
+  tool_call_id?: string;
+  name?: string;
+}
+
+export interface AgenticOptions {
+  systemPrompt: string;
+  userMessage: string;
+  toolContext: ToolContext;
+  maxTokens?: number;
+}
+
+// Sends one chat round-trip to OpenRouter with tool schemas attached.
+// Returns the full assistant message so the caller can read either
+// `content` (plain text) or `tool_calls` (function dispatch needed).
+async function tryOpenRouterWithTools(
+  model: string,
+  messages: ChatMessage[],
+  maxTokens: number,
+): Promise<
+  | { ok: ChatMessage }
+  | { code: number; body: string }
+  | { err: string }
+> {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 20_000);
+  try {
+    const res = await fetch(OPENROUTER_URL, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${env.OPENROUTER_API_KEY}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': env.APP_URL || 'https://www.chartsentinel.com',
+        'X-Title': 'ChartSentinel',
+      },
+      body: JSON.stringify({
+        model,
+        messages,
+        tools: TOOL_SCHEMAS,
+        tool_choice: 'auto',
+        max_tokens: maxTokens,
+        temperature: 0.3,
+      }),
+      signal: ctrl.signal,
+    });
+    if (!res.ok) {
+      const body = await res.text().catch(() => '<no body>');
+      return { code: res.status, body };
+    }
+    const body = (await res.json()) as {
+      choices?: { message?: ChatMessage }[];
+      error?: { message?: string; code?: number };
+    };
+    if (body?.error) {
+      return { code: 200, body: JSON.stringify(body.error) };
+    }
+    const msg = body?.choices?.[0]?.message;
+    if (!msg) return { code: 200, body: 'empty content' };
+    return { ok: msg };
+  } catch (err) {
+    return { err: (err as Error).message };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// Picks a tool-capable model from the fallback chain. Most small free
+// models don't reliably emit tool_calls; we prefer the larger ones
+// first. Same dead-slug / 401 / pin behaviour as the plain caller.
+const TOOL_CAPABLE_MODELS: ReadonlyArray<string> = [
+  'meta-llama/llama-3.3-70b-instruct:free',
+  'nousresearch/hermes-3-llama-3.1-405b:free',
+  'mistralai/mistral-nemo:free',
+  // Paid fallbacks — sub-cent, used only if AI_AGENTIC + free pool is dead.
+  'google/gemini-flash-1.5-8b',
+  'mistralai/mistral-nemo',
+];
+
+async function callOpenRouterAgentic(opts: AgenticOptions): Promise<string | null> {
+  const envPinned = env.OPENROUTER_MODEL || null;
+  const candidates: string[] = [];
+  const seen = new Set<string>();
+  const push = (m: string | null) => {
+    if (!m || seen.has(m) || deadModels.has(m)) return;
+    candidates.push(m);
+    seen.add(m);
+  };
+  if (envPinned) push(envPinned);
+  else {
+    push(workingModel);
+    for (const m of TOOL_CAPABLE_MODELS) push(m);
+  }
+
+  const messages: ChatMessage[] = [
+    { role: 'system', content: opts.systemPrompt },
+    { role: 'user', content: opts.userMessage },
+  ];
+
+  for (const model of candidates) {
+    let finalText: string | null = null;
+    let bailed = false;
+    // Per-model inner loop: keep hopping tool calls until the model
+    // either returns plain content or we hit the hop limit. A model
+    // that fails at any step inside this loop drops to the next
+    // candidate.
+    for (let hop = 0; hop < MAX_TOOL_HOPS && !bailed; hop++) {
+      const result = await tryOpenRouterWithTools(model, messages, opts.maxTokens ?? 700);
+      if ('ok' in result) {
+        const msg = result.ok;
+        // The model wants to call one or more tools. Append the
+        // assistant turn (with its tool_calls), execute each tool,
+        // and append the tool responses for the next round.
+        if (msg.tool_calls && msg.tool_calls.length > 0) {
+          messages.push({
+            role: 'assistant',
+            content: msg.content ?? null,
+            tool_calls: msg.tool_calls,
+          });
+          for (const tc of msg.tool_calls) {
+            const out = await runTool(
+              tc.function.name,
+              tc.function.arguments,
+              opts.toolContext,
+            );
+            messages.push({
+              role: 'tool',
+              tool_call_id: tc.id,
+              name: tc.function.name,
+              content: JSON.stringify(out).slice(0, 6000),
+            });
+          }
+          continue;
+        }
+        // No tool call — model produced its final answer.
+        const text = msg.content?.trim();
+        if (text) {
+          if (workingModel !== model) {
+            console.log(`[ai] openrouter agentic using model=${model}`);
+            workingModel = model;
+          }
+          finalText = text;
+          break;
+        }
+        // Empty content + no tool calls = useless reply; drop the model.
+        console.warn(`[ai] openrouter agentic empty reply model=${model}`);
+        bailed = true;
+      } else if ('code' in result) {
+        console.warn(
+          `[ai] openrouter agentic ${result.code} model=${model}: ${result.body.slice(0, 240)}`,
+        );
+        if (result.code === 401 || result.code === 403) return null;
+        if (result.code === 404) deadModels.add(model);
+        if (envPinned && model === envPinned) return null;
+        if (workingModel === model) workingModel = null;
+        bailed = true;
+      } else {
+        console.warn(`[ai] openrouter agentic call failed model=${model}: ${result.err}`);
+        bailed = true;
+      }
+    }
+    if (finalText) return finalText;
+  }
+  return null;
+}
+
+// Public entry point for the agentic chat. Returns null on hard
+// failure; the caller renders an honest fallback. Quota debit still
+// belongs to the caller — same charge-on-success contract as
+// callLlm, so a 0-tool-call no-answer doesn't burn the user's budget.
+export async function callLlmWithTools(opts: AgenticOptions): Promise<string | null> {
+  if (env.OPENROUTER_API_KEY) {
+    return callOpenRouterAgentic(opts);
+  }
+  // Gemini's REST API has its own tool-call format which we'd need to
+  // bridge separately. For now, agentic mode requires OpenRouter; if
+  // only Gemini is configured we fall back to a single-shot prompt
+  // so the chat still works (without live data).
+  if (env.GEMINI_API_KEY) {
+    console.warn(
+      '[ai] agentic mode requires OpenRouter; falling back to single-shot Gemini call',
+    );
+    return callLlm({
+      systemPrompt: opts.systemPrompt,
+      userMessage: opts.userMessage,
+      maxTokens: opts.maxTokens,
+    });
+  }
+  console.warn('[ai] no provider available for agentic call');
+  return null;
+}

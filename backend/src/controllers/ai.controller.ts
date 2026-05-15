@@ -3,12 +3,14 @@ import { z } from 'zod';
 import prisma from '../config/db';
 import {
     callLlm,
+    callLlmWithTools,
     assertUnderCap,
     recordUsage,
     readUsage,
     identityForUser,
     capForPlan,
 } from '../services/ai.service';
+import env from '../config/env';
 
 interface AuthedAiRequest extends Request {
     user?: { id: string; email: string; role: string };
@@ -80,6 +82,22 @@ const SYSTEM_PROMPT
     + 'investment advice. Analyze the user query and provide an insightful, '
     + 'data-backed response in 2-4 sentences. Always add a disclaimer that this '
     + 'is informational only.';
+
+// System prompt for the agentic loop. Tells the model exactly when to
+// use the live-data tools instead of guessing. Kept short — verbose
+// system prompts on free-tier models tend to bleed into the answer.
+const AGENTIC_SYSTEM_PROMPT
+    = 'You are ChartSentinel AI, a market analyst with access to live data tools.\n\n'
+    + 'RULES:\n'
+    + '1. When the user mentions a specific ticker, asset, or market, call a tool '
+    + 'before answering — never invent prices, scores, or insider activity.\n'
+    + '2. Prefer fewer tool calls; pick the most specific tool for the question.\n'
+    + '3. Compose a final answer in 2-4 sentences once you have the data. '
+    + 'Quote real numbers from the tool output.\n'
+    + '4. If a tool returns an error or empty data, say so plainly instead of '
+    + 'making something up.\n'
+    + '5. You never give buy / sell / hold advice; you describe what the data '
+    + 'shows. Add "informational only" to the end of your reply.';
 
 function pickRandom<T>(arr: T[]): T {
     return arr[Math.floor(Math.random() * arr.length)];
@@ -246,11 +264,23 @@ export const interrogate = async (req: AuthedAiRequest, res: Response) => {
             throw err;
         }
 
-        const reply = await callLlm({
-            systemPrompt: SYSTEM_PROMPT,
-            userMessage: message,
-            maxTokens: 220,
-        });
+        // Agentic mode (AI_AGENTIC=true) wires the chat to the live
+        // data catalog — the model can call getCompositeScore,
+        // getRecentInsiderTrades, getLatestNews, etc. before
+        // answering. Single-shot mode is the legacy path: faster,
+        // cheaper, but the model has no live data.
+        const reply = env.AI_AGENTIC
+            ? await callLlmWithTools({
+                  systemPrompt: AGENTIC_SYSTEM_PROMPT,
+                  userMessage: message,
+                  toolContext: { userId: req.user?.id ?? null },
+                  maxTokens: 700,
+              })
+            : await callLlm({
+                  systemPrompt: SYSTEM_PROMPT,
+                  userMessage: message,
+                  maxTokens: 220,
+              });
         if (reply) {
             const usage = await recordUsage(identity, plan);
             res.json({ text: reply, usage });
