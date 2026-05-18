@@ -6,6 +6,7 @@ import { scoreTint, signalForScore, SIGNAL_LABEL } from '../lib/score-format';
 import Sparkline from '../components/ui/Sparkline';
 import SEO from '../components/ui/SEO';
 import TickerChart from '../components/ui/TickerChart';
+import RiskMetricsPanel from '../components/ui/RiskMetricsPanel';
 import { insiderService } from '../services/insiderService';
 
 // Public ticker page at /t/:ticker. Shows the live composite score,
@@ -137,6 +138,10 @@ const PublicTickerPage = () => {
                     <>
                         <section className="mb-6">
                             <TickerChart ticker={ticker} height={300} />
+                        </section>
+
+                        <section className="mb-6">
+                            <RiskMetricsPanel ticker={ticker} years={3} />
                         </section>
 
                         <section className="premium-card rounded-2xl p-8 mb-6">

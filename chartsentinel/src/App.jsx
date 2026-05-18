@@ -32,6 +32,7 @@ const NO_CANVAS_ROUTES = new Set([
   '/whats-new',
   '/caught',
   '/compare',
+  '/tools/position-size',
 ])
 
 function RouteAwareCanvas() {
@@ -73,6 +74,7 @@ import ComparePage from './pages/ComparePage'
 import EmbedBadgePage from './pages/EmbedBadgePage'
 import EmbedGlobePage from './pages/EmbedGlobePage'
 import ScreenerPage from './pages/ScreenerPage'
+import PositionSizingPage from './pages/PositionSizingPage'
 import StatusPage from './pages/StatusPage'
 import SalesFunnelPage from './pages/SalesFunnelPage'
 import WaitlistPage from './pages/WaitlistPage'
@@ -156,6 +158,7 @@ export default function App() {
             <Route path="/whats-new" element={<ChangelogPage />} />
             <Route path="/caught" element={<CaughtPage />} />
             <Route path="/screener" element={<ScreenerPage />} />
+            <Route path="/tools/position-size" element={<PositionSizingPage />} />
             <Route path="/compare" element={<ComparePage />} />
             {/* Globe embed must precede the :ticker pattern so the
                 literal path wins over the dynamic one. */}
