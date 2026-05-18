@@ -6,7 +6,7 @@ import { newsService } from '../../services/newsService';
 function sentimentChipClasses(label) {
   if (label === 'bullish') return 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30';
   if (label === 'bearish') return 'bg-red-500/15 text-red-300 border border-red-500/30';
-  if (label === 'neutral') return 'bg-white/5 text-slate-300 border border-white/10';
+  if (label === 'neutral') return 'bg-white/5 text-text-secondary border border-white/10';
   return null;
 }
 
@@ -44,7 +44,7 @@ const News = () => {
     return (
       <section className="py-24 bg-background-dark relative">
         <div className="max-w-7xl mx-auto px-6">
-          <div className="text-center text-white">Loading news...</div>
+          <div className="text-center text-text-primary">Loading news...</div>
         </div>
       </section>
     );
@@ -63,7 +63,7 @@ const News = () => {
   return (
     <section id="news" className="py-16 md:py-24 bg-background-dark relative">
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
-        <h2 className="text-4xl sm:text-5xl font-display font-bold text-center mb-4 tracking-tight text-white">
+        <h2 className="text-4xl sm:text-5xl font-display font-bold text-center mb-4 tracking-tight text-text-primary">
           Latest News & Updates
         </h2>
 
@@ -103,7 +103,7 @@ const News = () => {
         {!aggregate && <div className="mb-12 md:mb-16" />}
 
         {news.length === 0 ? (
-          <div className="text-center text-white">
+          <div className="text-center text-text-primary">
             <p className="text-xl">No news available at the moment.</p>
             <p className="text-secondary mt-2">Check back later for the latest updates.</p>
           </div>
@@ -134,11 +134,11 @@ const News = () => {
                   </span>
                 </div>
 
-                <h3 className="text-xl font-bold text-white mb-3 line-clamp-2">
+                <h3 className="text-xl font-bold text-text-primary mb-3 line-clamp-2">
                   {article.title}
                 </h3>
 
-                <p className="text-slate-300 mb-4 line-clamp-3">
+                <p className="text-text-secondary mb-4 line-clamp-3">
                   {article.summary || article.excerpt}
                 </p>
 

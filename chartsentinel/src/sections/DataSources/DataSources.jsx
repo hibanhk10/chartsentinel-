@@ -26,7 +26,7 @@ export default function DataSources() {
                             <span className="material-icons text-text-muted text-2xl mb-2 group-hover:text-primary transition-colors">
                                 {s.icon}
                             </span>
-                            <span className="text-sm font-bold text-white whitespace-nowrap">
+                            <span className="text-sm font-bold text-text-primary whitespace-nowrap">
                                 {s.name}
                             </span>
                             <span className="text-[10px] uppercase tracking-widest text-text-muted mt-1">

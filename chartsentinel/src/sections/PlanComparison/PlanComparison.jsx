@@ -28,9 +28,9 @@ function Cell({ value }) {
         return <span className="material-icons text-primary text-xl">check</span>
     }
     if (value === false) {
-        return <span className="material-icons text-white/15 text-xl">remove</span>
+        return <span className="material-icons text-text-primary/15 text-xl">remove</span>
     }
-    return <span className="text-sm text-white">{value}</span>
+    return <span className="text-sm text-text-primary">{value}</span>
 }
 
 export default function PlanComparison() {
@@ -41,7 +41,7 @@ export default function PlanComparison() {
                     <span className="font-display text-primary text-sm font-bold tracking-widest uppercase glow-magenta">
                         Compare plans
                     </span>
-                    <h2 className="text-3xl sm:text-4xl font-display font-bold tracking-tight text-white mt-3">
+                    <h2 className="text-3xl sm:text-4xl font-display font-bold tracking-tight text-text-primary mt-3">
                         What you actually get
                     </h2>
                 </div>
@@ -55,15 +55,15 @@ export default function PlanComparison() {
                                 </th>
                                 <th className="py-5 px-4 text-center">
                                     <div className="text-text-muted text-xs uppercase tracking-widest">Free</div>
-                                    <div className="text-white text-2xl font-bold mt-1">$0</div>
+                                    <div className="text-text-primary text-2xl font-bold mt-1">$0</div>
                                 </th>
                                 <th className="py-5 px-4 text-center bg-primary/5 border-x border-primary/20">
                                     <div className="text-primary text-xs uppercase tracking-widest font-bold">Pro</div>
-                                    <div className="text-white text-2xl font-bold mt-1">$59</div>
+                                    <div className="text-text-primary text-2xl font-bold mt-1">$59</div>
                                 </th>
                                 <th className="py-5 px-4 text-center">
                                     <div className="text-text-muted text-xs uppercase tracking-widest">Ultimate</div>
-                                    <div className="text-white text-2xl font-bold mt-1">$109</div>
+                                    <div className="text-text-primary text-2xl font-bold mt-1">$109</div>
                                 </th>
                             </tr>
                         </thead>
@@ -87,7 +87,7 @@ export default function PlanComparison() {
                                 <td className="py-5 px-4 text-center">
                                     <Link
                                         to="/funnel"
-                                        className="inline-block px-5 py-2 rounded-full bg-white/10 border border-white/10 text-white text-xs font-bold hover:bg-white/20 transition-colors"
+                                        className="inline-block px-5 py-2 rounded-full bg-white/10 border border-white/10 text-text-primary text-xs font-bold hover:bg-white/20 transition-colors"
                                     >
                                         Start free
                                     </Link>
@@ -103,7 +103,7 @@ export default function PlanComparison() {
                                 <td className="py-5 px-4 text-center">
                                     <Link
                                         to="/funnel"
-                                        className="inline-block px-5 py-2 rounded-full bg-white/10 border border-white/10 text-white text-xs font-bold hover:bg-white/20 transition-colors"
+                                        className="inline-block px-5 py-2 rounded-full bg-white/10 border border-white/10 text-text-primary text-xs font-bold hover:bg-white/20 transition-colors"
                                     >
                                         Choose Ultimate
                                     </Link>

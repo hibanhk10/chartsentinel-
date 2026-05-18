@@ -82,7 +82,7 @@ export default function WhyUs() {
                                 <h3 className="text-sm font-bold text-green-400 uppercase">Portfolio Growth</h3>
                                 <span className="material-icons text-green-400 text-xl">trending_up</span>
                             </div>
-                            <div className="text-5xl font-bold text-white mb-2 font-mono">+156%</div>
+                            <div className="text-5xl font-bold text-text-primary mb-2 font-mono">+156%</div>
                             <p className="text-sm text-secondary mb-4">Average annual return</p>
                             <TrendChart height={80} color="#22c55e" />
                         </div>
@@ -90,24 +90,24 @@ export default function WhyUs() {
                         {/* Win Rate Card */}
                         <div className="bg-black/60 backdrop-blur-md border border-white/10 rounded-2xl p-6">
                             <div className="flex items-center justify-between mb-4">
-                                <h3 className="text-sm font-bold text-white uppercase">Success Metrics</h3>
+                                <h3 className="text-sm font-bold text-text-primary uppercase">Success Metrics</h3>
                                 <span className="material-icons text-primary text-xl">verified</span>
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <div className="text-3xl font-bold text-white font-mono mb-1">73%</div>
+                                    <div className="text-3xl font-bold text-text-primary font-mono mb-1">73%</div>
                                     <div className="text-xs text-secondary">Win Rate</div>
                                 </div>
                                 <div>
-                                    <div className="text-3xl font-bold text-white font-mono mb-1">4.2</div>
+                                    <div className="text-3xl font-bold text-text-primary font-mono mb-1">4.2</div>
                                     <div className="text-xs text-secondary">Risk/Reward</div>
                                 </div>
                                 <div>
-                                    <div className="text-3xl font-bold text-white font-mono mb-1">850+</div>
+                                    <div className="text-3xl font-bold text-text-primary font-mono mb-1">850+</div>
                                     <div className="text-xs text-secondary">Signals</div>
                                 </div>
                                 <div>
-                                    <div className="text-3xl font-bold text-white font-mono mb-1">24/7</div>
+                                    <div className="text-3xl font-bold text-text-primary font-mono mb-1">24/7</div>
                                     <div className="text-xs text-secondary">Coverage</div>
                                 </div>
                             </div>
@@ -126,7 +126,7 @@ export default function WhyUs() {
                     <div className="absolute inset-0 bg-gradient-to-r from-primary/20 via-cyan-500/20 to-primary/20 rounded-3xl blur-xl opacity-50 group-hover:opacity-100 transition-opacity" />
 
                     <div className="relative bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 border border-white/10 rounded-3xl p-6 sm:p-8 md:p-12 text-center">
-                        <h3 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-4">Ready to Trade Like a Pro?</h3>
+                        <h3 className="text-2xl sm:text-3xl md:text-4xl font-bold text-text-primary mb-4">Ready to Trade Like a Pro?</h3>
                         <p className="text-secondary mb-8 max-w-2xl mx-auto">
                             Join 1,000+ traders who trust ChartSentinel for institutional-grade market analysis and real-time signals.
                         </p>
@@ -139,7 +139,7 @@ export default function WhyUs() {
                             </button>
                             <button
                                 onClick={scrollToPricing}
-                                className="px-10 py-4 bg-white/5 border border-white/10 text-white font-bold rounded-full hover:bg-white/10 transition-colors text-lg"
+                                className="px-10 py-4 bg-white/5 border border-white/10 text-text-primary font-bold rounded-full hover:bg-white/10 transition-colors text-lg"
                             >
                                 View Pricing
                             </button>
@@ -148,17 +148,17 @@ export default function WhyUs() {
                         {/* Trust Badges */}
                         <div className="flex items-center justify-center gap-8 mt-12 pt-8 border-t border-white/10">
                             <div className="text-center">
-                                <div className="text-2xl font-bold text-white mb-1">1,000+</div>
+                                <div className="text-2xl font-bold text-text-primary mb-1">1,000+</div>
                                 <div className="text-xs text-secondary">Active Traders</div>
                             </div>
                             <div className="w-px h-12 bg-white/10" />
                             <div className="text-center">
-                                <div className="text-2xl font-bold text-white mb-1">98%</div>
+                                <div className="text-2xl font-bold text-text-primary mb-1">98%</div>
                                 <div className="text-xs text-secondary">Satisfaction</div>
                             </div>
                             <div className="w-px h-12 bg-white/10" />
                             <div className="text-center">
-                                <div className="text-2xl font-bold text-white mb-1">24/7</div>
+                                <div className="text-2xl font-bold text-text-primary mb-1">24/7</div>
                                 <div className="text-xs text-secondary">Support</div>
                             </div>
                         </div>

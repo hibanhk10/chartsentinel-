@@ -14,18 +14,22 @@ export default {
             // on <html>. Adding a new colour means: declare a CSS
             // variable for both themes in index.css, then map it
             // here as `var(--name)`.
+            // Each token is `rgb(var(--xxx) / <alpha-value>)` so
+            // Tailwind's alpha modifier works — `bg-background-dark/80`
+            // becomes `rgb(... / 0.8)`. Variables are RGB triples set
+            // in index.css per theme.
             colors: {
-                primary: "var(--color-primary)",
-                "primary-light": "var(--color-primary-light)",
-                "primary-dark": "var(--color-primary-dark)",
-                accent: "var(--color-accent)",
-                "background-light": "var(--color-background-light)",
-                "background-dark": "var(--color-background-dark)",
-                "surface-dark": "var(--color-surface-dark)",
-                background: "var(--color-background)",
-                "text-primary": "var(--color-text-primary)",
-                "text-secondary": "var(--color-text-secondary)",
-                "text-muted": "var(--color-text-muted)",
+                primary: "rgb(var(--color-primary) / <alpha-value>)",
+                "primary-light": "rgb(var(--color-primary-light) / <alpha-value>)",
+                "primary-dark": "rgb(var(--color-primary-dark) / <alpha-value>)",
+                accent: "rgb(var(--color-accent) / <alpha-value>)",
+                "background-light": "rgb(var(--color-background-light) / <alpha-value>)",
+                "background-dark": "rgb(var(--color-background-dark) / <alpha-value>)",
+                "surface-dark": "rgb(var(--color-surface-dark) / <alpha-value>)",
+                background: "rgb(var(--color-background) / <alpha-value>)",
+                "text-primary": "rgb(var(--color-text-primary) / <alpha-value>)",
+                "text-secondary": "rgb(var(--color-text-secondary) / <alpha-value>)",
+                "text-muted": "rgb(var(--color-text-muted) / <alpha-value>)",
             },
             fontFamily: {
                 display: ["Outfit", "sans-serif"],

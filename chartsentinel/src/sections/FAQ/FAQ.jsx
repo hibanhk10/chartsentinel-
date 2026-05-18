@@ -49,7 +49,7 @@ function FaqRow({ item, open, onToggle }) {
                 aria-expanded={open}
                 className="w-full flex items-center justify-between gap-6 py-5 text-left group"
             >
-                <span className="text-base md:text-lg font-medium text-white group-hover:text-primary transition-colors">
+                <span className="text-base md:text-lg font-medium text-text-primary group-hover:text-primary transition-colors">
                     {item.q}
                 </span>
                 <span
@@ -89,7 +89,7 @@ export default function FAQ() {
                     <span className="font-display text-primary text-sm font-bold tracking-widest uppercase glow-magenta">
                         Common questions
                     </span>
-                    <h2 className="text-4xl sm:text-5xl font-display font-bold tracking-tight text-white mt-4">
+                    <h2 className="text-4xl sm:text-5xl font-display font-bold tracking-tight text-text-primary mt-4">
                         FAQ
                     </h2>
                 </div>

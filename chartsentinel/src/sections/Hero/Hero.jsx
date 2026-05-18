@@ -39,10 +39,10 @@ export default function Hero() {
                 <div
                     className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/5 border border-white/10 mb-8 backdrop-blur-sm shadow-[0_0_15px_rgba(217,70,239,0.3)]">
                     <span className="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
-                    <span className="text-xs font-semibold uppercase tracking-widest text-slate-300">System Online</span>
+                    <span className="text-xs font-semibold uppercase tracking-widest text-text-secondary">System Online</span>
                 </div>
 
-                <h1 ref={titleRef} className="text-4xl sm:text-5xl md:text-7xl lg:text-8xl font-display font-bold mb-6 sm:mb-8 leading-[1.1] tracking-tighter text-white drop-shadow-2xl">
+                <h1 ref={titleRef} className="text-4xl sm:text-5xl md:text-7xl lg:text-8xl font-display font-bold mb-6 sm:mb-8 leading-[1.1] tracking-tighter text-text-primary drop-shadow-2xl">
                     TRADING WITH<br />
                     <span className="text-transparent bg-clip-text bg-gradient-to-r from-white via-primary to-fuchsia-400">INFO YOU NEED</span>
                 </h1>
@@ -66,7 +66,7 @@ export default function Hero() {
                     </button>
                     <button
                         onClick={() => navigate('/waitlist')}
-                        className="w-full sm:w-auto px-10 py-4 bg-white/5 hover:bg-white/10 text-white font-semibold rounded-full border border-white/10 transition-all backdrop-blur-sm flex items-center gap-2"
+                        className="w-full sm:w-auto px-10 py-4 bg-white/5 hover:bg-white/10 text-text-primary font-semibold rounded-full border border-white/10 transition-all backdrop-blur-sm flex items-center gap-2"
                     >
                         <span className="w-2 h-2 rounded-full bg-primary animate-pulse"></span> Join Waitlist
                     </button>

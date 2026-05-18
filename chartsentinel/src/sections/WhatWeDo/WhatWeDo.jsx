@@ -16,13 +16,13 @@ export default function WhatWeDo() {
                                 We empower traders with professional tools, comprehensive reports, and expert guidance to
                                 navigate complex financial markets with confidence.
                             </p>
-                            <h2 className="text-4xl sm:text-5xl md:text-7xl lg:text-8xl font-display font-bold leading-none tracking-tighter uppercase text-white">
+                            <h2 className="text-4xl sm:text-5xl md:text-7xl lg:text-8xl font-display font-bold leading-none tracking-tighter uppercase text-text-primary">
                                 What We<br />Do
                             </h2>
                         </div>
                         <div className="flex flex-wrap gap-3 py-6 border-y border-slate-200 dark:border-white/10">
                             {['Forex', 'Stock', 'Crypto', 'Gold'].map(tag => (
-                                <span key={tag} className="px-6 py-2 rounded-full bg-white/5 border border-white/10 text-sm font-medium text-slate-300">{tag}</span>
+                                <span key={tag} className="px-6 py-2 rounded-full bg-white/5 border border-white/10 text-sm font-medium text-text-secondary">{tag}</span>
                             ))}
                         </div>
                         <div className="grid grid-cols-2 md:grid-cols-3 gap-y-10 gap-x-6">
@@ -32,7 +32,7 @@ export default function WhatWeDo() {
                                 </div>
                             ))}
                         </div>
-                        <a className="inline-flex items-center gap-3 text-lg font-medium hover:text-primary transition-colors group text-white" href="#reviews">
+                        <a className="inline-flex items-center gap-3 text-lg font-medium hover:text-primary transition-colors group text-text-primary" href="#reviews">
                             Reviews
                             <span className="material-icons group-hover:translate-y-1 transition-transform">arrow_downward</span>
                         </a>

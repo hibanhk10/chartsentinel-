@@ -25,7 +25,7 @@ const Reports = () => {
     return (
       <section className="py-24 bg-background-dark relative">
         <div className="max-w-7xl mx-auto px-6">
-          <div className="text-center text-white">Loading reports...</div>
+          <div className="text-center text-text-primary">Loading reports...</div>
         </div>
       </section>
     );
@@ -44,7 +44,7 @@ const Reports = () => {
   return (
     <section id="reports" className="py-16 md:py-24 bg-background-dark relative">
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
-        <h2 className="text-4xl sm:text-5xl font-display font-bold text-center mb-4 tracking-tight text-white">
+        <h2 className="text-4xl sm:text-5xl font-display font-bold text-center mb-4 tracking-tight text-text-primary">
           Latest Analysis
         </h2>
         <p className="text-center text-text-secondary max-w-xl mx-auto mb-12 md:mb-16">
@@ -52,7 +52,7 @@ const Reports = () => {
         </p>
 
         {reports.length === 0 ? (
-          <div className="text-center text-white">
+          <div className="text-center text-text-primary">
             <p className="text-xl">No analysis available right now.</p>
             <p className="text-secondary mt-2">Sources are quiet — check back shortly.</p>
           </div>
@@ -69,11 +69,11 @@ const Reports = () => {
                   </span>
                 </div>
 
-                <h3 className="text-xl font-bold text-white mb-3 line-clamp-2">
+                <h3 className="text-xl font-bold text-text-primary mb-3 line-clamp-2">
                   {report.title}
                 </h3>
 
-                <p className="text-slate-300 mb-4 line-clamp-3 flex-grow">
+                <p className="text-text-secondary mb-4 line-clamp-3 flex-grow">
                   {report.summary}
                 </p>
 

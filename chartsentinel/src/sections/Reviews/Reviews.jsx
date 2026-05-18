@@ -23,7 +23,7 @@ export default function Reviews() {
                     <span className="font-display text-primary text-sm font-bold tracking-widest uppercase glow-magenta">
                         Trader feedback
                     </span>
-                    <h2 className="text-4xl sm:text-5xl font-display font-bold tracking-tight text-white mt-4">
+                    <h2 className="text-4xl sm:text-5xl font-display font-bold tracking-tight text-text-primary mt-4">
                         What members say
                     </h2>
                     <p className="text-text-secondary max-w-xl mx-auto mt-4">

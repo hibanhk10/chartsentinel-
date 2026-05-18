@@ -14,33 +14,37 @@
    palette; [data-theme="light"] overrides only the variables that
    differ. The brand magenta stays constant across themes so accent
    surfaces look intentional in both. */
+/* Values are space-separated RGB triples (not hex) so Tailwind's
+   `/alpha` modifier works — `bg-background-dark/80` resolves to
+   rgb(var(...) / 0.8). Hex values silently broke alpha-modified
+   utilities, which is why the navbar fell through transparent in
+   the last build. */
 :root {
-  --color-primary: #d946ef;
-  --color-primary-light: #f0abfc;
-  --color-primary-dark: #c026d3;
-  --color-accent: #a855f7;
-  --color-background-light: #ffffff;
-  --color-background-dark: #0a0a0a;
-  --color-surface-dark: #1a1a1a;
-  --color-background: #0a0a0a;
-  --color-text-primary: #f1f5f9;
-  --color-text-secondary: #cbd5e1;
-  --color-text-muted: #94a3b8;
+  --color-primary: 217 70 239;
+  --color-primary-light: 240 171 252;
+  --color-primary-dark: 192 38 211;
+  --color-accent: 168 85 247;
+  --color-background-light: 255 255 255;
+  --color-background-dark: 10 10 10;
+  --color-surface-dark: 26 26 26;
+  --color-background: 10 10 10;
+  --color-text-primary: 241 245 249;
+  --color-text-secondary: 203 213 225;
+  --color-text-muted: 148 163 184;
   color-scheme: dark;
 }
 
 [data-theme='light'] {
-  /* Soft off-white surfaces — easier on the eye than pure white
-     and keeps the premium feel. text-primary stays high-contrast
-     so score badges, risk numbers, and chart labels remain
-     readable. Surface stays equal-or-lighter than background so
-     elevated cards don't invert their hierarchy. */
-  --color-background-dark: #f8fafc;
-  --color-surface-dark: #ffffff;
-  --color-background: #f8fafc;
-  --color-text-primary: #0f172a;
-  --color-text-secondary: #334155;
-  --color-text-muted: #64748b;
+  /* Soft off-whites — easier on the eye than pure white. Surface
+     stays at-or-above background brightness so elevated cards
+     don't invert hierarchy. text-primary keeps high contrast so
+     score badges, risk numbers, and chart labels stay readable. */
+  --color-background-dark: 248 250 252;
+  --color-surface-dark: 255 255 255;
+  --color-background: 248 250 252;
+  --color-text-primary: 15 23 42;
+  --color-text-secondary: 51 65 85;
+  --color-text-muted: 100 116 139;
   color-scheme: light;
 }
 

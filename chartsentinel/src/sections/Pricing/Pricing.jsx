@@ -75,7 +75,7 @@ export default function Pricing() {
     return (
         <section id="pricing" className="py-16 md:py-24 bg-background-dark relative">
             <div className="max-w-7xl mx-auto px-4 sm:px-6">
-                <h2 className="text-4xl sm:text-5xl font-display font-bold text-center mb-4 tracking-tight text-white">
+                <h2 className="text-4xl sm:text-5xl font-display font-bold text-center mb-4 tracking-tight text-text-primary">
                     Pricing
                 </h2>
                 <p className="text-center text-text-secondary max-w-xl mx-auto mb-12 md:mb-16">
@@ -91,7 +91,7 @@ export default function Pricing() {
                                 className={`relative rounded-3xl p-7 sm:p-8 flex flex-col h-full transition-all duration-300 ${
                                     isAccent
                                         ? 'bg-white/5 border-2 border-primary shadow-2xl shadow-primary/20 md:scale-105 z-10 hover:scale-[1.07]'
-                                        : 'bg-slate-900 border border-white/10 shadow-2xl hover:-translate-y-2'
+                                        : 'bg-surface-dark border border-white/10 shadow-2xl hover:-translate-y-2'
                                 }`}
                             >
                                 {p.badge && (
@@ -100,11 +100,11 @@ export default function Pricing() {
                                     </div>
                                 )}
                                 <div className="mb-6">
-                                    <span className={`text-sm font-medium ${isAccent ? 'text-white opacity-80' : 'text-secondary'}`}>
+                                    <span className={`text-sm font-medium ${isAccent ? 'text-text-primary opacity-80' : 'text-text-secondary'}`}>
                                         {p.name}
                                     </span>
                                     <div className="flex items-baseline gap-1 mt-2">
-                                        <span className="text-5xl font-bold text-white">{p.price}</span>
+                                        <span className="text-5xl font-bold text-text-primary">{p.price}</span>
                                         <span className="text-sm text-text-muted">{p.cadence}</span>
                                     </div>
                                     <p className="text-text-secondary text-xs mt-3">{p.tagline}</p>
@@ -112,7 +112,7 @@ export default function Pricing() {
 
                                 <ul className="space-y-3 mb-8 flex-grow">
                                     {p.features.map((f) => (
-                                        <li key={f} className="flex items-start gap-3 text-sm text-white">
+                                        <li key={f} className="flex items-start gap-3 text-sm text-text-primary">
                                             <span className="material-icons text-sm text-green-500 mt-0.5">check</span>
                                             <span>{f}</span>
                                         </li>
@@ -124,7 +124,7 @@ export default function Pricing() {
                                     className={`w-full py-4 rounded-2xl font-bold transition-colors ${
                                         isAccent
                                             ? 'bg-white text-black hover:bg-gray-100'
-                                            : 'bg-white/5 border border-white/10 text-white hover:bg-white/10'
+                                            : 'bg-white/5 border border-white/10 text-text-primary hover:bg-white/10'
                                     }`}
                                 >
                                     {isAuthenticated ? p.currentCta : p.signupCta}

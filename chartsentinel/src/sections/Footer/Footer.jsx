@@ -9,9 +9,9 @@ export default function Footer() {
             <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row md:flex-wrap justify-between items-center gap-y-6 gap-x-8 relative z-10">
                 <div className="flex items-center gap-2">
                     <div className="w-6 h-6 bg-primary rounded flex items-center justify-center">
-                        <span className="material-icons text-white text-[10px]">query_stats</span>
+                        <span className="material-icons text-text-primary text-[10px]">query_stats</span>
                     </div>
-                    <span className="text-lg font-bold font-display tracking-tight text-white">Chartsentinel</span>
+                    <span className="text-lg font-bold font-display tracking-tight text-text-primary">Chartsentinel</span>
                 </div>
                 <p className="text-secondary text-sm">© {new Date().getFullYear()} Chartsentinel. All rights reserved.</p>
                 <div className="flex flex-wrap justify-center gap-x-6 gap-y-2">

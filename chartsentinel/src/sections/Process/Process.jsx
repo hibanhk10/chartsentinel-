@@ -18,7 +18,7 @@ export default function Process() {
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 md:gap-20">
                     {/* Visual Content Left — fluid height on mobile so the 3D
                         viewport doesn't dominate a phone screen, fixed on lg. */}
-                    <div className="relative rounded-3xl overflow-hidden aspect-[4/5] h-[360px] md:h-[500px] lg:h-[600px] w-full bg-slate-900 border border-slate-800 shadow-2xl">
+                    <div className="relative rounded-3xl overflow-hidden aspect-[4/5] h-[360px] md:h-[500px] lg:h-[600px] w-full bg-surface-dark border border-slate-800 shadow-2xl">
                         <TradingVisualization />
                     </div>
 
@@ -26,10 +26,10 @@ export default function Process() {
                     <div className="flex flex-col justify-center space-y-12">
                         <div className="space-y-6">
                             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10">
-                                <span className="material-icons text-xs text-white">auto_awesome</span>
-                                <span className="text-[10px] uppercase font-bold tracking-widest text-white">Design Process</span>
+                                <span className="material-icons text-xs text-text-primary">auto_awesome</span>
+                                <span className="text-[10px] uppercase font-bold tracking-widest text-text-primary">Design Process</span>
                             </div>
-                            <h2 className="text-4xl sm:text-5xl md:text-6xl font-display font-bold tracking-tight text-white">Process</h2>
+                            <h2 className="text-4xl sm:text-5xl md:text-6xl font-display font-bold tracking-tight text-text-primary">Process</h2>
                             <p className="text-secondary dark:text-secondary max-w-md leading-relaxed">
                                 Our process is straight to the forward. Our analysts collect the info and make them into
                                 easy to read and understand report.
@@ -37,13 +37,13 @@ export default function Process() {
                             <div className="flex flex-wrap gap-4">
                                 <button
                                     onClick={() => navigate('/contact')}
-                                    className="px-6 py-3 bg-white/5 border border-white/10 rounded-full text-sm font-semibold hover:bg-white/10 transition-all glow-button text-white"
+                                    className="px-6 py-3 bg-white/5 border border-white/10 rounded-full text-sm font-semibold hover:bg-white/10 transition-all glow-button text-text-primary"
                                 >
                                     Book a Free Call
                                 </button>
                                 <button
                                     onClick={scrollToPricing}
-                                    className="px-6 py-3 bg-white/5 border border-white/10 rounded-full text-sm font-semibold hover:bg-white/10 transition-all text-white"
+                                    className="px-6 py-3 bg-white/5 border border-white/10 rounded-full text-sm font-semibold hover:bg-white/10 transition-all text-text-primary"
                                 >
                                     View Plans
                                 </button>
@@ -61,7 +61,7 @@ export default function Process() {
                                     <div className="flex items-start gap-4">
                                         <span className="material-icons text-primary">{step.icon}</span>
                                         <div>
-                                            <h4 className="text-xl font-bold mb-3 text-white">{step.title}</h4>
+                                            <h4 className="text-xl font-bold mb-3 text-text-primary">{step.title}</h4>
                                             <p className="text-sm text-secondary leading-relaxed">{step.desc}</p>
                                         </div>
                                     </div>
