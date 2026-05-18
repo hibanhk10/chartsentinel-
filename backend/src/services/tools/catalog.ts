@@ -6,6 +6,11 @@ import {
 } from '../insider.service';
 import { fetchCongressTrades } from '../congress.service';
 import { fetchLiveNews } from '../news-feed.service';
+import { computeRiskMetrics } from '../../lib/risk-metrics';
+import { calculatePositionSize } from '../../lib/position-sizing';
+import { projectPriceFan } from '../../lib/monte-carlo';
+import { buildCorrelationMatrix } from '../../lib/correlation';
+import { scoreArticles, aggregateSentiment } from '../news-sentiment.service';
 
 // Tool catalog for the agentic chat loop. Each entry holds three
 // things:
@@ -290,6 +295,285 @@ const TOOLS: ToolDef[] = [
       if (!seasonality) return { error: 'Insufficient data.' };
       const current = eng.getSeasonalSignal(seasonality);
       return { ...seasonality, currentSignal: current };
+    },
+  },
+  {
+    name: 'getRiskMetrics',
+    description:
+      'Risk-metric snapshot for one ticker over a multi-year window: 95% / 99% historical VaR, annualised return and volatility, Sharpe, Sortino, and max drawdown with the dates of the peak-and-trough. Use this when the user asks about risk, volatility, drawdown, or risk-adjusted return.',
+    parameters: {
+      type: 'object',
+      properties: {
+        ticker: { type: 'string', description: 'Ticker symbol.' },
+        years: {
+          type: 'integer',
+          description: 'Look-back window. Default 3, max 10.',
+        },
+      },
+      required: ['ticker'],
+    },
+    run: async (args) => {
+      const a = args as { ticker: string; years?: number };
+      const years = Math.min(Math.max(a.years ?? 3, 1), 10);
+      const eng = await engine();
+      const bars = await eng.fetchYahooHistory(a.ticker, years);
+      if (!bars || bars.length === 0) return { error: `No price history for ${a.ticker}.` };
+      const metrics = computeRiskMetrics(
+        bars.map((b: { date: string; close: number }) => ({ date: b.date, close: b.close })),
+      );
+      return { ticker: a.ticker, years, metrics };
+    },
+  },
+  {
+    name: 'calculatePositionSize',
+    description:
+      "Calculates how many shares to buy given account size, entry price, stop loss, and either a risk percent or a fixed dollar risk. Use this whenever the user asks 'how big should my position be' or 'how many shares can I buy' or describes a stop and an entry. Pure math; no live data is needed.",
+    parameters: {
+      type: 'object',
+      properties: {
+        accountSize: { type: 'number', description: 'Total trading account size in USD.' },
+        entry: { type: 'number', description: 'Planned entry price per share.' },
+        stop: { type: 'number', description: 'Planned stop-loss price per share.' },
+        riskPercent: {
+          type: 'number',
+          description: 'Percent of account willing to risk on this trade (e.g. 1 for 1%).',
+        },
+        riskDollars: {
+          type: 'number',
+          description: 'Alternative to riskPercent: a fixed dollar amount.',
+        },
+        side: {
+          type: 'string',
+          enum: ['long', 'short'],
+          description: 'Default long. Determines which side of entry the stop should be.',
+        },
+      },
+      required: ['accountSize', 'entry', 'stop'],
+    },
+    run: async (args) => {
+      const result = calculatePositionSize(
+        args as unknown as Parameters<typeof calculatePositionSize>[0],
+      );
+      return result;
+    },
+  },
+  {
+    name: 'getProbabilityProjection',
+    description:
+      'Monte Carlo probability cone for a single ticker. Returns percentile price bands (p05, p25, p50, p75, p95) projected forward from the latest close using historical drift and volatility. Use this when the user asks "where could X go in N days" or "what is the range".',
+    parameters: {
+      type: 'object',
+      properties: {
+        ticker: { type: 'string', description: 'Ticker symbol.' },
+        horizonDays: {
+          type: 'integer',
+          description: 'Projection horizon in trading days. Default 30, max 252.',
+        },
+      },
+      required: ['ticker'],
+    },
+    run: async (args) => {
+      const a = args as { ticker: string; horizonDays?: number };
+      const horizon = Math.min(Math.max(a.horizonDays ?? 30, 1), 252);
+      const eng = await engine();
+      const bars = await eng.fetchYahooHistory(a.ticker, 3);
+      if (!bars || bars.length === 0) return { error: `No price history for ${a.ticker}.` };
+      const result = projectPriceFan({
+        history: bars.map((b: { date: string; close: number }) => ({
+          date: b.date,
+          close: b.close,
+        })),
+        horizonDays: horizon,
+        paths: 1000,
+      });
+      if ('error' in result) return result;
+      // Trim payload: the chat doesn't need every daily band, just
+      // the headline horizon endpoints (median + extreme percentiles)
+      // and a few interior checkpoints. Keeps the response small
+      // enough to fit in the model's tool-output budget.
+      const horizons = [1, 5, 10, Math.floor(horizon / 2), horizon].filter(
+        (h, i, arr) => arr.indexOf(h) === i && h >= 1 && h <= horizon,
+      );
+      const checkpoints = horizons.map((h) => ({
+        day: h,
+        ...result.bands[h - 1].values,
+      }));
+      return {
+        ticker: a.ticker,
+        startPrice: result.startPrice,
+        startDate: result.startDate,
+        muAnnual: result.mu,
+        sigmaAnnual: result.sigma,
+        checkpoints,
+      };
+    },
+  },
+  {
+    name: 'getPortfolioRisk',
+    description:
+      "The asker's portfolio-level risk metrics: weighted-equity-curve VaR, Sharpe, Sortino, max drawdown. Use when the user references 'my portfolio risk' or 'how risky is my book'. Requires the user to be signed in and have a portfolio with holdings.",
+    parameters: {
+      type: 'object',
+      properties: {
+        portfolioId: {
+          type: 'string',
+          description:
+            "Optional portfolio id. If omitted, uses the user's first portfolio (their default).",
+        },
+      },
+      required: [],
+    },
+    run: async (args, ctx) => {
+      if (!ctx.userId) {
+        return { error: 'User is not signed in.' };
+      }
+      const a = args as { portfolioId?: string };
+      const portfolio = a.portfolioId
+        ? await prisma.portfolio.findFirst({
+            where: { id: a.portfolioId, userId: ctx.userId },
+            include: { items: true },
+          })
+        : await prisma.portfolio.findFirst({
+            where: { userId: ctx.userId },
+            orderBy: { createdAt: 'asc' },
+            include: { items: true },
+          });
+      if (!portfolio) return { error: 'No portfolio found for this user.' };
+      if (portfolio.items.length === 0) {
+        return { error: 'Portfolio has no holdings yet.' };
+      }
+      const eng = await engine();
+      const holdings = await Promise.all(
+        portfolio.items.map(async (it) => {
+          const bars = await eng.fetchYahooHistory(it.ticker, 3).catch(() => []);
+          return { ticker: it.ticker, weight: it.weight, bars };
+        }),
+      );
+      const total = holdings.reduce((s, h) => s + h.weight, 0);
+      if (total <= 0) return { error: 'Portfolio weights sum to zero.' };
+      const alive = holdings
+        .filter((h) => Array.isArray(h.bars) && h.bars.length > 0)
+        .map((h) => ({ ...h, w: h.weight / total }));
+      if (alive.length === 0) return { error: 'No price data for any holding.' };
+      // Re-normalise across survivors.
+      const aw = alive.reduce((s, h) => s + h.w, 0);
+      for (const h of alive) h.w /= aw;
+      const dates: Set<string>[] = alive.map(
+        (h) => new Set<string>(h.bars.map((b: { date: string }) => b.date)),
+      );
+      const common: string[] = [...dates[0]]
+        .filter((d: string) => dates.every((s) => s.has(d)))
+        .sort();
+      if (common.length < 30) return { error: 'Not enough overlapping history.' };
+      const closeMaps: Map<string, number>[] = alive.map(
+        (h) =>
+          new Map(
+            h.bars.map((b: { date: string; close: number }) => [b.date, b.close]),
+          ),
+      );
+      let eq = 1;
+      const curve: { date: string; close: number }[] = [{ date: common[0], close: eq }];
+      for (let i = 1; i < common.length; i++) {
+        let stepReturn = 0;
+        for (let j = 0; j < alive.length; j++) {
+          const today = closeMaps[j].get(common[i]) ?? 0;
+          const prev = closeMaps[j].get(common[i - 1]) ?? 0;
+          if (today > 0 && prev > 0) stepReturn += alive[j].w * (today / prev - 1);
+        }
+        eq *= 1 + stepReturn;
+        curve.push({ date: common[i], close: eq });
+      }
+      return {
+        portfolio: portfolio.name,
+        holdings: alive.map((h) => ({ ticker: h.ticker, weight: h.w })),
+        metrics: computeRiskMetrics(curve),
+      };
+    },
+  },
+  {
+    name: 'getPortfolioCorrelations',
+    description:
+      "Pairwise correlation matrix across the asker's portfolio holdings, computed from the last year of daily returns. Use when the user asks about diversification, concentration, or correlations between their positions. Sign-in required.",
+    parameters: {
+      type: 'object',
+      properties: {
+        portfolioId: { type: 'string' },
+      },
+      required: [],
+    },
+    run: async (args, ctx) => {
+      if (!ctx.userId) return { error: 'User is not signed in.' };
+      const a = args as { portfolioId?: string };
+      const portfolio = a.portfolioId
+        ? await prisma.portfolio.findFirst({
+            where: { id: a.portfolioId, userId: ctx.userId },
+            include: { items: true },
+          })
+        : await prisma.portfolio.findFirst({
+            where: { userId: ctx.userId },
+            orderBy: { createdAt: 'asc' },
+            include: { items: true },
+          });
+      if (!portfolio) return { error: 'No portfolio found.' };
+      if (portfolio.items.length < 2) {
+        return { error: 'Need at least 2 holdings to correlate.' };
+      }
+      const eng = await engine();
+      const series: Record<string, { date: string; close: number }[]> = {};
+      await Promise.all(
+        portfolio.items.map(async (it) => {
+          const bars = await eng.fetchYahooHistory(it.ticker, 1).catch(() => []);
+          if (Array.isArray(bars) && bars.length > 0) {
+            series[it.ticker] = bars.map((b: { date: string; close: number }) => ({
+              date: b.date,
+              close: b.close,
+            }));
+          }
+        }),
+      );
+      return buildCorrelationMatrix(series);
+    },
+  },
+  {
+    name: 'getNewsSentiment',
+    description:
+      'Live aggregated news with per-headline sentiment scores (-1 bearish → +1 bullish), plus an overall market-mood number. Use this when the user asks about market sentiment, news mood, or "is the news bullish".',
+    parameters: {
+      type: 'object',
+      properties: {
+        keyword: {
+          type: 'string',
+          description: 'Optional keyword filter against title + summary.',
+        },
+        limit: {
+          type: 'integer',
+          description: 'Max stories to score. Default 10, max 20.',
+        },
+      },
+      required: [],
+    },
+    run: async (args) => {
+      const a = args as { keyword?: string; limit?: number };
+      const cap = Math.min(Math.max(a.limit ?? 10, 1), 20);
+      const all = await fetchLiveNews();
+      let filtered = all;
+      if (a.keyword) {
+        const re = new RegExp(a.keyword.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&'), 'i');
+        filtered = all.filter((n) => re.test(`${n.title} ${n.summary || ''}`));
+      }
+      const slice = truncate(filtered, cap);
+      const scored = await scoreArticles(slice);
+      const aggregate = aggregateSentiment(scored);
+      return {
+        aggregate,
+        articles: scored.map((a) => ({
+          title: a.title,
+          source: a.source,
+          sentiment: a.sentiment,
+          label: a.sentimentLabel,
+          publishedAt: a.publishedAt,
+        })),
+      };
     },
   },
   {

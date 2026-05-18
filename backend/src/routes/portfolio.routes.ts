@@ -7,6 +7,8 @@ import {
   deletePortfolio,
   setPortfolioItems,
   scorePortfolio,
+  portfolioRisk,
+  portfolioCorrelations,
 } from '../controllers/portfolio.controller';
 
 const router = Router();
@@ -19,5 +21,7 @@ router.patch('/:id', renamePortfolio);
 router.delete('/:id', deletePortfolio);
 router.put('/:id/items', setPortfolioItems);
 router.get('/:id/score', scorePortfolio);
+router.get('/:id/risk', portfolioRisk);
+router.get('/:id/correlations', portfolioCorrelations);
 
 export default router;

@@ -800,6 +800,74 @@ export function registerSignalRoutes(app) {
     }
   });
 
+  // ── Risk metrics for a single ticker ──
+  // Returns VaR, Sharpe, Sortino, max drawdown over the requested
+  // years (default 3y so the sample is large enough for stable
+  // metrics). Public — same surface as /history.
+  app.get('/api/signals/risk/:ticker', async (req, res) => {
+    try {
+      const ticker = req.params.ticker;
+      const years = Math.min(Math.max(parseInt(req.query.years, 10) || 3, 1), 10);
+      const bars = await fetchYahooHistory(ticker, years);
+      if (!bars || bars.length === 0) {
+        return res.status(404).json({ error: 'No price data for this ticker' });
+      }
+      const { computeRiskMetrics } = await import('../lib/risk-metrics.js');
+      const metrics = computeRiskMetrics(
+        bars.map((b) => ({ date: b.date, close: b.close })),
+      );
+      res.json({ ticker, years, metrics });
+    } catch (err) {
+      console.error('[signals] risk error', err);
+      res.status(500).json({ error: 'Failed to compute risk metrics' });
+    }
+  });
+
+  // ── Monte Carlo probability cone for a single ticker ──
+  // Projects horizonDays forward from the latest close using GBM
+  // seeded with trailing-year drift + volatility. Frontend renders
+  // the bands as a translucent fan over the candle chart.
+  app.get('/api/signals/projection/:ticker', async (req, res) => {
+    try {
+      const ticker = req.params.ticker;
+      const horizonDays = Math.min(Math.max(parseInt(req.query.days, 10) || 30, 1), 252);
+      const bars = await fetchYahooHistory(ticker, 3);
+      if (!bars || bars.length === 0) {
+        return res.status(404).json({ error: 'No price data for this ticker' });
+      }
+      const { projectPriceFan } = await import('../lib/monte-carlo.js');
+      const result = projectPriceFan({
+        history: bars.map((b) => ({ date: b.date, close: b.close })),
+        horizonDays,
+        paths: 1000,
+      });
+      if ('error' in result) {
+        return res.status(400).json({ error: result.error });
+      }
+      res.json({ ticker, ...result });
+    } catch (err) {
+      console.error('[signals] projection error', err);
+      res.status(500).json({ error: 'Failed to compute projection' });
+    }
+  });
+
+  // ── Position sizing calculator ──
+  // Pure math, no DB. Public so the marketing site can embed a
+  // sizing widget on /services or /screener without auth.
+  app.post('/api/signals/position-size', async (req, res) => {
+    try {
+      const { calculatePositionSize } = await import('../lib/position-sizing.js');
+      const result = calculatePositionSize(req.body || {});
+      if ('error' in result) {
+        return res.status(400).json({ error: result.error });
+      }
+      res.json(result);
+    } catch (err) {
+      console.error('[signals] position-size error', err);
+      res.status(500).json({ error: 'Failed to compute position size' });
+    }
+  });
+
   // ── Seasonality for a ticker ──
   app.get('/api/signals/seasonality/:ticker', async (req, res) => {
     try {

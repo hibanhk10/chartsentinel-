@@ -21,6 +21,24 @@ export const getAllNewsController = async (_req: Request, res: Response): Promis
   }
 };
 
+// Sentiment-scored variant. Asks the LLM to classify each headline
+// as bullish / neutral / bearish, memoised by article id (URL hash)
+// so the same headline isn't re-scored on every poll.
+export const getNewsSentimentController = async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const articles = await newsService.getAllNews();
+    const { scoreArticles, aggregateSentiment } = await import(
+      '../services/news-sentiment.service'
+    );
+    const scored = await scoreArticles(articles);
+    const aggregate = aggregateSentiment(scored);
+    res.json({ articles: scored, aggregate });
+  } catch (error) {
+    console.error('[news] sentiment', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
 export const getNewsByIdController = async (req: Request, res: Response): Promise<void> => {
   const parsed = idSchema.safeParse(req.params);
   if (!parsed.success) {
