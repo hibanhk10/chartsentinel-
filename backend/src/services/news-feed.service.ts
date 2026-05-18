@@ -40,6 +40,12 @@ function decodeEntities(s: string): string {
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
     .replace(/&nbsp;/g, ' ')
+    // Hex entities (&#x2014;) before decimal — needs its own pattern
+    // because parseInt(16) reads what looks like decimal otherwise.
+    // Skipping these left "&#x..." raw in the rendered title, which is
+    // likely what showed as "numbers and weird characters" on the news
+    // section.
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, h) => String.fromCharCode(parseInt(h, 16)))
     .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(parseInt(n, 10)));
 }
 
@@ -87,6 +93,23 @@ function articleId(url: string): string {
   return createHash('sha1').update(url).digest('hex').slice(0, 16);
 }
 
+// "Sane" filter for free-form RSS text. Some publishers stuff numeric
+// taxonomy ids, single-character categories, or pure-whitespace
+// strings into <title> and <category>. We reject those so the UI
+// never shows a card titled "12345" or tagged "0".
+//   - empty / whitespace-only → null
+//   - all digits / digits + separators → null
+//   - shorter than `minLen` after trim → null
+function saneText(raw: string | null, minLen = 2): string | null {
+  if (!raw) return null;
+  const cleaned = raw.trim();
+  if (cleaned.length < minLen) return null;
+  // If every char is a digit, period, comma, or whitespace, treat as
+  // a taxonomy id rather than human text.
+  if (/^[\d.,\s]+$/.test(cleaned)) return null;
+  return cleaned;
+}
+
 function parseFeed(xml: string, source: string, defaultCategory: string): NewsArticle[] {
   // Atom uses <entry>; RSS uses <item>. Both schemas live in the wild;
   // sniff once and pick the right block tag.
@@ -100,6 +123,11 @@ function parseFeed(xml: string, source: string, defaultCategory: string): NewsAr
     const block = m[1];
     const titleRaw = pickTag(block, 'title');
     if (!titleRaw) continue;
+    // Reject items whose title is purely numeric / empty after
+    // sanitisation. These are the "glitching numbers" some publishers
+    // emit (taxonomy ids, raw IDs from a CMS, etc.).
+    const cleanTitle = saneText(stripHtml(titleRaw), 3);
+    if (!cleanTitle) continue;
 
     const link = isAtom
       ? pickAttr(block, 'link', 'href') ?? pickTag(block, 'id')
@@ -109,18 +137,21 @@ function parseFeed(xml: string, source: string, defaultCategory: string): NewsAr
     const description = pickTag(block, 'description') ?? pickTag(block, 'summary') ?? pickTag(block, 'content');
     const pub = pickTag(block, 'pubDate') ?? pickTag(block, 'published') ?? pickTag(block, 'updated');
     const author = pickTag(block, 'author') ?? pickTag(block, 'dc:creator') ?? source;
-    const category = pickTag(block, 'category') ?? defaultCategory;
+    const categoryRaw = pickTag(block, 'category');
 
     items.push({
       id: articleId(link),
-      title: stripHtml(titleRaw),
+      title: cleanTitle,
       summary: description ? stripHtml(description).slice(0, 280) : '',
       publishedAt: toIsoDate(pub),
       source,
-      category: stripHtml(category) || defaultCategory,
+      // Reject numeric-only categories (e.g. "12345" taxonomy ids)
+      // and fall through to the source's default label so the card's
+      // chip always reads as a real word.
+      category: saneText(categoryRaw ? stripHtml(categoryRaw) : null) ?? defaultCategory,
       url: link.trim(),
       imageUrl: findImage(block, description),
-      author: stripHtml(author),
+      author: saneText(stripHtml(author)) ?? source,
     });
 
     if (items.length >= MAX_PER_SOURCE) break;

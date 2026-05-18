@@ -42,6 +42,9 @@ function decodeEntities(s: string): string {
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
     .replace(/&nbsp;/g, ' ')
+    // Hex entities (&#x2014;) before decimal — leaving these raw is
+    // what likely showed as "numbers" on the news section.
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, h) => String.fromCharCode(parseInt(h, 16)))
     .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(parseInt(n, 10)));
 }
 
@@ -86,6 +89,17 @@ function articleId(url: string): string {
   return createHash('sha1').update(url).digest('hex').slice(0, 16);
 }
 
+// Reject taxonomy IDs / empty / single-char strings that some
+// publishers stuff into <title> and <category>. These would
+// otherwise show on the UI as "12345" instead of a real headline.
+function saneText(raw: string | null, minLen = 2): string | null {
+  if (!raw) return null;
+  const cleaned = raw.trim();
+  if (cleaned.length < minLen) return null;
+  if (/^[\d.,\s]+$/.test(cleaned)) return null;
+  return cleaned;
+}
+
 function parseFeed(xml: string, source: string, defaultCategory: string): ReportArticle[] {
   const isAtom = xml.includes('<feed') && xml.includes('<entry');
   const blockTag = isAtom ? 'entry' : 'item';
@@ -97,6 +111,8 @@ function parseFeed(xml: string, source: string, defaultCategory: string): Report
     const block = m[1];
     const titleRaw = pickTag(block, 'title');
     if (!titleRaw) continue;
+    const cleanTitle = saneText(stripHtml(titleRaw), 3);
+    if (!cleanTitle) continue;
 
     const link = isAtom
       ? pickAttr(block, 'link', 'href') ?? pickTag(block, 'id')
@@ -106,18 +122,18 @@ function parseFeed(xml: string, source: string, defaultCategory: string): Report
     const description = pickTag(block, 'description') ?? pickTag(block, 'summary') ?? pickTag(block, 'content');
     const pub = pickTag(block, 'pubDate') ?? pickTag(block, 'published') ?? pickTag(block, 'updated');
     const author = pickTag(block, 'author') ?? pickTag(block, 'dc:creator') ?? source;
-    const category = pickTag(block, 'category') ?? defaultCategory;
+    const categoryRaw = pickTag(block, 'category');
 
     items.push({
       id: articleId(link),
-      title: stripHtml(titleRaw),
+      title: cleanTitle,
       summary: description ? stripHtml(description).slice(0, 320) : '',
       publishedAt: toIso(pub),
       source,
-      category: stripHtml(category) || defaultCategory,
+      category: saneText(categoryRaw ? stripHtml(categoryRaw) : null) ?? defaultCategory,
       url: link.trim(),
       imageUrl: findImage(block, description),
-      author: stripHtml(author),
+      author: saneText(stripHtml(author)) ?? source,
     });
 
     if (items.length >= MAX_PER_SOURCE) break;

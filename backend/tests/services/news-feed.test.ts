@@ -83,7 +83,7 @@ describe('parseFeed', () => {
   it('prefers media:thumbnail over description-embedded images', () => {
     const xml = `<?xml version="1.0"?>
 <rss><channel><item>
-<title>X</title>
+<title>Markets thumbnail check</title>
 <link>https://x/y</link>
 <description><![CDATA[<img src="https://wrong.jpg"/>]]></description>
 <media:thumbnail url="https://right.jpg"/>
@@ -102,5 +102,45 @@ describe('parseFeed', () => {
 </item></channel></rss>`;
     const items = parseFeed(xml, 'S', 'C');
     expect(items[0].title).toBe('S&P 500 closes "higher"');
+  });
+
+  it('decodes hex entities so apostrophes do not render as raw codes', () => {
+    // &#x2019; = curly right single quote. Used by Yahoo / CoinDesk
+    // for "Trump's"-style possessives. Before hex decoding was added
+    // these rendered as literal "Trump&#x2019;s" on news cards —
+    // numbers and codes leaking into the UI.
+    const xml = `<?xml version="1.0"?>
+<rss><channel><item>
+<title>Trump&#x2019;s tariffs spike copper</title>
+<link>https://x/copper</link>
+<pubDate>Mon, 06 May 2026 00:00:00 GMT</pubDate>
+</item></channel></rss>`;
+    const items = parseFeed(xml, 'S', 'C');
+    expect(items[0].title).toBe('Trump’s tariffs spike copper');
+  });
+
+  it('rejects taxonomy-id titles (numeric-only) instead of rendering "12345"', () => {
+    // Some publishers stuff a CMS taxonomy id into <title> for sub-
+    // rows. Reject those so a card never shows up titled "12345".
+    const xml = `<?xml version="1.0"?>
+<rss><channel>
+<item><title>12345</title><link>https://x/1</link><pubDate>Mon, 06 May 2026 00:00:00 GMT</pubDate></item>
+<item><title>Markets close higher</title><link>https://x/2</link><pubDate>Mon, 06 May 2026 00:00:00 GMT</pubDate></item>
+</channel></rss>`;
+    const items = parseFeed(xml, 'S', 'C');
+    expect(items).toHaveLength(1);
+    expect(items[0].title).toBe('Markets close higher');
+  });
+
+  it('falls back to the source category when the feed emits a numeric one', () => {
+    const xml = `<?xml version="1.0"?>
+<rss><channel><item>
+<title>Markets headline of the day</title>
+<link>https://x/y</link>
+<category>9876</category>
+<pubDate>Mon, 06 May 2026 00:00:00 GMT</pubDate>
+</item></channel></rss>`;
+    const items = parseFeed(xml, 'S', 'Markets');
+    expect(items[0].category).toBe('Markets');
   });
 });
