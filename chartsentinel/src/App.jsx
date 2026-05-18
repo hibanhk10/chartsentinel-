@@ -55,6 +55,7 @@ function ChromeGate({ children }) {
 }
 import { AuthProvider } from './contexts/AuthContext'
 import { PreferencesProvider } from './contexts/PreferencesContext'
+import { ThemeProvider } from './contexts/ThemeContext'
 import { trackPageview } from './lib/analytics'
 
 import Navbar from './components/ui/Navbar'
@@ -126,10 +127,11 @@ export default function App() {
   }, [setMouse])
 
   return (
+    <ThemeProvider>
     <AuthProvider>
       <PreferencesProvider>
       <Router>
-        <main className="bg-background-dark text-white selection:bg-primary selection:text-white">
+        <main className="bg-background-dark text-text-primary selection:bg-primary selection:text-white">
           <div className="fixed inset-0 z-0">
             <RouteAwareCanvas />
           </div>
@@ -180,5 +182,6 @@ export default function App() {
       </Router>
       </PreferencesProvider>
     </AuthProvider>
+    </ThemeProvider>
   )
 }

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import GlobalSearch from './GlobalSearch';
+import ThemeToggle from './ThemeToggle';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '../../contexts/AuthContext';
@@ -168,9 +169,10 @@ export default function Navbar() {
                                 Dashboard
                             </Link>
                         )}
+                        <ThemeToggle compact />
                         {isAuthenticated ? (
                             <div className="flex items-center gap-4">
-                                <span className="text-sm text-slate-300 truncate max-w-[12rem]">
+                                <span className="text-sm text-text-secondary truncate max-w-[12rem]">
                                     Welcome, {user?.name || user?.email?.split('@')[0] || 'Trader'}
                                 </span>
                                 <button

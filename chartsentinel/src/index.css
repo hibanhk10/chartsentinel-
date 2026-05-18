@@ -7,9 +7,46 @@
 @tailwind utilities;
 /* stylelint-enable at-rule-no-unknown */
 
+/* Theme palette. Variables here are referenced by tailwind.config.js
+   so existing utility classes (bg-background-dark, text-text-primary,
+   etc.) automatically pick up theme changes when [data-theme="light"]
+   is set on <html>. Dark is the default — :root holds the dark
+   palette; [data-theme="light"] overrides only the variables that
+   differ. The brand magenta stays constant across themes so accent
+   surfaces look intentional in both. */
+:root {
+  --color-primary: #d946ef;
+  --color-primary-light: #f0abfc;
+  --color-primary-dark: #c026d3;
+  --color-accent: #a855f7;
+  --color-background-light: #ffffff;
+  --color-background-dark: #0a0a0a;
+  --color-surface-dark: #1a1a1a;
+  --color-background: #0a0a0a;
+  --color-text-primary: #f1f5f9;
+  --color-text-secondary: #cbd5e1;
+  --color-text-muted: #94a3b8;
+  color-scheme: dark;
+}
+
+[data-theme='light'] {
+  /* Soft off-white surfaces — easier on the eye than pure white
+     and keeps the premium feel. text-primary stays high-contrast
+     so score badges, risk numbers, and chart labels remain
+     readable. Surface stays equal-or-lighter than background so
+     elevated cards don't invert their hierarchy. */
+  --color-background-dark: #f8fafc;
+  --color-surface-dark: #ffffff;
+  --color-background: #f8fafc;
+  --color-text-primary: #0f172a;
+  --color-text-secondary: #334155;
+  --color-text-muted: #64748b;
+  color-scheme: light;
+}
+
 @layer base {
   body {
-    @apply bg-background-dark text-slate-100 font-body antialiased overflow-x-hidden transition-colors duration-300;
+    @apply bg-background-dark text-text-primary font-body antialiased overflow-x-hidden transition-colors duration-300;
   }
 }
 

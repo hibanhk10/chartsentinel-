@@ -7,18 +7,25 @@ export default {
     darkMode: "class",
     theme: {
         extend: {
+            // Palette is driven by CSS variables defined in
+            // index.css. Existing utility classes like
+            // `bg-background-dark` keep working — the value of the
+            // variable just changes when [data-theme="light"] is set
+            // on <html>. Adding a new colour means: declare a CSS
+            // variable for both themes in index.css, then map it
+            // here as `var(--name)`.
             colors: {
-                primary: "#d946ef", // Vibrant Magenta/Purple
-                "primary-light": "#f0abfc", // Lighter magenta for highlights
-                "primary-dark": "#c026d3", // Deeper magenta for depth
-                accent: "#a855f7", // Purple accent for variety
-                "background-light": "#ffffff",
-                "background-dark": "#0a0a0a", // Slightly lighter than pure black
-                "surface-dark": "#1a1a1a", // Better layering visibility
-                background: "#0a0a0a",
-                "text-primary": "#f1f5f9", // Brighter white for headings
-                "text-secondary": "#cbd5e1", // Medium gray for body text
-                "text-muted": "#94a3b8", // Subtle gray for less important text
+                primary: "var(--color-primary)",
+                "primary-light": "var(--color-primary-light)",
+                "primary-dark": "var(--color-primary-dark)",
+                accent: "var(--color-accent)",
+                "background-light": "var(--color-background-light)",
+                "background-dark": "var(--color-background-dark)",
+                "surface-dark": "var(--color-surface-dark)",
+                background: "var(--color-background)",
+                "text-primary": "var(--color-text-primary)",
+                "text-secondary": "var(--color-text-secondary)",
+                "text-muted": "var(--color-text-muted)",
             },
             fontFamily: {
                 display: ["Outfit", "sans-serif"],

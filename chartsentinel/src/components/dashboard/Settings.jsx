@@ -5,6 +5,7 @@ import { usePreferences } from '../../contexts/PreferencesContext';
 import PlanGate from '../ui/PlanGate';
 import CustomPinSettings from './CustomPinSettings';
 import ApiKeysSettings from './ApiKeysSettings';
+import ThemeToggle from '../ui/ThemeToggle';
 
 // Account settings — currently houses the 2FA setup / disable flow. The
 // component manages four UI states locally:
@@ -386,6 +387,20 @@ const Settings = () => {
               </div>
             </button>
           ))}
+        </div>
+
+        {/* Theme switch — separate from density because the choice is
+            stored in its own ThemeContext (data-theme attribute on
+            <html>) rather than via PreferencesContext. Dark is the
+            default; preference persists across sessions. */}
+        <div className="mt-4 pt-4 border-t border-white/5 flex items-center justify-between gap-4">
+          <div>
+            <div className="text-sm text-white">Theme</div>
+            <div className="text-xs text-text-muted mt-0.5">
+              Switch between dark and light surfaces.
+            </div>
+          </div>
+          <ThemeToggle />
         </div>
 
         {/* Sound toggle — opt-in audio cues for score changes and alert
