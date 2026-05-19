@@ -11,6 +11,10 @@ import { calculatePositionSize } from '../../lib/position-sizing';
 import { projectPriceFan } from '../../lib/monte-carlo';
 import { buildCorrelationMatrix } from '../../lib/correlation';
 import { scoreArticles, aggregateSentiment } from '../news-sentiment.service';
+import { decomposeExposure } from '../../lib/exposure';
+import { getMacroCalendar } from '../../lib/macro-calendar';
+import type { MacroEventType } from '../../lib/macro-calendar';
+import { computeEventVol } from '../../lib/event-vol';
 
 // Tool catalog for the agentic chat loop. Each entry holds three
 // things:
@@ -316,12 +320,19 @@ const TOOLS: ToolDef[] = [
       const a = args as { ticker: string; years?: number };
       const years = Math.min(Math.max(a.years ?? 3, 1), 10);
       const eng = await engine();
-      const bars = await eng.fetchYahooHistory(a.ticker, years);
+      const isSpy = a.ticker.toUpperCase() === 'SPY';
+      const [bars, spyBars] = await Promise.all([
+        eng.fetchYahooHistory(a.ticker, years),
+        isSpy ? Promise.resolve(null) : eng.fetchYahooHistory('SPY', years).catch(() => null),
+      ]);
       if (!bars || bars.length === 0) return { error: `No price history for ${a.ticker}.` };
       const metrics = computeRiskMetrics(
         bars.map((b: { date: string; close: number }) => ({ date: b.date, close: b.close })),
+        spyBars && spyBars.length > 0
+          ? spyBars.map((b: { date: string; close: number }) => ({ date: b.date, close: b.close }))
+          : undefined,
       );
-      return { ticker: a.ticker, years, metrics };
+      return { ticker: a.ticker, years, benchmark: isSpy ? null : 'SPY', metrics };
     },
   },
   {
@@ -600,6 +611,108 @@ const TOOLS: ToolDef[] = [
         take: 25,
       });
       return { rows: items };
+    },
+  },
+  {
+    name: 'getMacroCalendar',
+    description:
+      'Upcoming macro events in a forward window: FOMC rate decisions, US CPI, US Nonfarm Payrolls, ECB rate decisions, BoE MPC meetings. Use when the user asks "what events are coming up", "is there a Fed meeting next week", or wants to plan around macro risk.',
+    parameters: {
+      type: 'object',
+      properties: {
+        days: {
+          type: 'integer',
+          description: 'How many days forward to look. Default 60, max 365.',
+        },
+        types: {
+          type: 'array',
+          items: { type: 'string', enum: ['fomc', 'cpi', 'nfp', 'ecb', 'boe'] },
+          description: 'Optional filter — only return events of these types.',
+        },
+      },
+      required: [],
+    },
+    run: async (args) => {
+      const a = args as { days?: number; types?: MacroEventType[] };
+      const days = Math.min(Math.max(a.days ?? 60, 7), 365);
+      const events = getMacroCalendar({ days, types: a.types });
+      return { days, count: events.length, events };
+    },
+  },
+  {
+    name: 'getEventRisk',
+    description:
+      'How much more volatile a ticker historically is during a specific macro event window (e.g. CPI release weeks) versus baseline. Returns a vol multiplier — "1.8" means the ticker has been 1.8× as volatile during the event window. Use when the user asks "should I trim before CPI" or "is X event-sensitive".',
+    parameters: {
+      type: 'object',
+      properties: {
+        ticker: { type: 'string' },
+        eventType: {
+          type: 'string',
+          enum: ['cpi', 'nfp'],
+          description: 'Only cpi/nfp have enough historical samples to be reliable.',
+        },
+        windowDays: {
+          type: 'integer',
+          description: '±days around each event date to consider as event window. Default 2.',
+        },
+        yearsBack: {
+          type: 'integer',
+          description: 'Years of history to use. Default 5, max 10.',
+        },
+      },
+      required: ['ticker', 'eventType'],
+    },
+    run: async (args) => {
+      const a = args as {
+        ticker: string;
+        eventType: MacroEventType;
+        windowDays?: number;
+        yearsBack?: number;
+      };
+      const eng = await engine();
+      const yearsBack = Math.min(Math.max(a.yearsBack ?? 5, 1), 10);
+      const bars = await eng.fetchYahooHistory(a.ticker, yearsBack);
+      if (!bars || bars.length === 0) return { error: `No price history for ${a.ticker}.` };
+      const report = computeEventVol(
+        bars.map((b: { date: string; close: number }) => ({ date: b.date, close: b.close })),
+        a.eventType,
+        { windowDays: a.windowDays ?? 2, yearsBack },
+      );
+      return { ticker: a.ticker, ...report };
+    },
+  },
+  {
+    name: 'getPortfolioExposure',
+    description:
+      "Static factor-decomposition of the asker's portfolio: how much of their book is in tech vs financials, USD-long vs USD-short, China-sensitive, rate-sensitive, etc. Use when they ask 'what am I really long' or 'what's my factor exposure'. Sign-in required.",
+    parameters: {
+      type: 'object',
+      properties: { portfolioId: { type: 'string' } },
+      required: [],
+    },
+    run: async (args, ctx) => {
+      if (!ctx.userId) return { error: 'User is not signed in.' };
+      const a = args as { portfolioId?: string };
+      const portfolio = a.portfolioId
+        ? await prisma.portfolio.findFirst({
+            where: { id: a.portfolioId, userId: ctx.userId },
+            include: { items: true },
+          })
+        : await prisma.portfolio.findFirst({
+            where: { userId: ctx.userId },
+            orderBy: { createdAt: 'asc' },
+            include: { items: true },
+          });
+      if (!portfolio) return { error: 'No portfolio found.' };
+      if (portfolio.items.length === 0) return { error: 'Portfolio has no holdings.' };
+      const total = portfolio.items.reduce((s, it) => s + it.weight, 0);
+      if (total <= 0) return { error: 'Portfolio weights sum to zero.' };
+      const holdings = portfolio.items.map((it) => ({
+        ticker: it.ticker,
+        weight: it.weight / total,
+      }));
+      return { portfolio: portfolio.name, ...decomposeExposure(holdings) };
     },
   },
 ];

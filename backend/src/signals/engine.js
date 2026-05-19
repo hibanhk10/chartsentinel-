@@ -808,15 +808,25 @@ export function registerSignalRoutes(app) {
     try {
       const ticker = req.params.ticker;
       const years = Math.min(Math.max(parseInt(req.query.years, 10) || 3, 1), 10);
-      const bars = await fetchYahooHistory(ticker, years);
+      // Fetch SPY in parallel so we can compute beta in the same call.
+      // For SPY itself, skip — beta-of-SPY-to-SPY is trivially 1 and
+      // the second fetch would just burn quota.
+      const isSpy = ticker.toUpperCase() === 'SPY';
+      const [bars, spyBars] = await Promise.all([
+        fetchYahooHistory(ticker, years),
+        isSpy ? Promise.resolve(null) : fetchYahooHistory('SPY', years),
+      ]);
       if (!bars || bars.length === 0) {
         return res.status(404).json({ error: 'No price data for this ticker' });
       }
       const { computeRiskMetrics } = await import('../lib/risk-metrics.js');
       const metrics = computeRiskMetrics(
         bars.map((b) => ({ date: b.date, close: b.close })),
+        spyBars && spyBars.length > 0
+          ? spyBars.map((b) => ({ date: b.date, close: b.close }))
+          : undefined,
       );
-      res.json({ ticker, years, metrics });
+      res.json({ ticker, years, benchmark: isSpy ? null : 'SPY', metrics });
     } catch (err) {
       console.error('[signals] risk error', err);
       res.status(500).json({ error: 'Failed to compute risk metrics' });
@@ -848,6 +858,69 @@ export function registerSignalRoutes(app) {
     } catch (err) {
       console.error('[signals] projection error', err);
       res.status(500).json({ error: 'Failed to compute projection' });
+    }
+  });
+
+  // ── Macro calendar (FOMC / CPI / NFP / ECB / BoE) ──
+  // Returns the upcoming events in the next N days. Public — used by
+  // both the dashboard widget and the marketing-site teaser.
+  app.get('/api/signals/calendar', async (req, res) => {
+    try {
+      const days = Math.min(Math.max(parseInt(req.query.days, 10) || 90, 7), 365);
+      const types = typeof req.query.types === 'string'
+        ? req.query.types.split(',').map((s) => s.trim().toLowerCase())
+        : undefined;
+      const { getMacroCalendar } = await import('../lib/macro-calendar.js');
+      const events = getMacroCalendar({ days, types });
+      res.json({ days, events });
+    } catch (err) {
+      console.error('[signals] calendar error', err);
+      res.status(500).json({ error: 'Failed to load macro calendar' });
+    }
+  });
+
+  // ── Event-aware realised volatility ──
+  // Given a ticker + event type, slices its return history into
+  // event-window vs baseline buckets and reports the vol multiplier.
+  app.get('/api/signals/event-risk/:ticker', async (req, res) => {
+    try {
+      const ticker = req.params.ticker;
+      const eventType = (req.query.event || 'cpi').toString().toLowerCase();
+      const windowDays = Math.min(Math.max(parseInt(req.query.window, 10) || 2, 0), 5);
+      const yearsBack = Math.min(Math.max(parseInt(req.query.years, 10) || 5, 1), 10);
+      const bars = await fetchYahooHistory(ticker, yearsBack);
+      if (!bars || bars.length === 0) {
+        return res.status(404).json({ error: 'No price data for this ticker' });
+      }
+      const { computeEventVol } = await import('../lib/event-vol.js');
+      const report = computeEventVol(
+        bars.map((b) => ({ date: b.date, close: b.close })),
+        eventType,
+        { windowDays, yearsBack },
+      );
+      res.json({ ticker, ...report });
+    } catch (err) {
+      console.error('[signals] event-risk error', err);
+      res.status(500).json({ error: 'Failed to compute event-aware vol' });
+    }
+  });
+
+  // ── Exposure decomposition ──
+  // POST so the caller passes holdings in the body. Public; the auth-
+  // gated portfolio version composes its holdings then calls the same
+  // underlying decomposer.
+  app.post('/api/signals/exposure', async (req, res) => {
+    try {
+      const holdings = Array.isArray(req.body?.holdings) ? req.body.holdings : null;
+      if (!holdings) {
+        return res.status(400).json({ error: 'Body must include holdings: [{ ticker, weight }]' });
+      }
+      const { decomposeExposure } = await import('../lib/exposure.js');
+      const breakdown = decomposeExposure(holdings);
+      res.json(breakdown);
+    } catch (err) {
+      console.error('[signals] exposure error', err);
+      res.status(500).json({ error: 'Failed to compute exposure' });
     }
   });
 

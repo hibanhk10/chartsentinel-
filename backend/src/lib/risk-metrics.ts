@@ -37,6 +37,20 @@ export interface RiskMetrics {
   maxDrawdown: number | null;
   maxDrawdownPeakDate: string | null;
   maxDrawdownTroughDate: string | null;
+  // EWMA-weighted annualised vol (λ=0.94). Tracks regime shifts faster
+  // than the simple stddev — diverges from `annualVolatility` when
+  // realised vol is rising or falling sharply.
+  ewmaVolatility: number | null;
+  // Beta vs the supplied benchmark (SPY by default at the engine layer).
+  // Null when no benchmark was passed or the overlap was too thin.
+  beta: number | null;
+  // Stddev of the regression residuals — the part of the ticker's vol
+  // that the benchmark can't explain. "Stock-specific risk" in UX copy.
+  idiosyncraticVol: number | null;
+  // Goodness-of-fit of the beta regression. r² near 1 = ticker behaves
+  // like a leveraged version of the benchmark; near 0 = mostly noise
+  // relative to the benchmark.
+  benchmarkRSquared: number | null;
 }
 
 const TRADING_DAYS = 252;
@@ -91,6 +105,58 @@ export function sharpeRatio(returns: number[], riskFreeAnnual = 0): number | nul
   // not literal 0, so check absolute magnitude rather than ===.
   if (Math.abs(vol) < 1e-12) return null;
   return (ann - riskFreeAnnual) / vol;
+}
+
+// EWMA (exponentially weighted moving average) volatility. The
+// RiskMetrics-standard λ=0.94 weights recent returns far more heavily
+// than the simple stddev does. Useful when realised vol is shifting
+// regime — EWMA picks up the change in days, simple-vol only in weeks.
+// Returned annualised so it lines up with annualVolatility.
+export function ewmaVolatility(returns: number[], lambda = 0.94): number | null {
+  if (returns.length < 5) return null;
+  // Seed with the variance of the first ~30 returns (or whatever's
+  // available). EWMA converges fast so the seed doesn't matter much
+  // beyond a few dozen samples, but a sensible seed avoids huge
+  // initial-step artefacts on short series.
+  const seedLen = Math.min(30, returns.length);
+  const seedMean = returns.slice(0, seedLen).reduce((s, r) => s + r, 0) / seedLen;
+  let variance =
+    returns.slice(0, seedLen).reduce((s, r) => s + (r - seedMean) ** 2, 0) / seedLen;
+  for (let i = seedLen; i < returns.length; i++) {
+    variance = lambda * variance + (1 - lambda) * returns[i] ** 2;
+  }
+  return Math.sqrt(variance) * Math.sqrt(252);
+}
+
+// Beta-to-benchmark — regression slope of ticker returns vs benchmark
+// returns over the aligned date overlap. SPY is the conventional
+// benchmark for US equities; the caller can pass any series. Returns
+// null when the two series don't overlap by at least 30 days.
+export function betaTo(
+  tickerReturns: number[],
+  benchmarkReturns: number[],
+): { beta: number; alpha: number; rSquared: number } | null {
+  const n = Math.min(tickerReturns.length, benchmarkReturns.length);
+  if (n < 30) return null;
+  const t = tickerReturns.slice(-n);
+  const b = benchmarkReturns.slice(-n);
+  const meanT = t.reduce((s, x) => s + x, 0) / n;
+  const meanB = b.reduce((s, x) => s + x, 0) / n;
+  let cov = 0;
+  let varB = 0;
+  let varT = 0;
+  for (let i = 0; i < n; i++) {
+    const dt = t[i] - meanT;
+    const db = b[i] - meanB;
+    cov += dt * db;
+    varB += db * db;
+    varT += dt * dt;
+  }
+  if (varB === 0 || varT === 0) return null;
+  const beta = cov / varB;
+  const alpha = meanT - beta * meanB;
+  const correlation = cov / Math.sqrt(varT * varB);
+  return { beta, alpha, rSquared: correlation * correlation };
 }
 
 // Sortino uses downside-only standard deviation, which captures the
@@ -153,12 +219,59 @@ export function maxDrawdown(prices: PricePoint[]): {
 // + agentic tools need. Returns nulls where the data was insufficient
 // rather than throwing — UI renders "—" for those cells instead of
 // crashing the whole panel because one ticker is illiquid.
-export function computeRiskMetrics(prices: PricePoint[]): RiskMetrics {
+export function computeRiskMetrics(
+  prices: PricePoint[],
+  benchmark?: PricePoint[],
+): RiskMetrics {
   const cleaned = prices
     .filter((p) => p && Number.isFinite(p.close) && p.close > 0)
     .sort((a, b) => a.date.localeCompare(b.date));
   const returns = logReturns(cleaned);
   const dd = maxDrawdown(cleaned);
+
+  // Beta needs date-aligned returns. The ticker's calendar can differ
+  // from the benchmark's (foreign holidays, listing gaps, ETF inception),
+  // so build the intersection on dates rather than zipping by index.
+  let beta: number | null = null;
+  let idiosyncraticVol: number | null = null;
+  let benchmarkRSquared: number | null = null;
+  if (benchmark && benchmark.length > 1) {
+    const benchClean = benchmark
+      .filter((p) => p && Number.isFinite(p.close) && p.close > 0)
+      .sort((a, b) => a.date.localeCompare(b.date));
+    const benchByDate = new Map(benchClean.map((p) => [p.date, p.close]));
+    const alignedT: PricePoint[] = [];
+    const alignedB: PricePoint[] = [];
+    for (const p of cleaned) {
+      const bClose = benchByDate.get(p.date);
+      if (bClose !== undefined) {
+        alignedT.push(p);
+        alignedB.push({ date: p.date, close: bClose });
+      }
+    }
+    const tReturns = logReturns(alignedT);
+    const bReturns = logReturns(alignedB);
+    const reg = betaTo(tReturns, bReturns);
+    if (reg) {
+      beta = reg.beta;
+      benchmarkRSquared = reg.rSquared;
+      // Idiosyncratic vol = annualised stddev of residuals. The slice
+      // here matches what betaTo used (last `n` of each series).
+      const n = Math.min(tReturns.length, bReturns.length);
+      const t = tReturns.slice(-n);
+      const b = bReturns.slice(-n);
+      const meanT = t.reduce((s, x) => s + x, 0) / n;
+      const meanB = b.reduce((s, x) => s + x, 0) / n;
+      let resSqSum = 0;
+      for (let i = 0; i < n; i++) {
+        const expected = reg.alpha + reg.beta * (b[i] - meanB) + meanT;
+        const residual = t[i] - expected;
+        resSqSum += residual * residual;
+      }
+      idiosyncraticVol = Math.sqrt(resSqSum / Math.max(1, n - 2)) * Math.sqrt(TRADING_DAYS);
+    }
+  }
+
   return {
     samples: returns.length,
     startDate: cleaned.length > 0 ? cleaned[0].date : null,
@@ -172,5 +285,9 @@ export function computeRiskMetrics(prices: PricePoint[]): RiskMetrics {
     maxDrawdown: dd.value,
     maxDrawdownPeakDate: dd.peakDate,
     maxDrawdownTroughDate: dd.troughDate,
+    ewmaVolatility: ewmaVolatility(returns),
+    beta,
+    idiosyncraticVol,
+    benchmarkRSquared,
   };
 }

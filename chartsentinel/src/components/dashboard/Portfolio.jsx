@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import api from '../../services/api';
 import PortfolioRiskPanel from './PortfolioRiskPanel';
+import PortfolioExposurePanel from './PortfolioExposurePanel';
 
 // Manage user portfolios — named baskets of (ticker, weight) — and view
 // the weighted composite score across each basket. Reads/writes go
@@ -552,7 +553,10 @@ const DashboardPortfolio = () => {
                 active portfolio, regardless of whether the user
                 has scored it yet. */}
             {active && active.items.length > 0 && (
-                <PortfolioRiskPanel portfolioId={active.id} />
+                <>
+                    <PortfolioRiskPanel portfolioId={active.id} />
+                    <PortfolioExposurePanel portfolioId={active.id} />
+                </>
             )}
         </div>
     );

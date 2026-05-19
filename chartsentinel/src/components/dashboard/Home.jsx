@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { API_CONFIG } from '../../config/api';
 import TodayPanel from './TodayPanel';
+import MacroCalendarWidget from '../ui/MacroCalendarWidget';
 
 const DashboardHome = ({ setActiveTab }) => {
     const { user } = useAuth();
@@ -62,6 +63,8 @@ const DashboardHome = ({ setActiveTab }) => {
             </section>
 
             <TodayPanel onJumpToTicker={() => setActiveTab?.('signals')} />
+
+            <MacroCalendarWidget days={45} max={6} />
 
             <section>
                 <h3 className="text-xs font-bold uppercase tracking-wider text-text-muted mb-6">Quick Access</h3>

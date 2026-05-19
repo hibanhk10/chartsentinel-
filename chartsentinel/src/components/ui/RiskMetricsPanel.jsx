@@ -23,6 +23,18 @@ const TONE_FOR_SHARPE = (n) => {
     return 'text-red-300'
 }
 
+// |β| ≈ 1 = roughly market-tracking, low signal. >1.3 or <0.7 is
+// where the user should actually pay attention — amber/emerald
+// respectively, since high-beta = more risk while low-beta is
+// defensive but typically positive framing.
+const TONE_FOR_BETA = (n) => {
+    if (n === null || n === undefined) return 'text-text-muted'
+    const a = Math.abs(n)
+    if (a >= 1.3) return 'text-amber-300'
+    if (a <= 0.7) return 'text-emerald-300'
+    return 'text-white'
+}
+
 export default function RiskMetricsPanel({ ticker, years = 3 }) {
     const [state, setState] = useState({ status: 'loading', data: null, error: null })
 
@@ -89,11 +101,39 @@ export default function RiskMetricsPanel({ ticker, years = 3 }) {
                             : 'peak → trough'
                     }
                 />
+                {/* Beta tiles only render when a benchmark was actually
+                    used. For SPY-itself we skip the benchmark fetch
+                    server-side so these fields come back null. */}
+                {m.beta !== null && m.beta !== undefined && (
+                    <Tile
+                        label={`Beta vs SPY`}
+                        value={fmtRatio(m.beta)}
+                        tone={TONE_FOR_BETA(m.beta)}
+                        sub={
+                            m.benchmarkRSquared !== null && m.benchmarkRSquared !== undefined
+                                ? `r² ${(m.benchmarkRSquared * 100).toFixed(0)}%`
+                                : 'market sensitivity'
+                        }
+                    />
+                )}
+                {m.idiosyncraticVol !== null && m.idiosyncraticVol !== undefined && (
+                    <Tile
+                        label="Stock-specific risk"
+                        value={fmtPct(m.idiosyncraticVol, 1)}
+                        sub="residual σ (annualised)"
+                    />
+                )}
+                <Tile
+                    label="EWMA vol"
+                    value={fmtPct(m.ewmaVolatility, 1)}
+                    sub="recent-weighted σ"
+                />
             </div>
 
             <p className="text-[10px] text-text-muted mt-3">
                 Historical-method VaR (no normality assumption). Sharpe / Sortino assume 0% risk-free
-                rate. Past performance is not a forecast.
+                rate. EWMA (λ=0.94) over-weights recent returns to catch regime shifts faster than the
+                simple annualised σ. Past performance is not a forecast.
             </p>
         </section>
     )
