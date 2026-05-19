@@ -65,6 +65,11 @@ model User {
   // to sum to 1.0 before scoring so a user-supplied (40, 40, 40, 0) still
   // works (gets re-scaled to (0.333, 0.333, 0.333, 0)).
   signalWeights       Json?
+  // Opt-in for the daily personalised briefing email. Off by default;
+  // user flips it on from Settings. The cron job (send-daily-briefings)
+  // generates + delivers the brief each weekday morning for opted-in
+  // users with a confirmed email.
+  dailyBriefingEmail  Boolean              @default(false)
   passwordResetTokens PasswordResetToken[]
   watchlistItems      WatchlistItem[]
   portfolios          Portfolio[]

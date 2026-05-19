@@ -12,6 +12,7 @@ import {
   enableTwoFactorController,
   disableTwoFactorController,
   verifyTwoFactorController,
+  setDailyBriefingEmailController,
 } from '../controllers/auth.controller';
 import {
   createApiKeyController,
@@ -52,6 +53,7 @@ router.post('/forgot-password', resetLimiter, forgotPasswordController);
 router.post('/reset-password', resetLimiter, resetPasswordController);
 router.get('/me', authenticateToken, meController);
 router.post('/plan', authenticateToken, setPlanController);
+router.post('/briefing-email', authenticateToken, setDailyBriefingEmailController);
 
 // API key management — Ultimate tier only; the controllers gate
 // on plan internally so the JWT-only middleware is enough here.

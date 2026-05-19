@@ -48,6 +48,12 @@ const Settings = () => {
   const [newWebhookSecret, setNewWebhookSecret] = useState(null);
   const [webhookInput, setWebhookInput] = useState('');
 
+  // Daily AI briefing email opt-in. Default off; toggle hits
+  // /auth/briefing-email and the cron script picks up the new state on
+  // its next run.
+  const [briefingEmailEnabled, setBriefingEmailEnabled] = useState(false);
+  const [briefingEmailBusy, setBriefingEmailBusy] = useState(false);
+
   // Signal weights — sliders for the four composite components. Stored
   // raw on the server (e.g. 30/30/30/10) and normalised at scoring time,
   // so users see exactly the numbers they typed when they come back.
@@ -77,6 +83,7 @@ const Settings = () => {
       setTelegramUsername(me.telegramUsername ?? null);
       setWebhookConfigured(!!me.webhookConfigured);
       setWebhookDisabled(!!me.webhookDisabled);
+      setBriefingEmailEnabled(!!me.dailyBriefingEmail);
 
       // Signal weights live on a separate endpoint — fetch alongside.
       try {
@@ -288,6 +295,24 @@ const Settings = () => {
   const updateWeight = (key, value) => {
     setSignalWeights((w) => ({ ...w, [key]: Number(value) }));
     setWeightsDirty(true);
+  };
+
+  const toggleBriefingEmail = async () => {
+    const next = !briefingEmailEnabled;
+    setBriefingEmailBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      await api.post('/auth/briefing-email', { enabled: next });
+      setBriefingEmailEnabled(next);
+      setNotice(next
+        ? 'Daily briefing email turned on. First brief lands tomorrow morning.'
+        : 'Daily briefing email turned off.');
+    } catch (err) {
+      setError(err.response?.data?.error || err.message || 'Could not update.');
+    } finally {
+      setBriefingEmailBusy(false);
+    }
   };
 
   const saveWeights = async () => {
@@ -632,6 +657,45 @@ const Settings = () => {
             </div>
           </form>
         )}
+      </section>
+
+      <section className="mt-6 rounded-2xl border border-white/5 bg-surface-dark p-6">
+        <header className="flex items-start justify-between gap-4 mb-4">
+          <div>
+            <h2 className="text-lg font-semibold text-text-primary flex items-center gap-2">
+              <span className="material-icons text-primary">mark_email_unread</span>
+              Daily AI briefing email
+            </h2>
+            <p className="text-sm text-text-secondary mt-1">
+              Weekday-morning email with your personalised 4-paragraph brief —
+              watchlist scores, macro events this week, top exposure, and a risk
+              nudge. Generated fresh each day.
+            </p>
+          </div>
+          <span
+            className={`text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded-full ${
+              briefingEmailEnabled
+                ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30'
+                : 'bg-white/5 text-text-muted border border-white/10'
+            }`}
+          >
+            {briefingEmailEnabled ? 'On' : 'Off'}
+          </span>
+        </header>
+        <button
+          type="button"
+          onClick={toggleBriefingEmail}
+          disabled={briefingEmailBusy}
+          className={`px-4 py-2 text-xs font-bold uppercase tracking-widest rounded-lg transition-colors disabled:opacity-50 ${
+            briefingEmailEnabled
+              ? 'bg-white/5 border border-white/10 text-text-secondary hover:bg-white/10'
+              : 'bg-primary text-white hover:bg-primary/90'
+          }`}
+        >
+          {briefingEmailBusy
+            ? 'Saving…'
+            : briefingEmailEnabled ? 'Turn off' : 'Turn on daily briefing'}
+        </button>
       </section>
 
       <div className="mt-6">

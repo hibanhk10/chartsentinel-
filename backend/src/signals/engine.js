@@ -861,6 +861,37 @@ export function registerSignalRoutes(app) {
     }
   });
 
+  // ── Smart money feed (insider clusters + congress, AI-narrated) ──
+  // Pulls real Form 4s + Congress STOCK Act trades, ranks by an
+  // unusualness heuristic, optionally narrates with one batched LLM
+  // call. Cached 1h.
+  app.get('/api/signals/smart-money', async (req, res) => {
+    try {
+      const narrate = String(req.query.narrate || '').toLowerCase() === 'true';
+      const { getSmartMoneyFeed } = await import('../services/smart-money.service.js');
+      const result = await getSmartMoneyFeed({ narrate });
+      res.json(result);
+    } catch (err) {
+      console.error('[signals] smart-money error', err);
+      res.status(500).json({ error: 'Failed to load smart-money feed' });
+    }
+  });
+
+  // ── Macro themes (LLM-clustered narratives) ──
+  // 3-6 themes clustered from the live news feed; cached 4h
+  // server-side. Falls back to a flat "live feed" rollup when the LLM
+  // provider is unreachable so the UI never blanks.
+  app.get('/api/signals/macro-themes', async (_req, res) => {
+    try {
+      const { getMacroThemes } = await import('../services/macro-themes.service.js');
+      const result = await getMacroThemes();
+      res.json(result);
+    } catch (err) {
+      console.error('[signals] macro-themes error', err);
+      res.status(500).json({ error: 'Failed to load macro themes' });
+    }
+  });
+
   // ── Real anomaly scanner ──
   // Computes z-scores for return + volume per ticker over the screener
   // universe and returns the top-ranked surprises. Heavy fetches go

@@ -173,6 +173,37 @@ export const meController = async (req: AuthedRequest, res: Response) => {
   }
 };
 
+const briefingPrefSchema = z.object({
+  enabled: z.boolean(),
+});
+
+// Settings toggle for the daily AI briefing email. Off by default;
+// when on, the cron script (send-daily-briefings) generates and
+// emails the brief each weekday morning.
+export const setDailyBriefingEmailController = async (
+  req: AuthedRequest,
+  res: Response,
+) => {
+  try {
+    if (!req.user) {
+      res.status(401).json({ error: 'Sign in first.' });
+      return;
+    }
+    const parsed = briefingPrefSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: 'enabled must be a boolean.' });
+      return;
+    }
+    const updated = await authService.setDailyBriefingEmail(
+      req.user.id,
+      parsed.data.enabled,
+    );
+    res.json(updated);
+  } catch (error) {
+    res.status(400).json({ error: error instanceof Error ? error.message : 'Update failed.' });
+  }
+};
+
 // Persists the chosen tier on the User record so it follows the
 // account across devices. Stripe is intentionally deferred — when
 // billing is wired this will move into a webhook path; the public

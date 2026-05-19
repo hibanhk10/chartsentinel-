@@ -235,7 +235,19 @@ export class AuthService {
       telegramUsername: user.telegramUsername,
       webhookConfigured: Boolean(user.webhookUrl),
       webhookDisabled: Boolean(user.webhookDisabledAt),
+      dailyBriefingEmail: Boolean(user.dailyBriefingEmail),
     };
+  }
+
+  // Toggle the daily-briefing-email opt-in. Surfaces from Settings;
+  // the cron job (send-daily-briefings) reads this column to know who
+  // to mail in the morning.
+  async setDailyBriefingEmail(userId: string, enabled: boolean) {
+    await prisma.user.update({
+      where: { id: userId },
+      data: { dailyBriefingEmail: enabled },
+    });
+    return { dailyBriefingEmail: enabled };
   }
 
   // Persist a tier choice on the user record. Stripe is still deferred;

@@ -21,6 +21,8 @@
     "watchlist:check:prod": "node dist/scripts/check-watchlist-alerts.js",
     "insider:snapshot": "tsx src/scripts/snapshot-insider-filings.ts",
     "insider:snapshot:prod": "node dist/scripts/snapshot-insider-filings.js",
+    "briefing:send": "tsx src/scripts/send-daily-briefings.ts",
+    "briefing:send:prod": "node dist/scripts/send-daily-briefings.js",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage"

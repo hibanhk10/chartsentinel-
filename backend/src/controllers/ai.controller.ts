@@ -11,9 +11,7 @@ import {
     capForPlan,
 } from '../services/ai.service';
 import env from '../config/env';
-import { getMacroCalendar } from '../lib/macro-calendar';
-import { decomposeExposure } from '../lib/exposure';
-import { fetchLiveNews } from '../services/news-feed.service';
+import { composeBriefing } from '../services/briefing.service';
 
 interface AuthedAiRequest extends Request {
     user?: { id: string; email: string; role: string };
@@ -468,23 +466,10 @@ export const explainScore = async (req: AuthedAiRequest, res: Response) => {
 // ---------------------------------------------------------------------------
 
 const BRIEFING_TTL_MS = 2 * 60 * 60 * 1000;
-const briefingCache = new Map<string, { value: BriefingPayload; expiresAt: number }>();
-
-interface BriefingPayload {
-    transcript: string;
-    sources: {
-        watchlist: { ticker: string; score: number | null }[];
-        topExposure: { factor: string; weight: number }[];
-        upcomingEvents: { date: string; type: string; label: string }[];
-        headlines: { title: string; source: string }[];
-    };
-    generatedAt: string;
-}
-
-function asScore(n: unknown): number | null {
-    if (typeof n !== 'number' || Number.isNaN(n)) return null;
-    return Math.round(n);
-}
+const briefingCache = new Map<
+    string,
+    { value: Awaited<ReturnType<typeof composeBriefing>>; expiresAt: number }
+>();
 
 export const briefing = async (req: AuthedAiRequest, res: Response) => {
     try {
@@ -494,7 +479,7 @@ export const briefing = async (req: AuthedAiRequest, res: Response) => {
         }
 
         const cached = briefingCache.get(req.user.id);
-        if (cached && cached.expiresAt > Date.now()) {
+        if (cached && cached.expiresAt > Date.now() && cached.value) {
             res.json({ ...cached.value, cached: true });
             return;
         }
@@ -517,115 +502,19 @@ export const briefing = async (req: AuthedAiRequest, res: Response) => {
             throw err;
         }
 
-        // ── Watchlist ──────────────────────────────────────────────
-        const watchlist = await prisma.watchlistItem.findMany({
-            where: { userId: req.user.id },
-            select: { ticker: true, lastScore: true },
-            orderBy: { createdAt: 'desc' },
-            take: 8,
-        });
-        const watchlistSummary = watchlist.map((w) => ({
-            ticker: w.ticker,
-            score: asScore(w.lastScore),
-        }));
-
-        // ── Portfolio exposure ─────────────────────────────────────
-        let topExposure: { factor: string; weight: number }[] = [];
-        const portfolio = await prisma.portfolio.findFirst({
-            where: { userId: req.user.id },
-            orderBy: { createdAt: 'asc' },
-            include: { items: true },
-        });
-        if (portfolio && portfolio.items.length > 0) {
-            const total = portfolio.items.reduce((s, it) => s + (it.weight || 0), 0);
-            if (total > 0) {
-                const holdings = portfolio.items.map((it) => ({
-                    ticker: it.ticker,
-                    weight: it.weight / total,
-                }));
-                const breakdown = decomposeExposure(holdings);
-                topExposure = Object.entries(breakdown.factors)
-                    .filter(([, v]) => Math.abs(v) >= 0.1)
-                    .sort(([, a], [, b]) => Math.abs(b) - Math.abs(a))
-                    .slice(0, 3)
-                    .map(([k, v]) => ({ factor: k, weight: v }));
-            }
-        }
-
-        // ── Upcoming macro events ──────────────────────────────────
-        const upcomingEvents = getMacroCalendar({ days: 7 }).slice(0, 6);
-
-        // ── Recent headlines (live news, no LLM call here yet) ─────
-        let headlines: { title: string; source: string }[] = [];
-        try {
-            const news = await fetchLiveNews();
-            headlines = news.slice(0, 3).map((n) => ({ title: n.title, source: n.source }));
-        } catch (err) {
-            // News feed failure is non-fatal — the briefing still renders.
-            console.warn('[briefing] news fetch failed', (err as Error).message);
-        }
-
-        // ── Compose prompt ────────────────────────────────────────
-        const today = new Date().toLocaleDateString('en-US', {
-            weekday: 'long', month: 'long', day: 'numeric',
-        });
-        const userMessage =
-            `Compose a 60-90 second spoken-style market briefing for ${today}. ` +
-            `Write 4 paragraphs, second person, flowing prose (no bullets, no headings). ` +
-            `Cover, in order: (1) overnight context, framed by the most prominent ` +
-            `recent headline; (2) the user's watchlist — pick 2-3 tickers and reference ` +
-            `their composite scores when available; (3) macro events on the calendar this ` +
-            `week and what to watch; (4) one risk-management nudge tied to the user's ` +
-            `most-loaded factor exposure. Keep it conversational and grounded in the ` +
-            `numbers below. Never recommend trades.\n\n` +
-            `INPUTS:\n${JSON.stringify(
-                {
-                    watchlist: watchlistSummary,
-                    topExposure,
-                    upcomingEvents: upcomingEvents.map((e) => ({
-                        date: e.date,
-                        type: e.type,
-                        label: e.label,
-                    })),
-                    headlines,
-                },
-                null,
-                2,
-            )}`;
-
-        const reply = await callLlm({
-            systemPrompt:
-                'You are ChartSentinel AI. Generate a personalised market briefing in 4 ' +
-                'paragraphs of flowing prose. Be specific and quote real numbers from the ' +
-                'inputs. Never give buy/sell advice. End with "Informational only."',
-            userMessage,
-            maxTokens: 900,
-        });
-
-        if (!reply) {
+        const composed = await composeBriefing(req.user.id);
+        if (!composed) {
             res.status(502).json({
                 error: 'AI provider unavailable. Try again in a few minutes.',
             });
             return;
         }
         await recordUsage(identity, plan);
-
-        const payload: BriefingPayload = {
-            transcript: reply,
-            sources: {
-                watchlist: watchlistSummary,
-                topExposure,
-                upcomingEvents: upcomingEvents.map((e) => ({
-                    date: e.date,
-                    type: e.type,
-                    label: e.label,
-                })),
-                headlines,
-            },
-            generatedAt: new Date().toISOString(),
-        };
-        briefingCache.set(req.user.id, { value: payload, expiresAt: Date.now() + BRIEFING_TTL_MS });
-        res.json(payload);
+        briefingCache.set(req.user.id, {
+            value: composed,
+            expiresAt: Date.now() + BRIEFING_TTL_MS,
+        });
+        res.json(composed);
     } catch (error) {
         console.error('AI briefing error:', error);
         res.status(500).json({ error: 'Failed to generate briefing.' });
