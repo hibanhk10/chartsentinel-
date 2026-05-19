@@ -1,25 +1,25 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { API_CONFIG } from '../../config/api';
+import api from '../../services/api';
 
-// Audio Daily Briefing — 60-90 second personalized brief stitched
-// from watchlist + catalysts + overnight moves. The AI generates the
-// transcript today; a TTS provider (ElevenLabs/OpenAI) wires up in
-// the next infra pass to render the audio file. Until then the brief
-// renders as a polished read-aloud transcript with a play button
-// that uses the browser's built-in SpeechSynthesis API as a fallback,
-// so users get an actual audio experience right now.
+// Daily Briefing — wired to /api/ai/briefing, which pulls the user's
+// watchlist + portfolio exposure + the next 7 days of macro events +
+// recent headlines, and asks the LLM to compose a 4-paragraph brief.
+// Server-side cached for 2 hours per user so a refresh inside the
+// session is free; LLM only re-runs when the cache lapses or the user
+// hits Regenerate.
 
 const SECTIONS = [
-    { id: 'overnight',  label: 'Overnight movers' },
+    { id: 'overnight',  label: 'Overnight context' },
     { id: 'watchlist',  label: 'Your watchlist' },
-    { id: 'catalysts',  label: 'Today\'s catalysts' },
-    { id: 'risks',      label: 'Risks to monitor' },
+    { id: 'catalysts',  label: 'Macro this week' },
+    { id: 'risks',      label: 'Risk nudge' },
 ];
 
 const DashboardBriefing = () => {
     const { user } = useAuth();
     const [transcript, setTranscript] = useState('');
+    const [sources, setSources] = useState(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [speaking, setSpeaking] = useState(false);
@@ -40,29 +40,18 @@ const DashboardBriefing = () => {
         setLoading(true);
         setError(null);
         try {
-            const message
-                = `Generate a 60–90 second spoken-style market briefing for ${today}. `
-                + `Speak in the second person ("you"). Cover: (1) two notable overnight `
-                + `moves in major indices or crypto, (2) two themes from the watchlist `
-                + `(generic since we don't have it here yet — pick large-cap tech and `
-                + `oil), (3) the top one or two catalysts to watch today, (4) a single `
-                + `risk-management nudge tied to current vol regime. Avoid bullet `
-                + `points; deliver as flowing paragraphs that read aloud cleanly.`;
-
-            const res = await fetch(`${API_CONFIG.baseURL}/ai/interrogate`, {
-                method: 'POST',
-                headers: API_CONFIG.headers,
-                body: JSON.stringify({ message }),
-            });
-            const body = await res.json();
-            if (!res.ok) throw new Error(body?.error || `HTTP ${res.status}`);
-            const text = body?.text || '';
-            // Prepend the personalized greeting so the brief actually
-            // sounds like *your* brief.
+            const { data } = await api.post('/ai/briefing', {});
+            const text = data?.transcript || '';
             setTranscript(`${greeting} Here's your read for ${today}.\n\n${text}`);
-            setGeneratedAt(new Date());
+            setSources(data?.sources || null);
+            setGeneratedAt(data?.generatedAt ? new Date(data.generatedAt) : new Date());
         } catch (err) {
-            setError(err.message || 'Could not generate briefing.');
+            const code = err.response?.data?.code;
+            if (code === 'AI_CAP_EXCEEDED') {
+                setError("You've used today's AI prompts. Upgrade to keep generating briefings.");
+            } else {
+                setError(err.response?.data?.error || err.message || 'Could not generate briefing.');
+            }
         } finally {
             setLoading(false);
         }
@@ -166,6 +155,67 @@ const DashboardBriefing = () => {
                     </div>
                 ))}
             </section>
+
+            {sources && (
+                <section className="bg-surface-dark border border-white/5 rounded-2xl p-5">
+                    <p className="text-[10px] uppercase tracking-widest text-text-muted font-bold mb-3">
+                        Inputs used
+                    </p>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-[11px]">
+                        <div>
+                            <p className="text-[9px] uppercase tracking-widest text-text-muted mb-1.5">Watchlist</p>
+                            {sources.watchlist?.length ? (
+                                <ul className="space-y-1">
+                                    {sources.watchlist.slice(0, 5).map((w) => (
+                                        <li key={w.ticker} className="text-text-secondary flex justify-between gap-2">
+                                            <span className="font-bold text-text-primary">{w.ticker}</span>
+                                            <span className="font-mono tabular-nums">
+                                                {w.score === null || w.score === undefined ? '—' : `${w.score >= 0 ? '+' : ''}${w.score}`}
+                                            </span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            ) : (
+                                <p className="text-text-muted">No tickers yet</p>
+                            )}
+                        </div>
+                        <div>
+                            <p className="text-[9px] uppercase tracking-widest text-text-muted mb-1.5">Top exposure</p>
+                            {sources.topExposure?.length ? (
+                                <ul className="space-y-1">
+                                    {sources.topExposure.map((e) => (
+                                        <li key={e.factor} className="text-text-secondary flex justify-between gap-2">
+                                            <span className="uppercase font-bold text-text-primary">{e.factor}</span>
+                                            <span className="font-mono tabular-nums">
+                                                {(e.weight * 100).toFixed(0)}%
+                                            </span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            ) : (
+                                <p className="text-text-muted">No portfolio loaded</p>
+                            )}
+                        </div>
+                        <div>
+                            <p className="text-[9px] uppercase tracking-widest text-text-muted mb-1.5">Macro this week</p>
+                            {sources.upcomingEvents?.length ? (
+                                <ul className="space-y-1">
+                                    {sources.upcomingEvents.slice(0, 4).map((e) => (
+                                        <li key={`${e.type}-${e.date}`} className="text-text-secondary flex justify-between gap-2">
+                                            <span className="uppercase font-bold text-text-primary">{e.type}</span>
+                                            <span className="font-mono tabular-nums text-text-muted">
+                                                {new Date(e.date + 'T12:00:00Z').toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                                            </span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            ) : (
+                                <p className="text-text-muted">Nothing scheduled</p>
+                            )}
+                        </div>
+                    </div>
+                </section>
+            )}
 
             <p className="text-[10px] uppercase tracking-widest text-text-muted text-center pt-4">
                 Browser TTS today · Studio-quality voice via ElevenLabs in next infra update

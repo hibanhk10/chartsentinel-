@@ -861,6 +861,106 @@ export function registerSignalRoutes(app) {
     }
   });
 
+  // ── Real anomaly scanner ──
+  // Computes z-scores for return + volume per ticker over the screener
+  // universe and returns the top-ranked surprises. Heavy fetches go
+  // through fetchYahooHistory which caches per-ticker for 6 hours, so
+  // the second call in a window is fast even at universe scale.
+  // ?narrate=true tacks on LLM-generated one-liners (single batched
+  // call). Cached for 20 minutes overall.
+  app.get('/api/signals/anomalies', async (req, res) => {
+    try {
+      const threshold = Math.max(1.5, Math.min(parseFloat(req.query.threshold) || 2.0, 4.0));
+      const max = Math.max(5, Math.min(parseInt(req.query.limit, 10) || 25, 50));
+      const narrate = String(req.query.narrate || '').toLowerCase() === 'true';
+
+      const cacheKey = `anomalies_${threshold}_${max}_${narrate ? 'n' : 'r'}`;
+      const cached = cache.get(cacheKey);
+      if (cached) return res.json(cached);
+
+      const { detectTickerAnomaly, rankAnomalies } = await import('../lib/anomaly.js');
+
+      // Batched parallel fetches — Yahoo will rate-limit a fully-parallel
+      // 88-way fan-out. 8 at a time keeps the wall-clock reasonable
+      // (<10s typical) and well under the upstream limit.
+      const batchSize = 8;
+      const results = [];
+      for (let i = 0; i < ALL_TICKERS.length; i += batchSize) {
+        const batch = ALL_TICKERS.slice(i, i + batchSize);
+        const rows = await Promise.all(
+          batch.map(async (ticker) => {
+            try {
+              const bars = await fetchYahooHistory(ticker, 1).catch(() => null);
+              if (!bars) return null;
+              return detectTickerAnomaly(ticker, bars);
+            } catch {
+              return null;
+            }
+          }),
+        );
+        for (const r of rows) if (r) results.push(r);
+      }
+
+      const ranked = rankAnomalies(results, threshold).slice(0, max);
+
+      let narrated = ranked;
+      if (narrate && ranked.length > 0) {
+        try {
+          const { narrateAnomalies } = await import('../services/ai-narrate.service.js');
+          narrated = await narrateAnomalies(ranked);
+        } catch (err) {
+          console.warn('[anomalies] narration failed', err?.message);
+        }
+      }
+
+      const payload = {
+        threshold,
+        scanned: results.length,
+        count: narrated.length,
+        rows: narrated,
+      };
+      cache.set(cacheKey, payload, 20 * 60 * 1000);
+      res.json(payload);
+    } catch (err) {
+      console.error('[signals] anomalies error', err);
+      res.status(500).json({ error: 'Failed to scan for anomalies' });
+    }
+  });
+
+  // ── Catalysts (macro calendar + earnings stubs, AI-captioned) ──
+  // Wraps the macro calendar and optionally attaches a one-line LLM
+  // caption per event. Captions are cached for 6 hours so the LLM
+  // budget isn't burnt on every refresh.
+  app.get('/api/signals/catalysts', async (req, res) => {
+    try {
+      const days = Math.min(Math.max(parseInt(req.query.days, 10) || 60, 7), 180);
+      const narrate = String(req.query.narrate || '').toLowerCase() === 'true';
+      const cacheKey = `catalysts_${days}_${narrate ? 'n' : 'r'}`;
+      const cached = cache.get(cacheKey);
+      if (cached) return res.json(cached);
+
+      const { getMacroCalendar } = await import('../lib/macro-calendar.js');
+      const events = getMacroCalendar({ days });
+
+      let captioned = events;
+      if (narrate && events.length > 0) {
+        try {
+          const { narrateCatalysts } = await import('../services/ai-narrate.service.js');
+          captioned = await narrateCatalysts(events);
+        } catch (err) {
+          console.warn('[catalysts] narration failed', err?.message);
+        }
+      }
+
+      const payload = { days, count: captioned.length, events: captioned };
+      cache.set(cacheKey, payload, 6 * 60 * 60 * 1000);
+      res.json(payload);
+    } catch (err) {
+      console.error('[signals] catalysts error', err);
+      res.status(500).json({ error: 'Failed to load catalysts' });
+    }
+  });
+
   // ── Macro calendar (FOMC / CPI / NFP / ECB / BoE) ──
   // Returns the upcoming events in the next N days. Public — used by
   // both the dashboard widget and the marketing-site teaser.

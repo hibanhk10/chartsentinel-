@@ -1,95 +1,86 @@
 import { useEffect, useMemo, useState } from 'react';
+import { API_CONFIG } from '../../config/api';
 
-// Catalyst Cockpit — calendar of upcoming macro/earnings catalysts with
-// live countdowns and the implied move the options market is currently
-// pricing in. Implied moves are mocked here (would come from an options
-// data provider like OptionMetrics or Tradier); the dates and event
-// types are real upcoming 2026 prints, so the countdown and ordering
-// stay correct as the page is opened day-to-day.
+// Catalyst Cockpit — pulls /api/signals/catalysts which wraps the
+// macro calendar (FOMC, CPI, NFP, ECB, BoE) with optional LLM-
+// generated one-line captions per event. Implied moves are gone — we
+// don't have a live options data provider, and a faked column on a
+// real page hurts the user's trust more than helps. Replaced with the
+// AI caption + an event-type chip that maps to its colour tier.
 
 const CATEGORIES = [
-    { id: 'all', label: 'All' },
-    { id: 'fed', label: 'Fed' },
-    { id: 'data', label: 'Macro Data' },
-    { id: 'earnings', label: 'Earnings' },
-    { id: 'auction', label: 'Treasury' },
-    { id: 'central', label: 'Other CBs' },
+    { id: 'all',  label: 'All', types: null },
+    { id: 'fed',  label: 'Fed', types: ['fomc'] },
+    { id: 'cpi',  label: 'Inflation', types: ['cpi'] },
+    { id: 'jobs', label: 'Jobs', types: ['nfp'] },
+    { id: 'cb',   label: 'Other CBs', types: ['ecb', 'boe'] },
 ];
 
-// Hand-curated calendar. Update each quarter; the component itself
-// is self-pruning — past events drop off the list automatically.
-const CATALYSTS = [
-    { id: 'fomc-may',  date: '2026-05-07T18:00:00Z', category: 'fed',     title: 'FOMC Decision',     impliedMove: 1.4, assets: ['SPX', 'DXY', 'GOLD', 'BTC'], note: 'Markets price 64% no-cut, 36% 25bp cut. Dot plot revised upward last meeting.' },
-    { id: 'nfp-may',   date: '2026-05-01T12:30:00Z', category: 'data',    title: 'US Nonfarm Payrolls', impliedMove: 0.8, assets: ['DXY', 'TLT', 'SPX'],          note: 'Consensus +175k. Revisions watched after last month\'s -45k benchmark cut.' },
-    { id: 'cpi-may',   date: '2026-05-13T12:30:00Z', category: 'data',    title: 'US CPI (April)',     impliedMove: 1.1, assets: ['DXY', 'TLT', 'GOLD'],         note: 'Core YoY consensus 2.9%. Sticky-services component is the read.' },
-    { id: 'aapl-q2',   date: '2026-05-01T20:30:00Z', category: 'earnings', title: 'AAPL Q2 Earnings',   impliedMove: 4.2, assets: ['AAPL', 'NDX'],                note: 'Services growth + China gross-margin guide are the swing factors.' },
-    { id: 'nvda-q1',   date: '2026-05-21T20:20:00Z', category: 'earnings', title: 'NVDA Q1 Earnings',   impliedMove: 7.6, assets: ['NVDA', 'SOXX', 'NDX'],        note: 'Hyperscaler capex commentary set the tone for the entire AI complex.' },
-    { id: 'ecb-jun',   date: '2026-06-04T11:45:00Z', category: 'central', title: 'ECB Decision',        impliedMove: 0.6, assets: ['EUR', 'BUND'],                note: 'Lagarde signalled patience; market prices ~25% chance of June cut.' },
-    { id: 'fomc-jun',  date: '2026-06-17T18:00:00Z', category: 'fed',     title: 'FOMC + SEP',          impliedMove: 1.6, assets: ['SPX', 'DXY', 'GOLD'],        note: 'Quarterly Summary of Economic Projections — dot plot risk both directions.' },
-    { id: 'boj-jun',   date: '2026-06-13T03:00:00Z', category: 'central', title: 'BoJ Decision',        impliedMove: 0.9, assets: ['JPY', 'NKY'],                 note: 'JGB yield-curve normalization path is the focus, not the policy rate.' },
-    { id: 'tsy-10y',   date: '2026-05-13T17:00:00Z', category: 'auction', title: '10Y Treasury Auction', impliedMove: 0.3, assets: ['TLT', 'DXY'],                note: 'Bid-to-cover and indirect take a tell on foreign demand.' },
-    { id: 'pce-may',   date: '2026-05-30T12:30:00Z', category: 'data',    title: 'US Core PCE',          impliedMove: 0.7, assets: ['DXY', 'TLT'],                note: 'Fed\'s preferred inflation measure. 6m annualized run-rate matters more than YoY.' },
-];
+const TYPE_META = {
+    fomc: { label: 'FOMC', tone: 'text-fuchsia-300 bg-fuchsia-500/15 border-fuchsia-400/30' },
+    cpi:  { label: 'CPI',  tone: 'text-amber-300 bg-amber-500/15 border-amber-400/30' },
+    nfp:  { label: 'NFP',  tone: 'text-sky-300 bg-sky-500/15 border-sky-400/30' },
+    ecb:  { label: 'ECB',  tone: 'text-emerald-300 bg-emerald-500/15 border-emerald-400/30' },
+    boe:  { label: 'BoE',  tone: 'text-red-300 bg-red-500/15 border-red-400/30' },
+};
 
 function useCountdown(targetIso) {
     const [now, setNow] = useState(() => Date.now());
     useEffect(() => {
-        const t = setInterval(() => setNow(Date.now()), 1000);
+        const t = setInterval(() => setNow(Date.now()), 60_000);
         return () => clearInterval(t);
     }, []);
-    const diff = new Date(targetIso).getTime() - now;
-    if (diff <= 0) return { past: true, days: 0, hours: 0, mins: 0 };
+    const diff = new Date(targetIso + 'T12:00:00Z').getTime() - now;
+    if (diff <= 0) return { past: true, days: 0, hours: 0 };
     const days = Math.floor(diff / 86_400_000);
     const hours = Math.floor((diff % 86_400_000) / 3_600_000);
-    const mins = Math.floor((diff % 3_600_000) / 60_000);
-    return { past: false, days, hours, mins };
+    return { past: false, days, hours };
 }
 
 function CatalystCard({ event }) {
     const cd = useCountdown(event.date);
-    const moveColor
-        = event.impliedMove >= 5 ? 'text-red-400 border-red-500/30 bg-red-500/10'
-        : event.impliedMove >= 2 ? 'text-amber-400 border-amber-500/30 bg-amber-500/10'
-        : 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10';
+    const meta = TYPE_META[event.type] || {
+        label: event.type.toUpperCase(),
+        tone: 'text-text-primary bg-white/10 border-white/15',
+    };
 
     return (
         <div className="bg-surface-dark border border-white/5 rounded-2xl p-5 hover:border-white/15 transition-colors">
             <div className="flex items-start justify-between gap-3 mb-3">
                 <div>
                     <p className="text-[9px] uppercase tracking-widest text-text-muted font-bold mb-1">
-                        {new Date(event.date).toLocaleString(undefined, {
-                            weekday: 'short', month: 'short', day: 'numeric',
-                            hour: '2-digit', minute: '2-digit', timeZoneName: 'short',
+                        {new Date(event.date + 'T12:00:00Z').toLocaleDateString(undefined, {
+                            weekday: 'short',
+                            month: 'short',
+                            day: 'numeric',
                         })}
                     </p>
-                    <h4 className="text-base font-bold text-white leading-tight">{event.title}</h4>
+                    <h4 className="text-base font-bold text-text-primary leading-tight">
+                        {event.label}
+                    </h4>
                 </div>
-                <span className={`text-[10px] uppercase tracking-widest font-bold px-2 py-1 rounded-full border ${moveColor}`}>
-                    ±{event.impliedMove.toFixed(1)}%
+                <span
+                    className={`text-[10px] uppercase tracking-widest font-bold px-2 py-1 rounded-full border ${meta.tone}`}
+                >
+                    {meta.label}
                 </span>
             </div>
 
-            <p className="text-xs text-text-secondary leading-relaxed mb-4">{event.note}</p>
+            <p className="text-xs text-text-secondary leading-relaxed mb-4 min-h-[2.5rem]">
+                {event.caption || event.notes || 'Watch the print and any forward-guidance shift.'}
+            </p>
 
-            <div className="flex items-center justify-between">
-                <div className="flex flex-wrap gap-1.5">
-                    {event.assets.map((a) => (
-                        <span key={a} className="text-[10px] font-bold text-primary bg-primary/10 border border-primary/20 px-2 py-0.5 rounded-md">
-                            {a}
-                        </span>
-                    ))}
-                </div>
-                <div className="text-right">
-                    {cd.past ? (
-                        <span className="text-[10px] text-text-muted uppercase tracking-widest font-bold">Settled</span>
-                    ) : (
-                        <span className="text-[10px] font-mono text-white tabular-nums">
-                            <span className="text-primary font-bold">{cd.days}</span>d{' '}
-                            <span className="text-primary font-bold">{cd.hours}</span>h{' '}
-                            <span className="text-primary font-bold">{cd.mins}</span>m
-                        </span>
-                    )}
-                </div>
+            <div className="flex items-center justify-end">
+                {cd.past ? (
+                    <span className="text-[10px] text-text-muted uppercase tracking-widest font-bold">
+                        Settled
+                    </span>
+                ) : (
+                    <span className="text-[10px] font-mono text-text-primary tabular-nums">
+                        <span className="text-primary font-bold">{cd.days}</span>d{' '}
+                        <span className="text-primary font-bold">{cd.hours}</span>h
+                    </span>
+                )}
             </div>
         </div>
     );
@@ -97,22 +88,36 @@ function CatalystCard({ event }) {
 
 const DashboardCatalysts = () => {
     const [filter, setFilter] = useState('all');
-    const [now, setNow] = useState(() => Date.now());
+    const [state, setState] = useState({ status: 'loading', events: [] });
 
-    // Tick once a minute so events that pass midnight roll off without a refresh.
     useEffect(() => {
-        const t = setInterval(() => setNow(Date.now()), 60_000);
-        return () => clearInterval(t);
+        let active = true;
+        fetch(`${API_CONFIG.baseURL}/signals/catalysts?days=120&narrate=true`, {
+            headers: API_CONFIG.headers,
+        })
+            .then(async (r) => {
+                const body = await r.json().catch(() => ({}));
+                if (!r.ok) throw new Error(body.error || `HTTP ${r.status}`);
+                return body;
+            })
+            .then((body) => {
+                if (!active) return;
+                setState({
+                    status: 'ready',
+                    events: Array.isArray(body.events) ? body.events : [],
+                });
+            })
+            .catch(() => active && setState({ status: 'error', events: [] }));
+        return () => {
+            active = false;
+        };
     }, []);
 
     const visible = useMemo(() => {
-        const upcoming = CATALYSTS.filter((c) => new Date(c.date).getTime() > now);
-        const filtered = filter === 'all' ? upcoming : upcoming.filter((c) => c.category === filter);
-        return filtered.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-    }, [filter, now]);
-
-    const next = visible[0];
-    const nextCd = useCountdown(next?.date || new Date().toISOString());
+        const cat = CATEGORIES.find((c) => c.id === filter);
+        if (!cat || !cat.types) return state.events;
+        return state.events.filter((e) => cat.types.includes(e.type));
+    }, [state.events, filter]);
 
     return (
         <div className="space-y-8 animate-in fade-in duration-500">
@@ -123,38 +128,15 @@ const DashboardCatalysts = () => {
                         Catalyst Cockpit
                     </span>
                 </div>
-                <h1 className="text-4xl lg:text-5xl font-bold tracking-tight text-white leading-tight mb-3">
-                    What's coming.
+                <h1 className="text-4xl lg:text-5xl font-bold tracking-tight text-text-primary leading-tight mb-3">
+                    What's on the tape.
                 </h1>
                 <p className="text-text-secondary max-w-2xl text-base leading-relaxed">
-                    Macro prints, central-bank decisions, and earnings that move the market.
-                    Implied moves come from the options surface; ±% is the one-day move
-                    currently being priced.
+                    Live macro calendar — FOMC decisions, US CPI + NFP, ECB and BoE meetings.
+                    Each event carries an AI-generated "what to watch" caption so you know the
+                    setup before the print lands.
                 </p>
             </header>
-
-            {next && !nextCd.past && (
-                <section className="relative overflow-hidden rounded-3xl border border-primary/20 bg-gradient-to-br from-primary/15 via-surface-dark to-background-dark p-6">
-                    <div className="flex items-center gap-2 mb-3">
-                        <span className="material-icons text-primary text-base">schedule</span>
-                        <span className="text-[10px] uppercase tracking-widest font-bold text-primary">Next up</span>
-                    </div>
-                    <h2 className="text-2xl font-bold text-white mb-2">{next.title}</h2>
-                    <p className="text-text-secondary text-sm mb-4 max-w-xl">{next.note}</p>
-                    <div className="flex items-center gap-6 font-mono">
-                        {[
-                            { label: 'Days', value: nextCd.days },
-                            { label: 'Hrs',  value: nextCd.hours },
-                            { label: 'Min',  value: nextCd.mins },
-                        ].map((u) => (
-                            <div key={u.label}>
-                                <div className="text-3xl font-bold text-white tabular-nums">{u.value}</div>
-                                <div className="text-[9px] uppercase tracking-widest text-text-muted font-bold">{u.label}</div>
-                            </div>
-                        ))}
-                    </div>
-                </section>
-            )}
 
             <div className="flex flex-wrap gap-2">
                 {CATEGORIES.map((c) => (
@@ -173,19 +155,28 @@ const DashboardCatalysts = () => {
                 ))}
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {visible.map((event) => (
-                    <CatalystCard key={event.id} event={event} />
-                ))}
-                {visible.length === 0 && (
-                    <p className="col-span-full text-center text-text-muted text-sm py-12">
-                        No upcoming catalysts in this category.
-                    </p>
-                )}
-            </div>
+            {state.status === 'loading' && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {[1, 2, 3, 4].map((i) => (
+                        <div key={i} className="h-44 bg-white/5 rounded-2xl animate-pulse" />
+                    ))}
+                </div>
+            )}
+
+            {state.status === 'error' && (
+                <p className="text-red-400 text-sm">Failed to load catalysts.</p>
+            )}
+
+            {state.status === 'ready' && visible.length > 0 && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {visible.map((e) => (
+                        <CatalystCard key={`${e.type}-${e.date}`} event={e} />
+                    ))}
+                </div>
+            )}
 
             <p className="text-[10px] uppercase tracking-widest text-text-muted text-center pt-4">
-                Implied moves are illustrative · feeds via OptionMetrics integration in Q3
+                Macro events generated from official central-bank calendars · AI captions cached 6h
             </p>
         </div>
     );

@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
-import { alert, explainScore, interrogate, sweep, usage } from '../controllers/ai.controller';
-import { optionalAuth } from '../middlewares/auth.middleware';
+import { alert, briefing, explainScore, interrogate, sweep, usage } from '../controllers/ai.controller';
+import { authenticateToken, optionalAuth } from '../middlewares/auth.middleware';
 
 const router = Router();
 
@@ -33,6 +33,9 @@ router.post('/alert', aiLimiter, alert);
 // daily caps) from anonymous (per-IP cap) without forcing a login.
 router.post('/interrogate', aiLimiter, optionalAuth, interrogate);
 router.post('/explain-score', aiLimiter, optionalAuth, explainScore);
+// Briefing requires a signed-in user — it personalises around their
+// watchlist + portfolio, so anonymous calls have nothing to read.
+router.post('/briefing', aiLimiter, authenticateToken, briefing);
 router.get('/usage', optionalAuth, usage);
 
 export default router;

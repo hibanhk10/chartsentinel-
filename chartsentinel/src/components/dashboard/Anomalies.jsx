@@ -1,121 +1,80 @@
 import { useEffect, useMemo, useState } from 'react';
+import { API_CONFIG } from '../../config/api';
 
-// Anomaly Feed — pure surprise detector. Statistical anomalies across
-// equities, crypto, options, and breadth metrics. No thesis, no
-// recommendation; just "this is unusual relative to its own history".
-// Mock entries here mirror what the production scanner emits.
+// Anomaly Feed — wired to /api/signals/anomalies which scans the
+// platform's universe and returns rows where today's return or volume
+// is >2σ from the trailing-30d mean. ?narrate=true asks the LLM to
+// caption the top rows in one batched call. Captions are cached
+// server-side for 20 min so a refresh doesn't re-bill.
 
 const TYPES = [
-    { id: 'all',     label: 'All' },
-    { id: 'options', label: 'Options' },
-    { id: 'volume',  label: 'Volume' },
-    { id: 'tech',    label: 'Technical' },
-    { id: 'breadth', label: 'Breadth' },
+    { id: 'all',    label: 'All' },
+    { id: 'price',  label: 'Price' },
+    { id: 'volume', label: 'Volume' },
 ];
 
-const SEED = [
-    {
-        id: 'an01',
-        type: 'options',
-        title: 'Unusual call volume',
-        ticker: 'AMD',
-        zscore: 4.2,
-        detail: 'May 16 $190 calls — 84,200 contracts vs 30d avg of 6,400. Open interest +312% intraday.',
-        delta: '+312%',
-        time: 'Just now',
-    },
-    {
-        id: 'an02',
-        type: 'volume',
-        title: 'Volume spike, no news',
-        ticker: 'TGT',
-        zscore: 3.8,
-        detail: 'TGT 2x ADV in first hour with no headline catalyst, no analyst note, no halt.',
-        delta: '+218%',
-        time: '8m ago',
-    },
-    {
-        id: 'an03',
-        type: 'tech',
-        title: 'RSI divergence (bearish)',
-        ticker: 'NVDA',
-        zscore: 2.9,
-        detail: 'Higher highs in price, lower highs in 14d RSI. 4 of last 5 instances led to 5d drawdown.',
-        delta: '−',
-        time: '14m ago',
-    },
-    {
-        id: 'an04',
-        type: 'breadth',
-        title: 'Hindenburg Omen triggered',
-        ticker: 'SPX',
-        zscore: 3.4,
-        detail: 'NYSE 52w highs + lows both above 2.2% of issues; McClellan oscillator negative.',
-        delta: '⚠',
-        time: '32m ago',
-    },
-    {
-        id: 'an05',
-        type: 'options',
-        title: 'Put/call ratio collapse',
-        ticker: 'QQQ',
-        zscore: 2.6,
-        detail: 'Daily put/call dropped to 0.41, lowest reading since Jan 2024. Skew flipped to discount.',
-        delta: '−51%',
-        time: '1h ago',
-    },
-    {
-        id: 'an06',
-        type: 'volume',
-        title: 'Dark-pool print cluster',
-        ticker: 'CRWD',
-        zscore: 3.1,
-        detail: '14 prints >50k shares in 90s window, 8.4% above NBBO mid. Suggests institutional accumulation.',
-        delta: '+187%',
-        time: '2h ago',
-    },
-    {
-        id: 'an07',
-        type: 'tech',
-        title: 'Gamma squeeze setup',
-        ticker: 'GME',
-        zscore: 4.6,
-        detail: 'Dealer gamma flipped negative; spot 4% below largest open-interest call wall ($30).',
-        delta: '⚠',
-        time: '3h ago',
-    },
-    {
-        id: 'an08',
-        type: 'breadth',
-        title: 'Sector rotation break',
-        ticker: 'XLE / XLK',
-        zscore: 2.4,
-        detail: '20d ratio breaking 18m downtrend channel. Mirrors Q4 2022 reversal setup.',
-        delta: '↗',
-        time: '4h ago',
-    },
-];
-
-const typeClasses = {
-    options: 'text-fuchsia-400 bg-fuchsia-500/10 border-fuchsia-500/30',
-    volume:  'text-amber-400 bg-amber-500/10 border-amber-500/30',
-    tech:    'text-cyan-300 bg-cyan-500/10 border-cyan-500/30',
-    breadth: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30',
+const TYPE_CLASS = {
+    price:  'text-cyan-300 bg-cyan-500/10 border-cyan-500/30',
+    volume: 'text-amber-400 bg-amber-500/10 border-amber-500/30',
 };
+
+function fmtPct(n) {
+    if (n === null || n === undefined || Number.isNaN(n)) return '—';
+    const sign = n > 0 ? '+' : '';
+    return `${sign}${(n * 100).toFixed(2)}%`;
+}
+
+function fmtZ(n) {
+    if (n === null || n === undefined || Number.isNaN(n)) return '—';
+    return `σ ${n.toFixed(1)}`;
+}
+
+function intensityTone(z) {
+    if (z === null || z === undefined) return 'text-text-muted';
+    if (z >= 4) return 'text-red-400';
+    if (z >= 3) return 'text-amber-400';
+    return 'text-emerald-400';
+}
 
 const DashboardAnomalies = () => {
     const [filter, setFilter] = useState('all');
-    // Tiny tick so timestamps "feel" live.
-    const [, setTick] = useState(0);
+    const [state, setState] = useState({ status: 'loading', rows: [], scanned: 0, threshold: 2 });
+    const [narrate, setNarrate] = useState(true);
+
     useEffect(() => {
-        const t = setInterval(() => setTick((x) => x + 1), 30_000);
-        return () => clearInterval(t);
-    }, []);
+        let active = true;
+        setState((s) => ({ ...s, status: 'loading' }));
+        fetch(
+            `${API_CONFIG.baseURL}/signals/anomalies?threshold=2&limit=25&narrate=${narrate}`,
+            { headers: API_CONFIG.headers },
+        )
+            .then(async (r) => {
+                const body = await r.json().catch(() => ({}));
+                if (!r.ok) throw new Error(body.error || `HTTP ${r.status}`);
+                return body;
+            })
+            .then((body) => {
+                if (!active) return;
+                setState({
+                    status: 'ready',
+                    rows: Array.isArray(body.rows) ? body.rows : [],
+                    scanned: body.scanned || 0,
+                    threshold: body.threshold || 2,
+                });
+            })
+            .catch((err) => {
+                if (!active) return;
+                setState({ status: 'error', rows: [], scanned: 0, threshold: 2, error: err.message });
+            });
+        return () => {
+            active = false;
+        };
+    }, [narrate]);
 
     const visible = useMemo(() => {
-        const base = filter === 'all' ? SEED : SEED.filter((s) => s.type === filter);
-        return [...base].sort((a, b) => b.zscore - a.zscore);
-    }, [filter]);
+        if (filter === 'all') return state.rows;
+        return state.rows.filter((r) => r.type === filter);
+    }, [state.rows, filter]);
 
     return (
         <div className="space-y-8 animate-in fade-in duration-500">
@@ -126,17 +85,17 @@ const DashboardAnomalies = () => {
                         Anomaly Feed
                     </span>
                 </div>
-                <h1 className="text-4xl lg:text-5xl font-bold tracking-tight text-white leading-tight mb-3">
+                <h1 className="text-4xl lg:text-5xl font-bold tracking-tight text-text-primary leading-tight mb-3">
                     What's out of distribution.
                 </h1>
                 <p className="text-text-secondary max-w-2xl text-base leading-relaxed">
-                    Statistical surprises across price, volume, options, and breadth.
-                    Z-score is calculated relative to each ticker's own 30-day history —
-                    a 3.0+ reading means today is in the top 0.13% of that ticker's prints.
+                    Live scan of the covered universe. Z-scores compare today's return and
+                    volume to each ticker's own trailing-30-day history — a 3.0+ reading
+                    means today is in the top 0.13% of that ticker's prints.
                 </p>
             </header>
 
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2 items-center">
                 {TYPES.map((t) => (
                     <button
                         key={t.id}
@@ -151,36 +110,90 @@ const DashboardAnomalies = () => {
                         {t.label}
                     </button>
                 ))}
+                <label className="ml-auto flex items-center gap-2 text-[11px] uppercase tracking-widest font-bold text-text-muted cursor-pointer">
+                    <input
+                        type="checkbox"
+                        checked={narrate}
+                        onChange={(e) => setNarrate(e.target.checked)}
+                        className="accent-primary"
+                    />
+                    AI captions
+                </label>
             </div>
 
-            <div className="space-y-3">
-                {visible.map((a) => {
-                    const tc = typeClasses[a.type];
-                    const intensity
-                        = a.zscore >= 4 ? 'text-red-400'
-                        : a.zscore >= 3 ? 'text-amber-400'
-                        : 'text-emerald-400';
-                    return (
-                        <div key={a.id} className="bg-surface-dark border border-white/5 rounded-2xl p-4 hover:border-white/15 transition-colors">
-                            <div className="flex items-center gap-3 mb-2">
-                                <span className={`text-[9px] uppercase tracking-widest font-bold px-2 py-0.5 rounded-full border ${tc}`}>
-                                    {TYPES.find((t) => t.id === a.type)?.label || a.type}
-                                </span>
-                                <span className="text-base font-bold text-primary">{a.ticker}</span>
-                                <span className="text-xs text-white font-medium">{a.title}</span>
-                                <span className={`ml-auto text-[10px] font-mono font-bold tabular-nums ${intensity}`}>
-                                    σ {a.zscore.toFixed(1)}
-                                </span>
-                                <span className="text-[10px] text-text-muted">{a.time}</span>
+            {state.status === 'loading' && (
+                <div className="space-y-3">
+                    {[1, 2, 3, 4].map((i) => (
+                        <div key={i} className="h-20 bg-white/5 rounded-2xl animate-pulse" />
+                    ))}
+                </div>
+            )}
+
+            {state.status === 'error' && (
+                <p className="text-red-400 text-sm">Failed to load anomalies: {state.error}</p>
+            )}
+
+            {state.status === 'ready' && visible.length === 0 && (
+                <div className="bg-surface-dark border border-white/5 rounded-2xl p-8 text-center">
+                    <p className="text-text-muted text-sm">
+                        Nothing crossed the threshold in the latest scan. Markets are quiet —
+                        or at least, no ticker in the covered universe printed more than
+                        {' '}{state.threshold}σ vs its own history today.
+                    </p>
+                </div>
+            )}
+
+            {state.status === 'ready' && visible.length > 0 && (
+                <div className="space-y-3">
+                    {visible.map((a) => {
+                        const tc = TYPE_CLASS[a.type] || TYPE_CLASS.price;
+                        return (
+                            <div
+                                key={`${a.ticker}-${a.asOf}`}
+                                className="bg-surface-dark border border-white/5 rounded-2xl p-4 hover:border-white/15 transition-colors"
+                            >
+                                <div className="flex items-center gap-3 mb-2">
+                                    <span
+                                        className={`text-[9px] uppercase tracking-widest font-bold px-2 py-0.5 rounded-full border ${tc}`}
+                                    >
+                                        {a.type}
+                                    </span>
+                                    <span className="text-base font-bold text-primary">{a.ticker}</span>
+                                    <span className="text-xs text-text-secondary tabular-nums">
+                                        {fmtPct(a.return)}
+                                    </span>
+                                    <span
+                                        className={`ml-auto text-[10px] font-mono font-bold tabular-nums ${intensityTone(
+                                            a.maxZ,
+                                        )}`}
+                                    >
+                                        {fmtZ(a.maxZ)}
+                                    </span>
+                                    <span className="text-[10px] text-text-muted">
+                                        {a.asOf ? new Date(a.asOf).toLocaleDateString() : '—'}
+                                    </span>
+                                </div>
+                                <p className="text-xs text-text-secondary leading-relaxed">
+                                    {a.caption ? (
+                                        a.caption
+                                    ) : (
+                                        <>
+                                            Return z {fmtZ(a.returnZ)} · Volume z {fmtZ(a.volumeZ)}.
+                                            Unusual print relative to {a.ticker}'s own trailing-30d
+                                            distribution.
+                                        </>
+                                    )}
+                                </p>
                             </div>
-                            <p className="text-xs text-text-secondary leading-relaxed">{a.detail}</p>
-                        </div>
-                    );
-                })}
-            </div>
+                        );
+                    })}
+                </div>
+            )}
 
             <p className="text-[10px] uppercase tracking-widest text-text-muted text-center pt-4">
-                Sample anomalies · Live scanner connects to options + tape feeds in next data update
+                {state.status === 'ready'
+                    ? `${state.scanned} tickers scanned · threshold ${state.threshold}σ`
+                    : 'Scanning…'}
             </p>
         </div>
     );
